@@ -17,7 +17,7 @@ import { StardriftPlayer, openSongZip } from './engine/src/index.js'; // (by pat
 import { songFor } from './music.js';
 import { W, H, GROUND, PALETTES, COLOR, FOOT, ANIMALS, TRUNK, animal, moveBody, stride, bird, crow,
   FOOD, face, FACE_W, cloud, moon, heart, reaching, moveReaching, star, golden, flushed, shadow, text, textWidth, hits, snap, setScale, idleFrame, jumpFrame, leaps, hitbox, readying,
-  JUMP, GRAVITY, hill, strides, rgb, luma, holdUp, swing, moveHung, hung, hangDepth, heldAt, petted, made } from './art.js';
+  JUMP, GRAVITY, hill, strides, rgb, luma, holdUp, swing, moveHung, hung, hangDepth, heldAt, petted, made, GLYPHS } from './art.js';
 import { course, pace, drain, hardness, nightAt, random, seedOf, chaserOf, SCORE_PER_PX, CROWS_FROM, FAST_FROM, CHASE } from './level.js';
 import { ease } from './animals/kit.js';
 import { BUILT, APP_VERSION } from './version.js';
@@ -276,14 +276,18 @@ const hunter = () => chaserOf(kind); // who chases the animal tonight
 // behind the one it chases on the title, as a shadow (see coming); the others are a surprise
 const met = (keptJSON('met') || []).map(renamed);
 function meet(k) { if (!met.includes(k)) { met.push(k); keep('met', JSON.stringify(met)); } }
-// the animal pack (an in-app purchase, in the iOS app only: lop.pack; see the shop): the first FREE animals are free, the
-// rest still unlocked by playing, but padlocked till it is bought: on the title, a padlock over it (a tap on it opens
-// the shop, behind a parental gate); it can be picked (its song plays), not run with. On the web every animal is free
-// (?shop: as in the app, to try it)
+// the animal packs (in-app purchases, in the iOS app only; see the shop): the first FREE animals are free, the rest come
+// in packs (PACKS: by the App Store's product id, the animals each has), still unlocked by playing, but padlocked till
+// their pack is bought: on the title, a padlock over it (a tap on it opens its pack's shop, behind a parental gate); it
+// can be picked (its song plays), not run with. Which packs are the player's (owned): as the App Store says at each
+// start (see store), kept for a start without it (lop.packs). On the web every animal is free (?shop: as in the app)
 const FREE = 3; // (the rabbit, the guinea pig, the cat)
+const PACKS = { 'de.andreashackel.lophop.animals01': KINDS.slice(FREE, 21) }; // (a later pack: its animals after these)
 const SHOP = !!window.Capacitor || Q.has('shop');
-let bought = kept('pack') === '1';
-const padlocked = (k) => SHOP && !bought && !ALL && KINDS.indexOf(k) >= FREE;
+const owned = new Set((keptJSON('packs') || []).filter((id) => PACKS[id]));
+function own(ids) { owned.clear(); for (const id of ids) if (PACKS[id]) owned.add(id); keep('packs', JSON.stringify([...owned])); }
+const packOf = (k) => Object.keys(PACKS).find((id) => PACKS[id].includes(k));
+const padlocked = (k) => SHOP && !ALL && !!packOf(k) && !owned.has(packOf(k));
 const treatsOf = (k) => (padlocked(k) ? 0 : treats[k] || 0); // (a padlocked one: none shown, none to feed it)
 const FPS = Q.has('fps'); // ?fps: frames a second, and the work of a frame (to check a device; ?hz=120: up to 120, see frame)
 // ?log: each frame that came late or early, took other than a frame's steps (x2; ?hz=120: x1), or long, on the
@@ -498,7 +502,8 @@ stage.addEventListener('pointerdown', (e) => {
   if (naming || scoresOpen()) { startAudio(); return; } // (only their buttons do something)
   if (state === 'title') { // a tap on an animal picks it, a second one (soon after, near it) makes it jump; pressed and moved it is grabbed (see grabbing; the start button runs)
     startAudio();
-    if (lockAt(x, y - SKY) && !held && !launch) { openGate(); return; } // (a padlock: the shop, behind the gate)
+    const locked = lockAt(x, y - SKY);
+    if (locked && !held && !launch) { openGate(packOf(locked)); return; } // (a padlock: its pack's shop, behind the gate)
     if (onTreat(x, y - SKY) && !held && !launch) { feed = { id: e.pointerId, x, y: y - SKY }; faceL = false; hand('grabbing'); return; } // (a treat taken)
     if (tapped && performance.now() - tapped.t < 350 && Math.abs(x - tapped.x) < 12 && Math.abs(y - tapped.y) < 12) { hop(tapped.k); tapped = null; return; }
     const k = y >= 0 && y < VH && !held && animalAt(x);
@@ -660,7 +665,7 @@ const ACTS = {
   'cheat.power': () => { if (state === 'run') startPower(); },
   'cheat.energy': () => { if (state === 'run') energy = 100; },
   'cheat.unlock': () => { const k = KINDS.find((o) => !unlocked(o)); if (k && state === 'title') { unlock(k); gained = null; arriving = k; } },
-  'cheat.buy': () => { bought = true; keep('pack', '1'); },
+  'cheat.buy': () => own(Object.keys(PACKS)),
   'cheat.food': () => { treats[kind] = MAX_TREATS; keep('treats', JSON.stringify(treats)); },
   'cheat.reset': () => { Q.set('reset', ''); location.search = query(); },
 };
@@ -677,13 +682,13 @@ function buttons() {
   // high scores (the credits, the gate, the shop) the one back, after a run with a new high score the one to name it
   const ids = board ? [] : ['sound', 'scores', 'credits', ...(CAN_FULL ? ['full'] : []), ...(state !== 'title' ? ['home'] : [])];
   const row = ids.map((id, i) => ({ id, x: safeL + 4 + i * (BTN + 2), y: 2 }));
-  const mid = board ? { id: 'back', text: 'button.back', main: !board.shop || bought }
+  const mid = board ? { id: 'back', text: 'button.back', main: !board.shop || owned.has(board.shop) }
     : state === 'title' ? (padlocked(kind) ? null : { id: 'start', text: 'button.start', main: true })
     : state === 'ko' && fresh && settled() ? { id: 'name', text: 'end.name_button', main: true } : null;
   if (board?.gate) for (let i = 0; i < 10; i++) { const d = (i + 1) % 10; row.push({ id: `digit${d}`, text: String(d), x: W / 2 - 64 + i * 13, y: SKY - safeT + 50, w: 11, h: 11 }); } // (1 to 9, then 0)
   if (board?.shop) {
-    const buy = store.price ? t('shop.buy_price', { price: store.price }) : t('shop.buy'), restore = t('shop.restore');
-    if (!bought) row.push({ id: 'buy', text: buy, x: Math.round(W / 2 - (textWidth(buy) + 12) / 2), y: SKY - safeT + 30, w: textWidth(buy) + 12, h: 13, main: true });
+    const price = store.prices[board.shop], buy = price ? t('shop.buy_price', { price }) : t('shop.buy'), restore = t('shop.restore');
+    if (!owned.has(board.shop)) row.push({ id: 'buy', text: buy, x: Math.round(W / 2 - (textWidth(buy) + 12) / 2), y: SKY - safeT + 30, w: textWidth(buy) + 12, h: 13, main: true });
     row.push({ id: 'restore', text: restore, x: Math.round(W / 2 - (textWidth(restore) + 8) / 2), y: SKY - safeT + 46, w: textWidth(restore) + 8, h: 11 });
   }
   if (board?.credits && board.runs) row.push({ id: 'share', text: 'button.share', x: W / 2 + 2, y: SKY - safeT + 41, w: 31, h: 11 }); // (the runs: see drawCredits)
@@ -700,7 +705,7 @@ const CHEATS = [
   { id: 'cheat.power', text: 'POWER', when: () => state === 'run' }, // the animal's super power, as from golden food
   { id: 'cheat.energy', text: 'ENERGY', when: () => state === 'run' }, // the energy full again
   { id: 'cheat.unlock', text: 'UNLOCK', when: () => state === 'title' && !ALL && KINDS.some((k) => !unlocked(k)) }, // the next animal, running in
-  { id: 'cheat.buy', text: 'BUY', when: () => state === 'title' && SHOP && !bought && !ALL }, // the animal pack, as if bought
+  { id: 'cheat.buy', text: 'BUY', when: () => state === 'title' && SHOP && !ALL && owned.size < Object.keys(PACKS).length }, // every animal pack, as if bought
   { id: 'cheat.food', text: 'FOOD', when: () => state === 'title' && !padlocked(kind) && (treats[kind] || 0) < MAX_TREATS }, // all the treats the picked one can have
   { id: 'cheat.reset', text: 'RESET', when: () => true }, // the game as the first time (see ?reset), cheats still on
 ];
@@ -1026,34 +1031,64 @@ function drawCredits(pal) {
   text(ctx, t('credits.thanks'), W / 2, 16 + (CREDITS.length + 1) * ROW + 1, pal[7], 'center');
   text(ctx, `VERSION ${APP_VERSION || BUILT}`, W / 2, 58, dim, 'center'); // (which build this is: the app's version, or when the web's was made)
 }
-// The animal pack's shop (the iOS app's, see SHOP), behind a parental gate: a sum for a grown-up, its numbers in words,
+// An animal pack's shop (the iOS app's, see SHOP), behind a parental gate: a sum for a grown-up, its numbers in words,
 // answered on a row of keys (wrong: another sum). Then what the pack has (its animals running by), BUY (its price as
 // the App Store gives it) and RESTORE PURCHASES; the App Store's own sheet takes the payment.
-// store: the App Store, through the iOS app (not connected yet: see PLAN.md). price: the pack's, as the store writes it
-// (null: not known); buy(), restore() → true (the pack is the player's now), false (not: cancelled, nothing to
-// restore), null (no store here; ?cheats: bought at once)
-const store = { price: null, buy: async () => (CHEATING ? true : null), restore: async () => (CHEATING ? false : null) };
+// store: the App Store, through the iOS app's Store plugin (app/ios/App/App/StorePlugin.swift); none on the web (?shop
+// there: nothing to buy; ?cheats: bought at once). prices: each pack's, as the App Store writes it ("2,99 €"), once it
+// said; check(): the packs the player owns, from the App Store (at the start, back in front, in the shop); buy(id) →
+// 'bought', 'pending' (a grown-up to say yes: Ask to Buy), 'cancelled', 'failed', null (no store); restore() →
+// 'restored', 'nothing', 'failed', null
+const native = window.Capacitor?.nativePromise && ((method, options = {}) => window.Capacitor.nativePromise('Store', method, options));
+const store = {
+  prices: {},
+  async check() {
+    if (!native) return;
+    try { own((await native('owned')).ids); } catch {} // (not reached: as kept)
+    if (Object.keys(this.prices).length) return;
+    try { for (const p of (await native('products', { ids: Object.keys(PACKS) })).products) this.prices[p.id] = priceText(p.price); } catch {}
+  },
+  async buy(id) {
+    if (!native) { if (CHEATING) own([...owned, id]); return CHEATING ? 'bought' : null; }
+    const { result } = await native('buy', { id }).catch(() => ({ result: 'failed' }));
+    if (result === 'bought') own([...owned, id]);
+    return result === 'unavailable' ? null : result;
+  },
+  async restore() {
+    if (!native) return CHEATING ? 'nothing' : null;
+    const got = await native('restore').catch(() => ({ ids: [...owned], failed: true }));
+    own(got.ids);
+    return got.failed ? 'failed' : owned.size ? 'restored' : 'nothing';
+  },
+};
+// a price in the font: the App Store's spaces plain, and none at all if it has a letter the font lacks (BUY alone then)
+function priceText(s) {
+  s = String(s).replace(/[\u00a0\u202f\u2009]/g, ' ').toUpperCase();
+  return [...s].every((ch) => GLYPHS[ch]) ? s : null;
+}
+store.check();
+document.addEventListener('visibilitychange', () => { if (!document.hidden) store.check(); }); // (Ask to Buy said yes, meanwhile)
 const NUMBERS = ['gate.four', 'gate.five', 'gate.six', 'gate.seven', 'gate.eight', 'gate.nine']; // (4 to 9: a sum 16 to 81, two digits)
 const newSum = (wrong = false) => ({ a: 4 + Math.floor(rnd() * 6), b: 4 + Math.floor(rnd() * 6), typed: '', wrong });
-// a padlock on the title, at (x, y) in the world (a little round it counts too)
-const lockAt = (x, y) => playable().some((k) => padlocked(k) && at[k] !== undefined && !runs[k]?.on && !jumps[k] && x >= placeX(at[k]) + 7 && x < placeX(at[k]) + 21 && y >= GROUND - 33 && y < GROUND - 18);
-function openGate() { closeScores(); board = { gate: newSum() }; updateMood(); }
+// the animal whose padlock is at (x, y) on the title, in the world (a little round it counts too)
+const lockAt = (x, y) => playable().find((k) => padlocked(k) && at[k] !== undefined && !runs[k]?.on && !jumps[k] && x >= placeX(at[k]) + 7 && x < placeX(at[k]) + 21 && y >= GROUND - 33 && y < GROUND - 18);
+function openGate(pack) { closeScores(); board = { gate: newSum(), pack }; updateMood(); }
 function gateDigit(d) {
   const g = board?.gate;
   if (!g) return;
   g.typed += d; g.wrong = false;
   if (g.typed.length < 2) return;
-  if (+g.typed === g.a * g.b) { board = { shop: true }; updateMood(); }
+  if (+g.typed === g.a * g.b) { board = { shop: board.pack }; updateMood(); store.check(); }
   else board.gate = newSum(true);
 }
+const SAID = { bought: 'shop.thanks', pending: 'shop.pending', failed: 'shop.failed', restored: 'shop.restored', nothing: 'shop.nothing' };
 async function shopDo(what) { // (what: 'buy' or 'restore')
   const b = board;
   if (!b?.shop || b.busy) return;
   b.busy = true; b.said = null;
-  const got = await store[what]();
+  const got = await (what === 'buy' ? store.buy(b.shop) : store.restore());
   b.busy = false;
-  if (got) { bought = true; keep('pack', '1'); }
-  b.said = got === null ? t('shop.unavailable') : got ? t(what === 'buy' ? 'shop.thanks' : 'shop.restored') : what === 'restore' ? t('shop.nothing') : null;
+  b.said = got === null ? t('shop.unavailable') : SAID[got] ? t(SAID[got]) : null; // (cancelled: nothing said)
 }
 function drawGate(pal) {
   const g = board.gate, ink = pal[COLOR.INK];
@@ -1069,18 +1104,18 @@ function drawGate(pal) {
 function drawShop(pal) {
   const ink = pal[COLOR.INK], dim = pal[COLOR.DIM];
   text(ctx, t('shop.title'), W / 2, 4, ink, 'center');
-  text(ctx, t('shop.more', { n: KINDS.length - FREE }), W / 2, 13, dim, 'center');
+  text(ctx, t('shop.more', { n: PACKS[board.shop].length }), W / 2, 13, dim, 'center');
   text(ctx, t('shop.once'), W / 2, 21, dim, 'center');
-  if (bought) text(ctx, t('shop.owned'), W / 2, 34, pal[7], 'center');
+  if (owned.has(board.shop)) text(ctx, t('shop.owned'), W / 2, 34, pal[7], 'center');
   if (board.said) help(board.said, pal, pal[7]);
   for (const [k, x, st] of parade()) if (x >= viewL - 40 && x <= viewR) animal(k, 'run', st.frame, { body: paraders[k] }).draw(ctx, x, GROUND - FOOT - st.lift, pal);
 }
-// the pack's animals running by in the shop, the first ahead, round and round: [kind, x, its stride] each; their ears,
+// the shop's pack's animals running by, the first ahead, round and round: [kind, x, its stride] each; their ears,
 // tails and trunks swung as they run (paraders: their bodies, see moveBody; one coming round again starts afresh there)
 const PARADE_GAP = 40, PARADE_SPEED = 30;
 const paraders = {};
 function parade() {
-  const paid = KINDS.slice(FREE), loop = paid.length * PARADE_GAP;
+  const paid = PACKS[board.shop], loop = paid.length * PARADE_GAP;
   return paid.map((k, i) => [k, Math.round((((blinkT * PARADE_SPEED - i * PARADE_GAP) % loop) + loop) % loop) - 40, stride(k, (blinkT * strides(k, PARADE_SPEED) + i * 0.37) % 1)]);
 }
 function updateParade(dt) {

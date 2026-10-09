@@ -1,0 +1,40 @@
+{
+  "identifier" : "6F1C2A4E",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "2.99",
+      "familyShareable" : true,
+      "internalID" : "6754000001",
+      "localizations" : [
+        {
+          "description" : "18 more animals, each with its own power and song",
+          "displayName" : "Animal pack",
+          "locale" : "en_US"
+        },
+        {
+          "description" : "18 weitere Tiere, jedes mit eigener Kraft und eigenem Lied",
+          "displayName" : "Tierpaket",
+          "locale" : "de_DE"
+        }
+      ],
+      "productID" : "de.andreashackel.lophop.animals01",
+      "referenceName" : "Animals 01",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_failTransactionsEnabled" : false,
+    "_locale" : "de_DE",
+    "_storefront" : "DEU"
+  },
+  "subscriptionGroups" : [
+
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

@@ -73,7 +73,9 @@ shop.owned = The animal pack is yours
 shop.thanks = Thank you! Every animal can be won now
 shop.restored = Purchases restored
 shop.nothing = Nothing to restore
-shop.unavailable = The shop is not open yet
+shop.pending = A grown-up has to say yes first
+shop.failed = That did not work - try again later
+shop.unavailable = The shop is closed - try again later
 
 # the animals: the name, and with its article (the {the} above)
 animal.rabbit = Rabbit

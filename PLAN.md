@@ -68,8 +68,12 @@ the treats it brings home.
 - The animal pack (in-app purchase): the first three free, the rest bought, still unlocked by playing; Restore
   Purchases, and a parental gate if in the Kids category. Built so far: the next one shown as a shadow only once it has
   chased (lop.met), no "?"; the dog (and any after the third) joins at dawn as before, padlocked on the title till the
-  pack is bought (lop.pack, the BUY cheat): it can be picked, not run with, fed or moved, last in the row. Built too: in the iOS app only
+  pack is bought (lop.packs, the BUY cheat): it can be picked, not run with, fed or moved, last in the row. Built too: in the iOS app only
   (on the web every animal is free; ?shop to try it), a tap on the padlock opens the shop behind a parental gate (a
-  sum in words for a grown-up, answered on keys), the pack's animals running by, BUY and RESTORE PURCHASES. Still to
-  do: the StoreKit bridge (a small Capacitor plugin: the price, the purchase, restoring, checking the receipt at
-  start), its product in App Store Connect, and a price the pixel font can write (no € or $ in it yet).
+  sum in words for a grown-up, answered on keys), the pack's animals running by, BUY and RESTORE PURCHASES; the
+  StoreKit bridge (app/ios/App/App/StorePlugin.swift, StoreKit 2: the price, the purchase, Ask to Buy, restoring,
+  what is owned as the App Store says at each start), packs by product id (PACKS: de.andreashackel.lophop.animals01,
+  the 4th to the 21st animal; a later pack: one more line), prices in the font (, € $ £ ¥; other money: BUY alone),
+  and Products.storekit to try it in Xcode. Still to do: the Paid Apps agreement and the product in App Store
+  Connect, a sandbox tester, and the first purchase sent for review with an app version. With a second pack, the
+  shop's "one purchase - nothing else to buy" is no longer true.

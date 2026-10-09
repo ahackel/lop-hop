@@ -72,7 +72,9 @@ shop.owned = Das Tierpaket gehört dir
 shop.thanks = Danke! Jetzt kannst du alle Tiere gewinnen
 shop.restored = Käufe wiederhergestellt
 shop.nothing = Nichts wiederherzustellen
-shop.unavailable = Der Laden ist noch nicht offen
+shop.pending = Ein Erwachsener muss erst zustimmen
+shop.failed = Das hat nicht geklappt - versuch es später
+shop.unavailable = Der Laden ist zu - versuch es später
 
 # the animals: the name, and with its article (the {the} above)
 animal.rabbit = Hase
