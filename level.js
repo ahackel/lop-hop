@@ -17,16 +17,16 @@ import { W, GROUND, ANIMALS, DUCK_UNDER, CROW_BOTTOM, JUMP, GRAVITY, FOOD, LANDS
 
 // ------------------------------------------------------------------------------------------------------------- tuning
 export const START_SPEED = 110, MAX_SPEED = 255, ACCEL = 3; // art pixels per second (per second, as it runs: see pace)
-export const SCORE_PER_PX = 0.1;
+export const SCORE_PER_PX = 0.17; // (with the top speed at 200: a day and its night about 50 seconds, points a second as when it went up to 400)
 export const BRANCHES_FROM = 150, CROWS_FROM = 300, FAST_FROM = 700; // the scores where branches, crows (tension) and speed (action) begin
-// a day's run (points), then the night's (times the animal's speed: about as long whoever runs), the chaser coming
+// a day's run (points), then the night's (about as long whoever runs: they all run near the top speed), the chaser coming
 // that far into it, the sky paling that far before its end (dawn: the den); an animal after the rabbit starts that
 // much harder (in days)
 export const DAY = 1000, NIGHT = 600, HUNT = 170, PALE = 220, HEAD = 0.06;
 // for every day of hardness: faster (px/s), gaps closer (down to MIN_TIGHT), more crows and branches (up to their
 // most), packs more often, food rarer (down to LEAST_FOOD), more tiring
 const DAY_SPEED = 22, DAY_TIGHT = 0.07, MIN_TIGHT = 0.5, DAY_CROWS = 0.035, MOST_CROWS = 0.42, MOST_BRANCHES = 0.62, DAY_PACKS = 0.25;
-const DAY_FOOD = 0.05, LEAST_FOOD = 0.45, DRAIN = 2, DAY_DRAIN = 0.27;
+const DAY_FOOD = 0.05, LEAST_FOOD = 0.45, DRAIN = 1.85, DAY_DRAIN = 0.27;
 export const CHASE = 1.12; // the world goes faster while the chaser is after the animal
 const REACT = 0.15; // seconds: what a gap leaves, at the least, to act after a jump lands (or a duck ends)
 // golden food: the first some 250 points in, then one every GOLD_SECS of running (8 s of super power), a little
@@ -38,19 +38,22 @@ const T = (kind) => ANIMALS[kind];
 // who chases an animal at night (and joins it, the first time it gets away till dawn): the next one (see ANIMALS); the
 // last, the rabbit
 export const chaserOf = (k) => KINDS[KINDS.indexOf(k) + 1] || 'rabbit';
-const cycle = (kind) => DAY + NIGHT * T(kind).speed; // (points: a day and its night)
+const cycle = () => DAY + NIGHT; // (points: a day and its night)
 // how much harder than the start (days), s points into a run
 export const hardness = (kind, s) => s / cycle(kind) + KINDS.indexOf(kind) * HEAD;
 // the day s points into a run is in (1, 2, …), and where that day's night falls, where its chaser comes, where the
 // sky pales, where it ends; the land an animal runs in
 export const dayOf = (kind, s) => Math.floor(s / cycle(kind)) + 1;
 export const landOf = (kind) => LANDS[KINDS.indexOf(kind) % LANDS.length]; // (each animal's obstacles, round the lands: see LANDS)
-export const nightAt = (kind, day) => { const from = (day - 1) * cycle(kind) + DAY; return { from, hunt: from + HUNT * T(kind).speed, pale: day * cycle(kind) - PALE * T(kind).speed, to: day * cycle(kind) }; };
+export const nightAt = (kind, day) => { const from = (day - 1) * cycle(kind) + DAY; return { from, hunt: from + HUNT, pale: day * cycle(kind) - PALE, to: day * cycle(kind) }; };
 // how fast the world goes by, d art pixels into a run (before the chase, a bump, a super power): speeding up as it
 // runs, up to a top that rises with every day, and past KNEE ever more slowly, never reaching TOP (an animal's own
-// speed too): at 60 frames a second the eye follows what comes up to some 1½ screens a second (the chase on top), and
-// faster it is a smear (whatever the screen does: the frame is held while the eye moves on)
-export const KNEE = 300, TOP = 400;
+// speed too): at 60 frames a second the eye follows what comes up to some 200 art pixels a second, two thirds of a screen
+// (tried on devices: faster, the world and what is in it smear, whatever the screen does: the frame is held while the
+// eye moves on)
+export let KNEE = 150, TOP = 200;
+// another top (to try one, see ?top in game.js): never reaching top, ever more slowly from three quarters of it on
+export function topSpeed(top) { TOP = top; KNEE = top * 0.75; }
 const bend = (v) => (v <= KNEE ? v : KNEE + (TOP - KNEE) * (1 - Math.exp((KNEE - v) / (TOP - KNEE))));
 export const pace = (kind, d) => bend(Math.min(Math.sqrt(START_SPEED ** 2 + 2 * ACCEL * d), MAX_SPEED + DAY_SPEED * hardness(kind, d * SCORE_PER_PX)) * T(kind).speed);
 // energy lost per second (of 100)
@@ -119,7 +122,11 @@ export function course(kind) {
       items.push({ kind: 'branch', sprite: branch(rnd, land.leaves), dx: 0, y: 0, fly: 0, duck: true });
       return { items, at, w: items[0].sprite.w, h: 0, needs: 'duck', fly: 0, rnd };
     }
-    const k = rnd(), sp = k < 0.3 ? land.other(rnd) : s > 150 && rnd() < 0.35 ? land.big(rnd) : land.small(rnd);
+    const k = rnd();
+    let sp = k < 0.3 ? land.other(rnd) : s > 150 && rnd() < 0.35 ? land.big(rnd) : land.small(rnd);
+    // one too tall and wide for the animal to stay over it as long as it takes to pass it, at this speed (a heavy one
+    // at the top speed: a boulder, a spire): a small one instead
+    if (sp.w + bodyOf(kind) > 0.85 * v * airOver(kind, tall(sp))) sp = land.small(rnd);
     items.push({ kind: 'ground', sprite: sp, dx: 0, y: GROUND - sp.h + 1, fly: 0 });
     let w = sp.w, ht = tall(sp);
     // at speed, small ones come in twos and threes (as many as one jump clears, with room to time it)

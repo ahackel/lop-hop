@@ -17,8 +17,8 @@ import { StardriftPlayer, openSongZip } from './engine/src/index.js'; // (by pat
 import { songFor } from './music.js';
 import { W, H, GROUND, PALETTES, COLOR, FOOT, ANIMALS, TRUNK, animal, moveBody, stride, bird, crow,
   FOOD, face, FACE_W, cloud, moon, heart, reaching, moveReaching, star, golden, flushed, shadow, text, textWidth, hits, snap, setScale, idleFrame, jumpFrame, leaps, hitbox, readying,
-  JUMP, GRAVITY, hill, strides, rgb, luma, holdUp, swing, moveHung, hung, hangDepth, heldAt, petted, made, GLYPHS } from './art.js';
-import { course, pace, drain, hardness, nightAt, random, seedOf, chaserOf, SCORE_PER_PX, CROWS_FROM, FAST_FROM, CHASE } from './level.js';
+  JUMP, GRAVITY, hill, strides, rgb, luma, holdUp, swing, moveHung, hung, hangDepth, heldAt, petted, made, GLYPHS, front, hasFront } from './art.js';
+import { course, pace, topSpeed, drain, hardness, nightAt, random, seedOf, chaserOf, SCORE_PER_PX, CROWS_FROM, FAST_FROM, CHASE } from './level.js';
 import { ease } from './animals/kit.js';
 import { BUILT, APP_VERSION } from './version.js';
 import { t } from './lang.js'; // (what it writes, in the player's language)
@@ -84,10 +84,14 @@ const T = () => ANIMALS[kind]; // the animal's dials (see art.js)
 // an animal's name, and with its article (THE RABBIT), in the player's language
 const nameOf = (k) => t(`animal.${k}`), theOf = (k) => t(`animal.${k}.the`);
 for (const p of document.querySelectorAll('#rotate p')) p.textContent = t('page.rotate'); // (the page's only words the player sees)
-const Q = new URLSearchParams(location.search); // (the address's switches: ?auto, ?fps, ?all, ?treats, ?scale, ?hz, ?log, ?reset, ?cheats)
+const Q = new URLSearchParams(location.search); // (the address's switches: ?auto, ?fps, ?all, ?treats, ?scale, ?hz, ?log, ?reset, ?cheats, ?top)
 // ?cheats: a row of buttons at the bottom of the screen, to get somewhere quickly (see CHEATS); its runs are not
 // written down (they would not say how the game plays)
 const CHEATING = Q.has('cheats');
+// ?top=250: the world never faster than that (art pixels a second; from three quarters of it on, ever more slowly), for
+// a visit, to try a top speed (see pace in level.js); its runs are not written down either
+const TRY_TOP = +Q.get('top') || 0;
+if (TRY_TOP) topSpeed(TRY_TOP);
 const query = () => [...Q].map(([k, v]) => (v ? `${k}=${encodeURIComponent(v)}` : k)).join('&'); // (the switches as they were written: ?cheats, not ?cheats=)
 
 // what this browser keeps (localStorage, lop.<name>; in a private window perhaps nothing): get, set (null: removed)
@@ -201,7 +205,7 @@ function launchRun() { if (!launch) launch = { t: 0, x: 0, v: 120, phase: 0 }; }
 function start() {
   launch = null; fadeIn = FADE_IN;
   gained = null;
-  rec = AUTO || CHEATING ? null : newRec();
+  rec = AUTO || CHEATING || TRY_TOP ? null : newRec();
   countRun();
   beat = best(); // the best so far: passing it plays a fanfare
   if (kind === newKind) { newKind = null; keep('new', null); } // (no longer new)
@@ -859,7 +863,7 @@ sendRuns();
 // first-run (the first in this browser), unlocked/<animal> (one joins at dawn)
 const COUNTER = 'https://lophop.goatcounter.com/count';
 if (Q.has('nocount')) keep('nocount', Q.get('nocount') === 'off' ? null : '1');
-const COUNTING = /(^|\.)andreashackel\.de$/.test(location.hostname) && !window.Capacitor && !AUTO && !CHEATING && !ALL && !CHEAT_TREATS && !Q.has('shop') && !kept('nocount');
+const COUNTING = /(^|\.)andreashackel\.de$/.test(location.hostname) && !window.Capacitor && !AUTO && !CHEATING && !TRY_TOP && !ALL && !CHEAT_TREATS && !Q.has('shop') && !kept('nocount');
 function count(path, event = true) {
   if (!COUNTING) return;
   const q = { p: path, t: document.title, s: `${screen.width},${screen.height},${window.devicePixelRatio || 1}`, rnd: Math.random().toString(36).slice(2) };
@@ -1001,6 +1005,7 @@ function drawBoard(pal) {
   (board.credits ? drawCredits : drawScores)(pal);
   if (gained && state === 'ko' && !board.credits) help(t('end.unlocked', { name: nameOf(gained) }), pal, pal[7]); // (after a run: see hud)
   if (!sit) return;
+  if (turning('sit', kind, sit.on ? sit.dir : 1)) return front(kind, { blink: blinking() }).draw(ctx, Math.round(sit.x), GROUND - FOOT, pal); // (turning round)
   if (!sit.on) return animal(kind, 'idle', idleFrame(kind, blinkT), { blink: blinking() }).draw(ctx, Math.round(sit.x), GROUND - FOOT, pal);
   const st = stride(kind, sit.phase), x = Math.round(sit.x); // running there (the way it goes)
   if (sit.dir < 0) { ctx.save(); ctx.translate(2 * x + 26, 0); ctx.scale(-1, 1); }
@@ -1223,7 +1228,7 @@ function update(dt) {
   }
   fadeIn = Math.max(0, fadeIn - dt);
   if (state === 'title' && chew > 0 && !runs[kind]?.on && at[kind] !== undefined) { const [tx, ty, a, look, nod] = chewPose(); moveReaching(body, kind, tx, ty, a, look, W / 2 - 13, GROUND - FOOT, dt, nod); } // (chewing: see standing)
-  else if (state === 'title' && (treatAt() || begging) && !runs[kind]?.on && at[kind] !== undefined) moveReaching(body, kind, ...reachTo(placeX(at[kind]), treatAt() || begAt()), reach.amount, reach.look, W / 2 - 13, GROUND - FOOT, dt, reach.sniff); // (reaching for a treat: see standing)
+  else if (state === 'title' && (treatAt() || begging) && !runs[kind]?.on && at[kind] !== undefined) moveReaching(body, kind, ...reachTo(placeX(at[kind]), treatAt() || begAt()), reach.amount, reach.look, W / 2 - 13, GROUND - FOOT - reach.alt, dt, reach.sniff); // (reaching for a treat: see standing)
   else { const [pose, f] = animalPose(); moveBody(body, kind, pose, f, state === 'title' ? W / 2 - 13 + (launch?.x || 0) : RUN_X, state === 'title' ? GROUND - FOOT : animalY(), state === 'run' ? speed : 0, dt); } // (on the title: where it settles, so sliding there does not fling its ears)
   if (state === 'ko') koT += dt;
   if (AUTO && state === 'ko' && koT > 3) start();
@@ -1477,19 +1482,38 @@ let faceL = false;
 // (where it is, in its box: as it faces)
 function reachTo(x, [tx, ty]) {
   if (tx < x + 10) faceL = true; else if (tx > x + 16) faceL = false;
-  return [faceL ? x + 26 - tx : tx - x, ty - (GROUND - FOOT)];
+  return [faceL ? x + 26 - tx : tx - x, ty - (GROUND - FOOT - reach.alt)]; // (hopping after it: from up there)
 }
 const reachFor = (x, at, eating = false) => reaching(kind, ...reachTo(x, at), eating, reach.amount, reach.look, body, eating ? 0 : reach.sniff); // (its ears, its tail: see update)
 // how it goes after a treat held out: in tries, as an idle animation, not all the time. A try: it looks at it, stretches
 // toward it, strains after it a moment (bobbing a little), sinks back; then it rests, still eyeing it, a second or two
 // (some of each try's lengths a little different), and tries again. One let go: after it at once, all out. With none
-// out, now and then (every 4 to 10 s) it tries once for its treats over it (begging: looking away again after)
-const reach = { t: 0, rest: 0.25, amount: 0, look: 0, strain: 0.7, sniff: 0 };
+// out, now and then (every 4 to 10 s) it tries once for its treats over it (begging: looking away again after). One held
+// out of its reach, over its mouth: as it strains, now and then (HOP_TRIES of the tries) it hops up after it too, a
+// little short of it (alt, v: how high it is, how fast it goes up; hopped: this try's chance had)
+const reach = { t: 0, rest: 0.25, amount: 0, look: 0, strain: 0.7, sniff: 0, alt: 0, v: 0, hopped: false };
+const HOP_TRIES = 0.6, HOP_OVER = 4, HOP_MAX = 12; // (HOP_OVER: art pixels over its mouth before it hops; HOP_MAX: the highest it hops)
+function hopAfter() {
+  const x = placeX(at[kind]), gap = mouthOf(reachFor(x, [feed.x, feed.y]), x)[1] - feed.y; // (how far over its mouth it is)
+  if (gap <= HOP_OVER || rnd() >= HOP_TRIES) return;
+  reach.v = Math.sqrt(2 * GRAVITY * ANIMALS[kind].gravity * Math.min(HOP_MAX, gap * 0.7));
+}
+// the hop: up, and down again, landing with a puff of dust
+function stepHop(dt) {
+  if (!reach.v && !reach.alt) return;
+  reach.v -= GRAVITY * ANIMALS[kind].gravity * dt; reach.alt += reach.v * dt;
+  if (reach.alt > 0) return;
+  reach.alt = reach.v = 0;
+  if (at[kind] === undefined) return;
+  const x = placeX(at[kind]);
+  for (let i = 0; i < 4; i++) { const side = i % 2 ? 1 : -1; parts.push({ x: x + 13 + side * (4 + rnd() * 4), y: GROUND - 1, vx: side * (15 + rnd() * 20), vy: -8 - rnd() * 15, life: 0.25, color: COLOR.FAINT }); }
+}
 const SNIFFS = 2, SNIFF_SECS = 1 / 3; // (stretched out, it sniffs at it: two little nods, a third of a second each)
 let begging = false, begWait = 3;
 const begAt = () => { const [cx, cy] = treatSpot(); return [cx, cy + mealOf().h / 2]; };
 const canBeg = () => state === 'title' && !board && !held && !dropped && !grip && !launch && !arriving && !pets[kind] && !jumps[kind] && !runs[kind]?.on && treatsOf(kind) > 0;
 function updateReach(dt) {
+  stepHop(dt);
   if (chew > 0 && (state !== 'title' || board)) chew = 0; // (off to a run, or the high scores: no more chewing)
   else if (chew > 0 && (chew -= dt) <= 0) { chew = 0; if (at[kind] !== undefined) eaten(); }
   if (chew > 0 && at[kind] !== undefined && rnd() < dt * 12) crumb(mouthOf(chewing(), placeX(at[kind]))); // (crumbs as it chews)
@@ -1506,10 +1530,11 @@ function updateReach(dt) {
   const LOOK = 0.3, UP = 0.45, DOWN = 0.45, t = (reach.t += dt), s = reach.strain, away = begging ? 1 : 0.4; // (away: how far it looks away between tries)
   if (t < reach.rest) { reach.amount = 0; reach.look += (0.6 - reach.look) * Math.min(1, 6 * dt); return; } // resting, eyeing it
   const u = t - reach.rest;
-  if (u < LOOK) { reach.look = 1 - away + away * ease(u / LOOK); reach.amount = 0.15 * ease(u / LOOK); } // it looks (from eyeing it, or from looking ahead)
+  if (u < LOOK) { reach.hopped = false; reach.look = 1 - away + away * ease(u / LOOK); reach.amount = 0.15 * ease(u / LOOK); } // it looks (from eyeing it, or from looking ahead)
   else if (u < LOOK + UP) { reach.look = 1; reach.amount = 0.15 + 0.85 * ease((u - LOOK) / UP); } // it stretches
   else if (u < LOOK + UP + s) { // it strains, sniffing at it first
     const v = u - LOOK - UP;
+    if (!reach.hopped && v > 0.1) { reach.hopped = true; if (feed && !begging) hopAfter(); } // (now and then, a hop after it)
     reach.amount = 0.9 + 0.1 * Math.cos((v / s) * Math.PI * 4);
     if (v < SNIFFS * SNIFF_SECS) reach.sniff = Math.round(((1 - Math.cos((v / SNIFF_SECS) * Math.PI * 2)) / 2) * 4) / 4;
   }
@@ -1517,7 +1542,7 @@ function updateReach(dt) {
   else if (begging) { begging = false; begWait = 4 + rnd() * 6; reach.t = reach.amount = reach.look = 0; } // (begged once: back to sitting about)
   else { reach.t = 0; reach.rest = 1 + rnd() * 1.2; reach.strain = 0.7 + rnd() * 0.5; reach.look = 0.6; } // (strain: long enough for its sniffs)
 }
-const mouthOf = (sp, x) => { const [mx, my] = sp.mouth || [sp.head[0] + 4, sp.head[1] + 8]; return [faceL ? x + 26 - mx : x + mx, GROUND - FOOT + my]; }; // (an elephant's: its trunk's tip)
+const mouthOf = (sp, x) => { const [mx, my] = sp.mouth || [sp.head[0] + 4, sp.head[1] + 8]; return [faceL ? x + 26 - mx : x + mx, GROUND - FOOT - reach.alt + my]; }; // (an elephant's: its trunk's tip)
 function drawFacing(sp, x, y, pal) {
   if (!faceL) return sp.draw(ctx, x, y, pal);
   ctx.save(); ctx.translate(2 * x + 26, 0); ctx.scale(-1, 1); sp.draw(ctx, x, y, pal); ctx.restore();
@@ -1762,6 +1787,16 @@ function toCome(pal) {
     animal(c, 'idle', 0).draw(ctx, x, GROUND - FOOT, shadow(pal, COLOR.DIM));
   }
 }
+// turning round: an animal with a front (see front in art.js) is seen from the front a moment (TURN_SECS) as it turns
+// from facing one way (dir: 1 right, -1 left) to the other; one without turns at once. (turns: by where it is drawn, k
+// for the title's row, 'sit' for the high scores: the animal there, the way it faced last, when it turned)
+const TURN_SECS = 0.15, turns = {};
+function turning(at, k, dir) {
+  const t = turns[at];
+  if (!t || t.k !== k) { turns[at] = { k, dir, t: -Infinity }; return false; }
+  if (t.dir !== dir) { t.dir = dir; t.t = blinkT; }
+  return hasFront(k) && blinkT - t.t < TURN_SECS;
+}
 // a padlock over an animal unlocked but not bought (see padlocked): its shackle in ink, its body golden
 const PADLOCK = ['..xxx..', '.x...x.', '.x...x.', 'xxxxxxx', 'xooooox', 'xooxoox', 'xooxoox', 'xooooox', 'xxxxxxx'];
 // an animal standing on the title (and the high scores): the one picked in front, the others
@@ -1771,11 +1806,12 @@ function standing(k, p, on, pal) {
   if (x < viewL - 26 || x > viewR) return;
   const pt = pets[k];
   ctx.globalAlpha = on ? 1 : 0.4 + 0.6 * (pt?.joy || 0); // (one petted lights up)
-  const jp = jumps[k];
+  const jp = jumps[k], reaches = on && !r?.on && (chew > 0 || treatAt() || begging), turned = turning(k, k, r?.on ? r.dir : reaches && faceL ? -1 : 1);
   if (jp) animal(k, 'jump', jumpFrame(k, jp.v / (JUMP * ANIMALS[k].jump))).draw(ctx, x, GROUND - FOOT - Math.round(jp.alt), pal); // jumping (a double tap)
   else if (grip?.duck && grip.k === k) animal(k, 'duck', 0).draw(ctx, x, GROUND - FOOT, pal); // pushed down
-  else if (on && chew > 0 && !r?.on) drawFacing(chewing(), x, GROUND - FOOT, pal); // chewing a treat
-  else if (on && (treatAt() || begging) && !r?.on) drawFacing(reachFor(x, treatAt() || begAt(), loose?.eat > 0.2 && !loose.far), x, GROUND - FOOT, pal); // reaching for a treat (eating it; begging for one)
+  else if (turned) front(k, { blink: on && blinking() }).draw(ctx, x, GROUND - FOOT, pal); // turning round (seen from the front)
+  else if (on && chew > 0 && !r?.on) drawFacing(chewing(), x, GROUND - FOOT - Math.round(reach.alt), pal); // chewing a treat
+  else if (on && (treatAt() || begging) && !r?.on) drawFacing(reachFor(x, treatAt() || begAt(), loose?.eat > 0.2 && !loose.far), x, GROUND - FOOT - Math.round(reach.alt), pal); // reaching for a treat (eating it; begging for one)
   else if (pt && !r?.on) petted(k, on ? idleFrame(k, blinkT) : 0, pt.joy, pt.t, pt.lean).draw(ctx, x, GROUND - FOOT, pal); // being petted
   else if (r?.on) { // running to its place (the way it goes)
     const st = stride(k, r.phase), y = GROUND - FOOT - st.lift;

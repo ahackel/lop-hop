@@ -9,7 +9,7 @@ import { openSongZip } from '../engine/src/bundle.js';
 import { loadSamples, songSamples } from '../engine/src/samples.js';
 import { courseOf, playThrough, days, starves } from './course.mjs';
 import { songFor, STYLES } from '../music.js';
-import { pace, drain, meals, CHASE } from '../level.js';
+import { pace, drain, meals, CHASE, TOP } from '../level.js';
 import { animal, ANIMALS, FOOT, GROUND, DUCK_UNDER, CROW_BOTTOM, branch, moveBody, stride, idleFrame, jumpHeight, FOOD } from '../art.js';
 
 let failed = 0;
@@ -142,8 +142,8 @@ const looks = (kind) => JSON.stringify(courseOf(kind, 3000).map((p) => [p.at, p.
 ok(looks('rabbit') === looks('rabbit') && looks('rabbit') !== looks('cat'), 'a course is the same every run, each animal its own');
 const stuck = KINDS.flatMap((k) => [1, CHASE].map((c) => [k, c, playThrough(k, 6, c)])).filter(([, , r]) => r);
 ok(!stuck.length, `every course can be got past, six days and nights${stuck.map(([k, c, r]) => `\n  ${k}${c > 1 ? ' (chased)' : ''} at ${r.s}: ${r.near.join(', ')}`).join('')}`);
-const ramp = KINDS.filter((k) => { const d = days(k, 6); return d.some((x, i) => i && (x.speed <= d[i - 1].speed || x.drain <= d[i - 1].drain)) || d[5].every >= d[0].every * 0.8; });
-ok(!ramp.length, `every day is faster and more tiring, obstacles closer by the sixth${ramp.length ? ` — not: ${ramp}` : ''}`);
+const ramp = KINDS.filter((k) => { const d = days(k, 6); return d.some((x, i) => i && (x.speed < Math.min(d[i - 1].speed + 1, TOP - 2) || x.drain <= d[i - 1].drain)) || d[5].every >= d[0].every * 0.8; });
+ok(!ramp.length, `every day is faster (up to the top speed) and more tiring, obstacles closer by the sixth${ramp.length ? ` — not: ${ramp}` : ''}`);
 const ends = KINDS.map((k) => [k, starves(k, 0.8)]);
 ok(ends.every(([, d], i) => d && d >= 2.2 && d <= 8 && (!i || d <= ends[i - 1][1] + 0.5)) && ends[0][1] - ends[ends.length - 1][1] >= 2,
   `eating 4 in 5, energy runs out after the first night and by day 8, sooner with every animal (${ends.map(([k, d]) => `${k} ${d}`).join(', ')})`);
