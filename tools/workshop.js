@@ -23,7 +23,8 @@ const swatch = (name) => PALETTES.day[NAMED[name]] || 'transparent';
 const X0 = -12, Y0 = -9, VW = 50, VH = 31;
 let Z = 16;
 
-const mods = {}, saved = {}, histories = {};
+const mods = {}, saved = {}, histories = {}, assets = new Set();
+const fileOf = (k) => (assets.has(k) ? `assets/${k}.js` : `animals/${k}.js`); // (one with an asset is saved into it: see asset.js)
 let kind, mod, build, made, P, G = [1, [0, 0]], sel = { type: 'rig' }, drag = null;
 const view = { move: 'edit', frame: 0, play: false, t: 0 };
 
@@ -69,7 +70,7 @@ function choose(k) {
 function status() {
   const s = $('status'), others = KINDS.filter((k) => k !== kind && dirty(k));
   s.className = dirty(kind) || others.length ? 'dirty' : '';
-  s.textContent = (dirty(kind) ? `unsaved changes in animals/${kind}.js` : `animals/${kind}.js`) + (others.length ? ` · also unsaved: ${others.join(', ')}` : '');
+  s.textContent = (dirty(kind) ? `unsaved changes in ${fileOf(kind)}` : fileOf(kind)) + (others.length ? ` · also unsaved: ${others.join(', ')}` : '');
   $('undo').disabled = !hist().past.length; $('redo').disabled = !hist().future.length;
   $('revert').disabled = $('save').disabled = !dirty(kind);
 }
@@ -698,6 +699,7 @@ window.addEventListener('resize', draw);
 for (const k of KINDS) {
   mods[k] = await import(`../animals/${k}.js`);
   saved[k] = JSON.stringify(mods[k].build);
+  if (mods[k].asset) assets.add(k); // (its build from its asset)
   $('kind').append(el('option', { value: k, textContent: ANIMALS[k].name.toLowerCase() }));
 }
 const asked = new URLSearchParams(location.search).get('animal');

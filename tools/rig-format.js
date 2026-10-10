@@ -35,6 +35,9 @@ function block(v, indent, lead) {
 
 export const formatBuild = (build) => `export const build = ${block(build, 0, 'export const build = '.length)};`;
 
+// an asset's file (assets/<name>.js, see asset.js): the object as data, a module the game imports as it is
+export const formatAsset = (asset) => `// ${asset.name}: an asset (see asset.js), written by the workshop and tools/assets.mjs; data only\nexport default ${block(asset, 0, 'export default '.length)};\n`;
+
 // an animal's file with its build replaced (between the `// @build` line and the `// @end` line)
 export function spliceBuild(source, build) {
   const m = /(\/\/ @build[^\n]*\n)[\s\S]*?\n(\/\/ @end)/.exec(source);

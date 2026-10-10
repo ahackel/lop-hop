@@ -2,7 +2,7 @@
 // the art keeps its promises (every animal stands tall enough to hit a branch and ducks under it), and all of it runs on
 // Safari 15 (tools/old-safari.mjs).
 import { oldSafari } from './old-safari.mjs'; // (first: it takes away what Safari 15 lacks before the rest loads)
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { Engine } from '../engine/src/engine/engine.js';
 import { openSongZip } from '../engine/src/bundle.js';
@@ -113,13 +113,18 @@ for (const k of Object.keys(ANIMALS)) {
   }
   ok(low.every(Boolean) && whole, `the ${k}'s rig stands on the ground in every pose, its chains stay whole in motion`);
 }
-// every animal's build is written the way the workshop saves it (so a save changes only what was edited)
+// every animal's build is written the way the workshop saves it (so a save changes only what was edited): in its file,
+// or in its asset (assets/<kind>.js, see asset.js), which a save writes back just as it was
 {
-  const { spliceBuild } = await import('./rig-format.js');
+  const { spliceBuild, formatAsset } = await import('./rig-format.js'), { fromRig, toBuild, toDepth } = await import('../asset.js');
   const off = [];
   for (const k of Object.keys(ANIMALS)) {
     const url = new URL(`../animals/${k}.js`, import.meta.url), src = readFileSync(url, 'utf8'), { build } = await import(url);
-    if (spliceBuild(src, build) !== src) off.push(k);
+    const assetUrl = new URL(`../assets/${k}.js`, import.meta.url);
+    if (existsSync(assetUrl)) {
+      const { default: a } = await import(assetUrl), text = readFileSync(assetUrl, 'utf8');
+      if (formatAsset(a) !== text || formatAsset(fromRig(k, toBuild(a), toDepth(a))) !== text) off.push(`${k} (its asset)`);
+    } else if (spliceBuild(src, build) !== src) off.push(k);
   }
   ok(!off.length, `every animal's build is in the workshop's format${off.length ? ` — npm run rigs: ${off}` : ''}`);
 }
@@ -155,7 +160,7 @@ ok(dial((k) => pace(k, 20000)) && dial((k) => drain(k, 0)) && dial((k) => -meals
 // the credits', the animals', the super powers'), and no other; every other language the same ids; all of it in
 // letters the font has, and short enough: a line of help across the screen (with the longest animal), a button's word
 // in its frame
-const { parseLang, LANGS } = await import('../lang.js'), { GLYPHS } = await import('../art.js');
+const { parseLang, LANGS } = await import('../lang.js'), { GLYPHS } = await import('../font.js');
 const src = readFileSync(new URL('../game.js', import.meta.url), 'utf8');
 const ID = /^(page|button|title|run|end|scores|credits|gate|shop)\.[a-z_]+$/;
 const shakers = [...src.slice(src.indexOf('const POWERS'), src.indexOf('};', src.indexOf('const POWERS'))).matchAll(/(\w+): \{[^}]*shakes: true/g)].map((m) => m[1]);
@@ -181,7 +186,7 @@ const newer = oldSafari();
 ok(!newer.length, `nothing newer than Safari 15 without a fallback${newer.length ? `:\n  ${newer.join('\n  ')}` : ''}`);
 
 // every file of the game parses (the rest above loads only some of them: a slip in game.js would pass, and the page stay blank)
-const broken = ['game.js', 'art.js', 'level.js', 'music.js', 'lang.js', 'version.js'].filter((f) => {
+const broken = ['game.js', 'art.js', 'font.js', 'asset.js', 'level.js', 'music.js', 'lang.js', 'version.js'].filter((f) => {
   try { execFileSync(process.execPath, ['--check', new URL(`../${f}`, import.meta.url).pathname], { stdio: 'pipe' }); return false; } catch { return true; }
 });
 ok(!broken.length, `every file of the game parses${broken.length ? ` (not ${broken.join(', ')}: node --check says why)` : ''}`);

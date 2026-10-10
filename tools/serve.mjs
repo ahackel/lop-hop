@@ -1,13 +1,16 @@
 // Minimal static dev server. Sends no-store so the browser never runs stale engine code
 // (AudioWorklet module imports are cached aggressively and survive normal reloads). The workshop saves through it:
-// POST /save {kind, build} writes an animal's build into animals/<kind>.js (see tools/rig-format.js). The game sends its
+// POST /save {kind, build} writes an animal's build into animals/<kind>.js (see tools/rig-format.js), or into its asset
+// (assets/<kind>.js, see asset.js) when it has one. The game sends its
 // runs to it: POST /runs [run, …] adds those not there yet to data/runs.jsonl (a run a line; see the runs in game.js),
 // which the balance page reads (tools/balance.html). The bench (tools/bench.html, ?bench) sends what it measured: POST
 // /bench {…} adds it to data/bench.jsonl (a device's results a line).
 import http from 'node:http';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { spliceBuild } from './rig-format.js';
+import { pathToFileURL } from 'node:url';
+import { spliceBuild, formatAsset } from './rig-format.js';
+import { fromRig, toDepth } from '../asset.js';
 
 const root = path.resolve(process.argv[2] || '.');
 const port = +(process.env.PORT || 8323);
@@ -22,6 +25,13 @@ async function save(req, res) {
   for await (const chunk of req) body += chunk;
   const { kind, build } = JSON.parse(body);
   if (!/^[a-z]+$/.test(kind) || kind === 'kit' || !build || typeof build !== 'object') throw new Error('which animal?');
+  const assetFile = path.join(root, 'assets', `${kind}.js`);
+  if (await fs.stat(assetFile).then(() => true, () => false)) { // (its build is its asset's: the asset written, its depth kept)
+    const { default: was } = await import(`${pathToFileURL(assetFile).href}?at=${Date.now()}`);
+    await fs.writeFile(assetFile, formatAsset(fromRig(kind, build, toDepth(was))));
+    res.writeHead(200, { 'Content-Type': 'text/plain' }).end(`saved assets/${kind}.js`);
+    return;
+  }
   const file = path.join(root, 'animals', `${kind}.js`);
   await fs.writeFile(file, spliceBuild(await fs.readFile(file, 'utf8'), build));
   res.writeHead(200, { 'Content-Type': 'text/plain' }).end(`saved animals/${kind}.js`);

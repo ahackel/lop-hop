@@ -5,6 +5,8 @@
 // ear); the eyes, the nose and the dots stuck onto the surface, shown where they face the eye. Only animals with a DEPTH.
 import { FOOT, rigParts } from './art.js';
 import rabbit from './animals/rabbit.js';
+import rabbitAsset from './assets/rabbit.js';
+import { toDepth } from './asset.js';
 
 const { posed, chainRest, toWorld, NAMED } = rigParts;
 const RIGS = { rabbit }, OUT = NAMED.OUT;
@@ -17,18 +19,7 @@ export const has3d = (kind) => !!DEPTH[kind];
 // A shape is in the middle (z 0) as thick as its narrower side, unless it says;
 // a leg named …Near on the near side, …Far on the far side (w: how far), a chain in the middle (end: false: without the
 // ball the side has at its tip)
-export const DEPTH = {
-  rabbit: {
-    w: 2.2,
-    torso: { rz: 4.6 },
-    shapes: { haunch: { z: 2.2, rz: 2.6, mirror: true }, head: { rz: 3.8 }, muzzle: { rz: 2 } },
-    legs: { hindNear: { z: 2.6, mirror: true }, frontNear: { z: 1.7, mirror: true } },
-    chains: { ear: { z: 4.3, mirror: true, end: false }, tail: { z: 0 } },
-    dots: { blush: { mirror: true } },
-    eyes: { forward: 60, back: 2.5 },
-    marks: { eye: [0.6, 1, 0.6], nose: 0.7, dot: 0.6 },
-  },
-};
+export const DEPTH = { rabbit: toDepth(rabbitAsset) }; // (from its asset: assets/rabbit.js, see asset.js)
 
 // ------------------------------------------------------------------------------------------------------- the model
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]], sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], mul = (a, k) => [a[0] * k, a[1] * k, a[2] * k];
