@@ -564,6 +564,15 @@ function growth(n, scale = 1) {
   const k = (20 + n) / 20;
   return [k, [Math.round(13 * scale * (1 - k)), Math.round((FOOT - 0.5) * scale * (1 - k))]];
 }
+// a stand-in for drawing animals (?turn3d in game.js: in 3D, on the GPU): (kind, P: posed, pose's name, blink, chains)
+// → a draw(ctx, x, y, pal) to draw it with instead of its pixels (which it keeps: its mask, its mouth), or null (as it
+// is). Set: every frame drawn again
+let drawn3d = null;
+export function set3d(f) { drawn3d = f; for (const s of rigFrames.values()) s.free(); rigFrames.clear(); }
+const in3d = (rig, P, pose, blink, chains, s) => {
+  const kind = drawn3d && Object.keys(RIGS).find((k) => RIGS[k] === rig), draw = kind && drawn3d(kind, P, pose, blink, chains);
+  return draw ? { ...s, draw } : s;
+};
 function rigFrame(kind, pose, frame, blink, body, scale = 1, n = grown(kind, pose)) {
   const rig = RIGS[kind], [P, eased] = bodyPosed(rig, kind, pose, frame, body);
   const chains = chainsAt(rig, P, body?.kind === kind && body.chains && body.at ? body : null);
@@ -571,7 +580,7 @@ function rigFrame(kind, pose, frame, blink, body, scale = 1, n = grown(kind, pos
   let s = rigFrames.get(key);
   if (s) { rigFrames.delete(key); rigFrames.set(key, s); return s; } // (the most recent last)
   const [k, d] = growth(n, scale);
-  s = drawRig(rig, P, pose, blink, chains, scale * k, d, Math.round((FOOT + 1) * scale), n > 0 && pose !== 'jump');
+  s = in3d(rig, P, pose, blink, chains, drawRig(rig, P, pose, blink, chains, scale * k, d, Math.round((FOOT + 1) * scale), n > 0 && pose !== 'jump'));
   rigFrames.set(key, s);
   if (rigFrames.size > 400) { const old = rigFrames.keys().next().value; rigFrames.get(old).free(); rigFrames.delete(old); }
   return s;
@@ -710,8 +719,8 @@ function drawRig(rig, P, pose, blink, chains, S = 1, [dx, dy] = [0, 0], floor = 
   }
   for (const [[x, y], c] of dots) pixel.dot(x, y, c);
   if (rig.recolor) { const to = {}; for (const a in rig.recolor) to[NAMED[a]] = NAMED[rig.recolor[a]]; for (let i = 0; i < g.px.length; i++) g.px[i] = to[g.px[i]] ?? g.px[i]; }
-  const face = rig.face, eye = toWorld(F.head, face.eye);
-  eyes(pixel, pose, eye, blink);
+  const face = rig.face, both = (face.eyes || [face.eye]).map((q) => toWorld(F.head, q)), eye = mix(both[0], both[both.length - 1], 0.5); // (eyes: two, seen from the front)
+  for (const q of both) eyes(pixel, pose, q, blink);
   if (face.nose) { const nose = toWorld(F.head, face.nose); pixel.dot(nose[0], nose[1], NAMED[face.noseColor] || OUT); }
   front.filter((t) => t.overEye).forEach(chain); // (over the eye too: the pig's lop ear)
   // (dx, dy: moved, grown from where its feet touch the ground: see rigFrame. settle: grown, a row short of the ground
@@ -789,7 +798,7 @@ export function hung(h, { blink = false, body = null } = {}) {
   const [k, d] = growth(SIZE[h.kind] || 0), key = `${h.kind} hung ${blink} ${JSON.stringify([pose.joints, pose.headAngle, pose.paws, chains])}`;
   let s = rigFrames.get(key);
   if (!s) {
-    s = drawRig(rig, P, 'hung', blink, chains, k, d, 1e6);
+    s = in3d(rig, P, 'hung', blink, chains, drawRig(rig, P, 'hung', blink, chains, k, d, 1e6));
     rigFrames.set(key, s);
     if (rigFrames.size > 400) { const old = rigFrames.keys().next().value; rigFrames.get(old).free(); rigFrames.delete(old); }
   }
@@ -828,7 +837,7 @@ export function petted(kind, frame, joy, t, lean = 0) {
   const P = posedAs(rig, { ...base, joints: { hip: rot(J.hip), chest: rot(J.chest), head: rot([J.head[0], J.head[1] + 0.8 * j]) },
     headAngle: (base.headAngle || 0) + 0.2 * j + a, chains, turn: { pivot: piv, angle: a } });
   const rest = chainsAt(rig, P), n = SIZE[kind] || 0, [k, d] = growth(n);
-  s = drawRig(rig, P, j >= 0.5 ? 'happy' : 'idle', false, rest, k, d, FOOT + 1, n > 0);
+  s = in3d(rig, P, j >= 0.5 ? 'happy' : 'idle', false, rest, drawRig(rig, P, j >= 0.5 ? 'happy' : 'idle', false, rest, k, d, FOOT + 1, n > 0));
   rigFrames.set(key, s);
   if (rigFrames.size > 400) { const old = rigFrames.keys().next().value; rigFrames.get(old).free(); rigFrames.delete(old); }
   return s;
@@ -913,7 +922,7 @@ export function reaching(kind, tx, ty, eating = false, amount = 1, look = 1, bod
   const chains = chainsAt(rig, P, body?.kind === kind && body.chains && body.at ? body : null), full = `${key} ${eating} ${JSON.stringify(chains)}`;
   let s = rigFrames.get(full);
   if (s) { rigFrames.delete(full); rigFrames.set(full, s); return s; }
-  s = drawRig(rig, P, eating ? 'happy' : 'idle', false, chains, k, d, FOOT + 1, n > 0);
+  s = in3d(rig, P, eating ? 'happy' : 'idle', false, chains, drawRig(rig, P, eating ? 'happy' : 'idle', false, chains, k, d, FOOT + 1, n > 0));
   if (chains.trunk) { const tip = chains.trunk[chains.trunk.length - 1]; s.mouth = [tip[0] * k + d[0], tip[1] * k + d[1]]; }
   rigFrames.set(full, s);
   if (rigFrames.size > 400) { const old = rigFrames.keys().next().value; rigFrames.get(old).free(); rigFrames.delete(old); }
@@ -923,6 +932,23 @@ export function reaching(kind, tx, ty, eating = false, amount = 1, look = 1, bod
 export function moveReaching(body, kind, tx, ty, amount, look, x, y, dt, sniff = 0) { moveBody(body, kind, 'reach', 0, x, y, 0, dt, reachPosed(kind, tx, ty, amount, look, sniff).P); }
 
 // for the workshop (tools/workshop.html): an edited rig swapped in (its frames drawn again), and what places its parts
+// -------------------------------------------------------------------------------------------------------- the front
+// An animal seen from the front, as it turns round (the game shows it a moment between facing one way and the other):
+// its build's front, a rig of its own (shapes in the box, no legs; chains: ears hanging either side; face: eyes, two),
+// sitting, grown as the animal is. Only the animals with one (hasFront); kept as rigFrame keeps frames. scale: drawn
+// bigger (as animal's)
+export const hasFront = (kind) => !!RIGS[kind].front;
+export function front(kind, { blink = false, scale = 1 } = {}) {
+  const key = `${kind} front ${blink} ${scale}`;
+  let s = rigFrames.get(key);
+  if (s) { rigFrames.delete(key); rigFrames.set(key, s); return s; }
+  const rig = { legs: {}, chains: {}, torso: { r: 0 }, fur: RIGS[kind].fur, ...RIGS[kind].front }, P = posedAs(rig, {}), n = SIZE[kind] || 0, [k, d] = growth(n, scale);
+  s = drawRig(rig, P, 'idle', blink, chainsAt(rig, P), scale * k, d, Math.round((FOOT + 1) * scale), n > 0);
+  rigFrames.set(key, s);
+  if (rigFrames.size > 400) { const old = rigFrames.keys().next().value; rigFrames.get(old).free(); rigFrames.delete(old); }
+  return s;
+}
+
 export function setRig(kind, rig) { RIGS[kind] = withMoves(rig); rigFrames.clear(); worked.clear(); hitboxes.clear(); delete ducks[kind]; }
 export const rigParts = { posed: (kind, move, frame) => posed(RIGS[kind], move, frame), pose: (kind, move, frame) => poseOf(RIGS[kind], move, frame), move: (kind, name) => RIGS[kind].poses[name], chainRest: (kind, P, name) => chainRest(RIGS[kind], P, name), growth: (kind, pose) => growth(grown(kind, pose)), toWorld, toLocal, sdShape, NAMED };
 

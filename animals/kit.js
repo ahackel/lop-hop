@@ -24,6 +24,9 @@
 //                stiffness pulls each link to its rest, damping stops it ringing, weight pulls it down
 //   face         eye, nose (in the head's frame), noseColor
 //   recolor      { name: name }: colors swapped everywhere (the wolf: a grey fox)
+//   front        seen from the front, shown a moment as it turns round (see front in art.js): a build of its own, sitting,
+//                facing out of the screen: joints, shapes, top, dots, chains (ears hanging either side), face with eyes
+//                [[x, y] × 2] for its eye; no legs. None: it turns at once
 //   moves        the build's own over the moves its make works out, by name (run, duck, jump, hurt, ko): keyframes set by
 //                hand (a list of poses, each: joints, paws { leg: [x, y] }, headAngle, torso, chains { name: what of it
 //                changes: angle, at, curl, tip }), or { gait: settings } over a gait's (the workshop's timeline sets both)

@@ -15,7 +15,7 @@
 //                                             power, powerdown   golden food gives one, and it wears off
 import { StardriftPlayer, openSongZip } from './engine/src/index.js'; // (by path: Safari before 16.4 knows no import maps)
 import { songFor } from './music.js';
-import { W, H, GROUND, PALETTES, COLOR, FOOT, ANIMALS, TRUNK, animal, moveBody, stride, bird, crow,
+import { W, H, GROUND, PALETTES, COLOR, FOOT, ANIMALS, TRUNK, animal, moveBody, stride, bird, crow, set3d,
   FOOD, face, FACE_W, cloud, moon, heart, reaching, moveReaching, star, golden, flushed, shadow, text, textWidth, hits, snap, setScale, idleFrame, jumpFrame, leaps, hitbox, readying,
   JUMP, GRAVITY, hill, strides, rgb, luma, holdUp, swing, moveHung, hung, hangDepth, heldAt, petted, made, GLYPHS, front, hasFront } from './art.js';
 import { course, pace, topSpeed, drain, hardness, nightAt, random, seedOf, chaserOf, SCORE_PER_PX, CROWS_FROM, FAST_FROM, CHASE } from './level.js';
@@ -92,6 +92,21 @@ const CHEATING = Q.has('cheats');
 // a visit, to try a top speed (see pace in level.js); its runs are not written down either
 const TRY_TOP = +Q.get('top') || 0;
 if (TRY_TOP) topSpeed(TRY_TOP);
+// ?turn3d: an animal with depth (the rabbit: see turn3d.js) is drawn in 3D: everywhere (running, jumping, reaching,
+// petted, held: as the game poses it, from the side; its collisions as ever, from its pixels), and it turns round in 3D,
+// through its front, its ears swung out, instead of its front shown a moment. A test, so turn3d.js is loaded only then.
+// Drawn on the GPU (turn-gl.js) as a skinned, textured mesh (turn-mesh.js: made as it loads, some 0.3 s); ?turn3d=rays:
+// stepping rays, =parts: part by part; =cpu: on the CPU, only its turns (each angle drawn as it comes, some 7 ms on a
+// computer; also where there is no WebGL)
+let t3d = null, t3gpu = null;
+if (Q.has('turn3d')) {
+  Promise.all([import('./turn3d.js'), import('./turn-gl.js')]).then(([m, g]) => {
+    const how = Q.get('turn3d') || 'mesh';
+    if (how !== 'cpu') try { t3gpu = g.createSprites({ how, kinds: Object.keys(ANIMALS).filter((k) => m.has3d(k)) }); } catch (e) { console.warn(e); }
+    if (t3gpu) set3d((kind, P, pose, blink, chains) => (m.has3d(kind) ? (cx, x, y, pal) => t3gpu.posed(cx, kind, P, x, y, pal, { blink, chains, snap }) : null));
+    t3d = m;
+  });
+}
 const query = () => [...Q].map(([k, v]) => (v ? `${k}=${encodeURIComponent(v)}` : k)).join('&'); // (the switches as they were written: ?cheats, not ?cheats=)
 
 // what this browser keeps (localStorage, lop.<name>; in a private window perhaps nothing): get, set (null: removed)
@@ -1005,7 +1020,8 @@ function drawBoard(pal) {
   (board.credits ? drawCredits : drawScores)(pal);
   if (gained && state === 'ko' && !board.credits) help(t('end.unlocked', { name: nameOf(gained) }), pal, pal[7]); // (after a run: see hud)
   if (!sit) return;
-  if (turning('sit', kind, sit.on ? sit.dir : 1)) return front(kind, { blink: blinking() }).draw(ctx, Math.round(sit.x), GROUND - FOOT, pal); // (turning round)
+  const tn = turning('sit', kind, sit.on ? sit.dir : 1), sst = stride(kind, sit.phase);
+  if (tn) return drawTurn(kind, tn, sit.on ? 'run' : 'idle', sit.on ? sst.frame : idleFrame(kind, blinkT), Math.round(sit.x), GROUND - FOOT - (sit.on ? sst.lift : 0), pal, blinking()); // (turning round)
   if (!sit.on) return animal(kind, 'idle', idleFrame(kind, blinkT), { blink: blinking() }).draw(ctx, Math.round(sit.x), GROUND - FOOT, pal);
   const st = stride(kind, sit.phase), x = Math.round(sit.x); // running there (the way it goes)
   if (sit.dir < 0) { ctx.save(); ctx.translate(2 * x + 26, 0); ctx.scale(-1, 1); }
@@ -1788,14 +1804,34 @@ function toCome(pal) {
   }
 }
 // turning round: an animal with a front (see front in art.js) is seen from the front a moment (TURN_SECS) as it turns
-// from facing one way (dir: 1 right, -1 left) to the other; one without turns at once. (turns: by where it is drawn, k
-// for the title's row, 'sit' for the high scores: the animal there, the way it faced last, when it turned)
-const TURN_SECS = 0.15, turns = {};
+// from facing one way (dir: 1 right, -1 left) to the other; one without turns at once. With ?turn3d, one with depth
+// turns in 3D (TURN3D_SECS, through its front), its ears swung out by it, and stays in 3D till they have settled.
+// (turns: by where it is drawn, k for the title's row, 'sit' for the high scores: the animal there, the way it faced
+// last, when it turned, its chains' swing and how fast it turned the frame before.) → null, or the turn: { u (0…1
+// through it), dir (the way it turns to), swing (in 3D) }
+const TURN_SECS = 0.15, TURN3D_SECS = 0.3, turns = {};
 function turning(at, k, dir) {
   const t = turns[at];
-  if (!t || t.k !== k) { turns[at] = { k, dir, t: -Infinity }; return false; }
-  if (t.dir !== dir) { t.dir = dir; t.t = blinkT; }
-  return hasFront(k) && blinkT - t.t < TURN_SECS;
+  if (!t || t.k !== k) { turns[at] = { k, dir, t: -Infinity, last: blinkT, sw: {}, w: 0 }; return null; }
+  if (t.dir !== dir) { t.dir = dir; t.t = blinkT; t.sw = {}; t.w = 0; }
+  const since = blinkT - t.t, dt = blinkT - t.last;
+  t.last = blinkT;
+  if (t3d?.has3d(k) && since < TURN3D_SECS + 1) {
+    const u = Math.min(1, since / TURN3D_SECS), w = since < TURN3D_SECS ? ((Math.PI * 6 * u * (1 - u)) / TURN3D_SECS) * -dir : 0; // (radians a second: eased, as drawTurn)
+    if (dt > 0) { t3d.swingChains(t.sw, k, w, (w - t.w) / dt, dt); t.w = w; }
+    const settled = u >= 1 && Object.keys(t.sw).every((n) => Math.abs(t.sw[n].flare) + Math.abs(t.sw[n].lag) < 0.25);
+    return settled ? null : { u, dir, swing: t.sw };
+  }
+  return hasFront(k) && since < TURN_SECS ? { u: since / TURN_SECS, dir } : null;
+}
+// an animal turning round (tn: see turning), in its box at x, y, in a move's frame: in 3D, from 0° (facing right) to 180°
+// (facing left) or back, through its front (chains: where its body has them); else its front
+function drawTurn(k, tn, move, frame, x, y, pal, blink, chains = null) {
+  if (!tn.swing) return front(k, { blink }).draw(ctx, x, y, pal);
+  const e = ease(tn.u);
+  const yaw = tn.dir < 0 ? 180 * e : 180 * (1 - e);
+  if (t3gpu) t3gpu.draw(ctx, k, move, frame, yaw, x, y, pal, { blink, chains, swing: tn.swing, snap });
+  else t3d.sprite3d(k, move, frame, yaw, { blink, chains, swing: tn.swing, snap }).draw(ctx, x, y, pal);
 }
 // a padlock over an animal unlocked but not bought (see padlocked): its shackle in ink, its body golden
 const PADLOCK = ['..xxx..', '.x...x.', '.x...x.', 'xxxxxxx', 'xooooox', 'xooxoox', 'xooxoox', 'xooooox', 'xxxxxxx'];
@@ -1809,7 +1845,10 @@ function standing(k, p, on, pal) {
   const jp = jumps[k], reaches = on && !r?.on && (chew > 0 || treatAt() || begging), turned = turning(k, k, r?.on ? r.dir : reaches && faceL ? -1 : 1);
   if (jp) animal(k, 'jump', jumpFrame(k, jp.v / (JUMP * ANIMALS[k].jump))).draw(ctx, x, GROUND - FOOT - Math.round(jp.alt), pal); // jumping (a double tap)
   else if (grip?.duck && grip.k === k) animal(k, 'duck', 0).draw(ctx, x, GROUND - FOOT, pal); // pushed down
-  else if (turned) front(k, { blink: on && blinking() }).draw(ctx, x, GROUND - FOOT, pal); // turning round (seen from the front)
+  else if (turned) { // turning round (seen from the front; in 3D)
+    const st = r?.on ? stride(k, r.phase) : null;
+    drawTurn(k, turned, st ? 'run' : 'idle', st ? st.frame : on ? idleFrame(k, blinkT) : 0, x, GROUND - FOOT - (st ? st.lift : 0), pal, on && blinking(), on && body.kind === k ? t3d?.chainPoints(body) : null);
+  }
   else if (on && chew > 0 && !r?.on) drawFacing(chewing(), x, GROUND - FOOT - Math.round(reach.alt), pal); // chewing a treat
   else if (on && (treatAt() || begging) && !r?.on) drawFacing(reachFor(x, treatAt() || begAt(), loose?.eat > 0.2 && !loose.far), x, GROUND - FOOT - Math.round(reach.alt), pal); // reaching for a treat (eating it; begging for one)
   else if (pt && !r?.on) petted(k, on ? idleFrame(k, blinkT) : 0, pt.joy, pt.t, pt.lean).draw(ctx, x, GROUND - FOOT, pal); // being petted
@@ -2149,20 +2188,27 @@ fit();
 
 // fixed steps, so a slow frame never lets the animal pass through a cactus; at most a quarter second caught up. At most
 // 60 frames a second (a faster screen, 120 Hz: every other one; ?hz=120: each one, where the browser gives that many),
-// each due a 60th (a 120th) of a second after the one before. A frame takes as many steps as the time since the last one
-// holds, rounded, and half of what that leaves over on to the next: so a 60th of a second is always two steps, though
-// WebKit gives frames' times to the millisecond (16, 17), and a frame that came late, a 120th (after a touch, on an
-// iPhone), takes three and the next one, early, one; all of it kept, the leftover could settle at half a step, and the
-// frames take three steps and one by turns
+// each due a 60th (a 120th) of a second after the one before. A frame that comes less than half the screen's own frame
+// (vsync: a 60th, a 120th, learnt) from when it was due counts as on time, as if it came then: a frame's time is when its
+// callback ran (WebKit: to the millisecond), so one run 5 ms late by other work, though on the screen in time, took
+// three steps and the next one, as if early, one: half the world's move, then one and a half, in some runs often. The
+// due times follow the frames slowly (an eighth of how late each was), so a screen a little faster than 60 Hz no longer
+// skips one every few seconds. Later than that (a frame missed): the time it came, from there on. A frame takes as many
+// steps as its time holds, rounded, and half of what that leaves over on to the next (all of it kept, the leftover
+// could settle at half a step, and the frames take three steps and one by turns)
 const HZ = Q.get('hz') === '120' ? 120 : 60, STEP = 1 / 120, FRAME = 1000 / HZ;
-let last = performance.now(), over = 0, due = 0, readied = null, ready = null;
+let last = performance.now(), over = 0, due = 0, clock = last, called = last, vsync = FRAME, readied = null, ready = null;
 // (?fps: each second, the frames drawn in it, the work of a frame on average and at most, in ms; since the start, the
 // frames that took other than a frame's steps, and those over 50 ms while running (LONG) with the longest)
 const rate = { frames: 0, since: 0, work: 0, worst: 0, shown: '', uneven: 0, long: 0, longest: 0 };
 function frame(now) {
-  if (now < due - 4) { requestAnimationFrame(frame); return; } // (too soon: the screen's next one)
-  due = now - due > FRAME ? now + FRAME : due + FRAME; // (behind: from now on)
-  const began = performance.now(), ms = now - last, time = Math.min(250, ms + over), steps = Math.round(time / (STEP * 1000));
+  const gap = now - called; called = now;
+  if (gap > 4 && gap < 100) vsync += (gap - vsync) / 20;
+  if (now < due - vsync / 2) { requestAnimationFrame(frame); return; } // (too soon: the screen's next one)
+  const late = now - due, was = clock;
+  if (Math.abs(late) < vsync / 2) { clock = due; due += Math.max(FRAME, vsync) + late / 8; } // (on time; a slower screen: its own frame)
+  else { clock = now; due = now + FRAME; } // (behind: from now on)
+  const began = performance.now(), ms = now - last, time = Math.min(250, clock - was + over), steps = Math.round(time / (STEP * 1000));
   over = (time - steps * STEP * 1000) / 2;
   last = now;
   if (FPS) rate.uneven += steps !== 120 / HZ;

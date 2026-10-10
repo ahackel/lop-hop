@@ -36,6 +36,21 @@ export const build = {
     },
   },
   face: { eye: [1.5, -1], nose: [4.5, 1], noseColor: 'PINK' },
+  front: {
+    joints: { hip: [13, 15], chest: [13, 12], head: [13, 9] },
+    shapes: [
+      { name: 'body', ellipse: [13.5, 15.6, 5.2, 4] },
+      { name: 'head', on: 'head', ellipse: [0.5, 0, 5.4, 4.4] },
+      { name: 'footL', ellipse: [9.8, 18.4, 2.3, 1.1] },
+      { name: 'footR', ellipse: [17.2, 18.4, 2.3, 1.1] },
+    ],
+    top: [{ shapes: [{ ellipse: [11, 18.5, 1.1, 0.9] }, { ellipse: [16, 18.5, 1.1, 0.9] }] }],
+    chains: {
+      earL: { on: 'head', at: [-3, -3.4], angle: 2.3, links: 2, length: 7, r: 1.4, end: 2, curl: -0.6, color: 'EAR', front: true },
+      earR: { on: 'head', at: [4, -3.4], angle: -2.3, links: 2, length: 7, r: 1.4, end: 2, curl: 0.6, color: 'EAR', front: true },
+    },
+    face: { eyes: [[-2, -0.5], [2, -0.5]], nose: [0, 1.5], noseColor: 'PINK' },
+  },
   moves: {
     jump: [
       { joints: { hip: [7, 14.5], chest: [12, 12.3], head: [15.5, 7.8] }, paws: { hindNear: [0, 17.6], frontNear: [19, 15] } },
