@@ -4,7 +4,8 @@
 //   parts  the objects layer (turn-gl.js createLayer): each drawn live in 3D part by part on a WebGL canvas over the
 //          game's, any angle every frame, nothing copied back
 //   mesh   the objects layer, each a skinned mesh
-//   copy   live in 3D but each copied into the game's canvas on its own (what ?turn3d does now: a wait for the GPU each)
+//   cached what ?turn3d does: each picture drawn in 3D once (the skinned mesh), read back and kept as a sprite, drawn
+//          into the game's canvas as the 2D ones are (turns: to 32 angles round, each angle's picture drawn as it comes)
 // and to find out what costs what: empty (the objects layer with nothing on it: what the canvas over the game's costs
 // by itself), parts-art and mesh-art (the objects layer at the art's resolution, the page scaling it up: a 49th of the
 // pixels at 7 screen pixels an art pixel), empty-art (that, with nothing on it), gl-only (one WebGL canvas, not
@@ -21,7 +22,7 @@ import { model } from '../turn3d.js';
 import { createLayer, createSprites, glInfo } from '../turn-gl.js';
 
 const Q = new URLSearchParams(location.search);
-const WAYS = ['2d', 'parts', 'mesh', 'copy', 'empty', 'parts-art', 'mesh-art', 'empty-art', 'gl-only', 'mesh-lo', 'mesh-sync', 'mesh-nogap', 'mesh-gl'], TURN = 0.4, FPS = 60, SECS = 3, WARM = 1;
+const WAYS = ['2d', 'cached', 'parts', 'mesh', 'empty', 'parts-art', 'mesh-art', 'empty-art', 'gl-only', 'mesh-lo', 'mesh-sync', 'mesh-nogap', 'mesh-gl'], TURN = 0.4, FPS = 60, SECS = 3, WARM = 1;
 const stage = document.getElementById('stage'), back = document.getElementById('back'), bctx = back.getContext('2d');
 const pal = PALETTES[Q.get('pal')] || PALETTES.day;
 let n = Math.max(1, Math.min(88, +(Q.get('bench') || Q.get('n')) || 25)), how = WAYS.includes(Q.get('how')) ? Q.get('how') : 'parts';
@@ -32,7 +33,7 @@ const wayOf = (w) => {
   if (w in made) return made[w];
   try {
     if (w === '2d') made[w] = {};
-    else if (w === 'copy') made[w] = createSprites({ how: 'parts' });
+    else if (w === 'cached') made[w] = createSprites({ how: 'mesh', kinds: ['rabbit'] });
     else {
       const cv = (canvases[w] = document.createElement('canvas'));
       stage.append(cv);
@@ -41,7 +42,7 @@ const wayOf = (w) => {
   } catch (e) { console.warn(e); made[w] = null; }
   return made[w];
 };
-const layerOf = (w) => (w === '2d' || w === 'copy' ? null : made[w]);
+const layerOf = (w) => (w === '2d' || w === 'cached' ? null : made[w]);
 
 // the screen, as the game fits it: whole screen pixels an art pixel, the world in the middle
 let cw = 0, ch = 0, S = 1, OX = 0, OY = 0, viewL = 0, viewR = W;
@@ -55,6 +56,7 @@ function fit() {
   setScale(S);
 }
 addEventListener('resize', fit);
+new ResizeObserver(fit).observe(stage); // (shown later than loaded: its size only then)
 fit();
 
 // the rabbits: running at their own speeds, each turning round (standing, 0.4 s) at an end
@@ -115,7 +117,7 @@ function draw() {
   if (!empty(how)) for (const r of rabbits) {
     const yaw = yawOf(r), st = stride('rabbit', r.phase), frame = r.turn >= 0 ? 0 : st.frame, x = snap(r.x), y = GROUND - FOOT - (r.turn >= 0 ? 0 : st.lift);
     if (layer) layer.add('rabbit', model('rabbit', 'run', frame, { marks: layer.marks }), x, y, { yaw, pal, gap: how === 'mesh-nogap' ? -1 : 0.25 });
-    else if (how === 'copy') w.draw(bctx, 'rabbit', 'run', frame, yaw, x, y, pal, { snap });
+    else if (how === 'cached') w.turned('rabbit', 'run', frame, yaw).draw(bctx, x, y, pal);
     else if (yaw > 60 && yaw < 120) front('rabbit').draw(bctx, x, y, pal); // (the game's turn: from the front half way)
     else if (yaw < 90) animal('rabbit', 'run', frame).draw(bctx, x, y, pal);
     else { bctx.save(); bctx.translate(2 * x + 26, 0); bctx.scale(-1, 1); animal('rabbit', 'run', frame).draw(bctx, x, y, pal); bctx.restore(); }
@@ -198,7 +200,7 @@ function setWay(w, k = n) {
   q.set('bench', n); q.set('how', how);
   history.replaceState(null, '', `${location.pathname}?${q}`);
   if (!wayOf(how)) noteEl.textContent = `${how}: this browser can't (no WebGL, or not enough of it)`;
-  else if (!run.on) noteEl.textContent = { '2d': 'the game now: 2D sprites', parts: 'live 3D, part by part, on the objects layer', mesh: 'live 3D, skinned mesh, on the objects layer', copy: 'live 3D, each copied into the 2D canvas on its own', empty: 'the objects layer with nothing on it', 'empty-art': 'the objects layer at the art\'s resolution, nothing on it', 'gl-only': 'one WebGL canvas, nothing under it, nothing on it', 'mesh-lo': 'skinned mesh with a quarter of the triangles', 'mesh-sync': 'skinned mesh, waiting for the GPU after each pass', 'mesh-nogap': 'skinned mesh, no outline across air inside a part', 'mesh-gl': 'skinned mesh on one WebGL canvas, nothing under it', 'parts-art': 'part by part, the layer at the art\'s resolution', 'mesh-art': 'skinned mesh, the layer at the art\'s resolution' }[how];
+  else if (!run.on) noteEl.textContent = { '2d': 'the game now: 2D sprites', parts: 'live 3D, part by part, on the objects layer', mesh: 'live 3D, skinned mesh, on the objects layer', cached: '3D drawn once a picture, kept as sprites (the game with ?turn3d)', empty: 'the objects layer with nothing on it', 'empty-art': 'the objects layer at the art\'s resolution, nothing on it', 'gl-only': 'one WebGL canvas, nothing under it, nothing on it', 'mesh-lo': 'skinned mesh with a quarter of the triangles', 'mesh-sync': 'skinned mesh, waiting for the GPU after each pass', 'mesh-nogap': 'skinned mesh, no outline across air inside a part', 'mesh-gl': 'skinned mesh on one WebGL canvas, nothing under it', 'parts-art': 'part by part, the layer at the art\'s resolution', 'mesh-art': 'skinned mesh, the layer at the art\'s resolution' }[how];
 }
 for (const w of WAYS) { const b = document.createElement('button'); b.textContent = w; b.dataset.how = w; b.onclick = () => setWay(w); modes.append(b); }
 for (const b of document.querySelectorAll('[data-n]')) b.onclick = () => setWay(how, Math.max(1, Math.min(88, Math.round(n * +b.dataset.n))));

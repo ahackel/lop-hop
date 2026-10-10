@@ -95,15 +95,16 @@ if (TRY_TOP) topSpeed(TRY_TOP);
 // ?turn3d: an animal with depth (the rabbit: see turn3d.js) is drawn in 3D: everywhere (running, jumping, reaching,
 // petted, held: as the game poses it, from the side; its collisions as ever, from its pixels), and it turns round in 3D,
 // through its front, its ears swung out, instead of its front shown a moment. A test, so turn3d.js is loaded only then.
-// Drawn on the GPU (turn-gl.js) as a skinned, textured mesh (turn-mesh.js: made as it loads, some 0.3 s); ?turn3d=rays:
-// stepping rays, =parts: part by part; =cpu: on the CPU, only its turns (each angle drawn as it comes, some 7 ms on a
-// computer; also where there is no WebGL)
+// Drawn on the GPU (turn-gl.js) as a skinned, textured mesh (turn-mesh.js: made as it loads, some 0.3 s), each picture
+// once, read back and kept as a sprite, as its 2D ones are (a turn: to 32 angles round); ?turn3d=rays: stepping rays,
+// =parts: part by part; =cpu: on the CPU, only its turns (each angle drawn as it comes, some 7 ms on a computer; also
+// where there is no WebGL)
 let t3d = null, t3gpu = null;
 if (Q.has('turn3d')) {
   Promise.all([import('./turn3d.js'), import('./turn-gl.js')]).then(([m, g]) => {
     const how = Q.get('turn3d') || 'mesh';
     if (how !== 'cpu') try { t3gpu = g.createSprites({ how, kinds: Object.keys(ANIMALS).filter((k) => m.has3d(k)) }); } catch (e) { console.warn(e); }
-    if (t3gpu) set3d((kind, P, pose, blink, chains) => (m.has3d(kind) ? (cx, x, y, pal) => t3gpu.posed(cx, kind, P, x, y, pal, { blink, chains, snap }) : null));
+    if (t3gpu) set3d((kind, P, pose, blink, chains) => (m.has3d(kind) ? t3gpu.posed(kind, P, { blink, chains }) : null));
     t3d = m;
   });
 }
@@ -1830,7 +1831,7 @@ function drawTurn(k, tn, move, frame, x, y, pal, blink, chains = null) {
   if (!tn.swing) return front(k, { blink }).draw(ctx, x, y, pal);
   const e = ease(tn.u);
   const yaw = tn.dir < 0 ? 180 * e : 180 * (1 - e);
-  if (t3gpu) t3gpu.draw(ctx, k, move, frame, yaw, x, y, pal, { blink, chains, swing: tn.swing, snap });
+  if (t3gpu) t3gpu.turned(k, move, frame, yaw, { blink, chains, swing: tn.swing }).draw(ctx, x, y, pal);
   else t3d.sprite3d(k, move, frame, yaw, { blink, chains, swing: tn.swing, snap }).draw(ctx, x, y, pal);
 }
 // a padlock over an animal unlocked but not bought (see padlocked): its shackle in ink, its body golden

@@ -155,6 +155,14 @@ function sprite(g, mask, extra) {
   };
 }
 
+// a sprite from palette indices (w × h, rows top down; 0 clear), its grid starting at ox, oy from where it is placed:
+// as the 3D animal's pictures come back from the GPU (turn-gl.js createSprites)
+export function paletteSprite(w, h, px, { ox = 0, oy = 0 } = {}) {
+  const mask = new Uint8Array(w * h);
+  for (let i = 0; i < w * h; i++) mask[i] = px[i] ? 1 : 0;
+  return sprite({ w, h, px }, mask, { ox, oy });
+}
+
 // a sprite from rows of characters: '.' is empty, the rest name palette entries in `keys`
 function fromRows(rows, keys) {
   const g = new Grid(rows[0].length, rows.length), mask = new Uint8Array(g.w * g.h);
@@ -565,13 +573,13 @@ function growth(n, scale = 1) {
   return [k, [Math.round(13 * scale * (1 - k)), Math.round((FOOT - 0.5) * scale * (1 - k))]];
 }
 // a stand-in for drawing animals (?turn3d in game.js: in 3D, on the GPU): (kind, P: posed, pose's name, blink, chains)
-// → a draw(ctx, x, y, pal) to draw it with instead of its pixels (which it keeps: its mask, its mouth), or null (as it
-// is). Set: every frame drawn again
+// → a sprite drawn in 3D (made once, as the picture it stands in for is: kept with it), drawn instead of its pixels
+// (which it keeps: its mask, its mouth), or null (as it is). Set: every frame drawn again
 let drawn3d = null;
 export function set3d(f) { drawn3d = f; for (const s of rigFrames.values()) s.free(); rigFrames.clear(); }
 const in3d = (rig, P, pose, blink, chains, s) => {
-  const kind = drawn3d && Object.keys(RIGS).find((k) => RIGS[k] === rig), draw = kind && drawn3d(kind, P, pose, blink, chains);
-  return draw ? { ...s, draw } : s;
+  const kind = drawn3d && Object.keys(RIGS).find((k) => RIGS[k] === rig), s3 = kind && drawn3d(kind, P, pose, blink, chains);
+  return s3 ? { ...s, draw: s3.draw, free() { s.free(); s3.free(); } } : s;
 };
 function rigFrame(kind, pose, frame, blink, body, scale = 1, n = grown(kind, pose)) {
   const rig = RIGS[kind], [P, eased] = bodyPosed(rig, kind, pose, frame, body);
@@ -580,7 +588,8 @@ function rigFrame(kind, pose, frame, blink, body, scale = 1, n = grown(kind, pos
   let s = rigFrames.get(key);
   if (s) { rigFrames.delete(key); rigFrames.set(key, s); return s; } // (the most recent last)
   const [k, d] = growth(n, scale);
-  s = in3d(rig, P, pose, blink, chains, drawRig(rig, P, pose, blink, chains, scale * k, d, Math.round((FOOT + 1) * scale), n > 0 && pose !== 'jump'));
+  s = drawRig(rig, P, pose, blink, chains, scale * k, d, Math.round((FOOT + 1) * scale), n > 0 && pose !== 'jump');
+  if (scale === 1) s = in3d(rig, P, pose, blink, chains, s); // (drawn bigger, the giant: as ever)
   rigFrames.set(key, s);
   if (rigFrames.size > 400) { const old = rigFrames.keys().next().value; rigFrames.get(old).free(); rigFrames.delete(old); }
   return s;

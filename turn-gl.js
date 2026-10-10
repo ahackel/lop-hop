@@ -16,7 +16,7 @@
 // (createGLHi) colors, outlined as thick as you like, the marks on the surface, flat or lit.
 import { DEPTH, model, modelPosed, view, decalsAt, decalPoints, GX, GY, GW, GH, PIVOT3, FLOOR3 } from './turn3d.js';
 import { buildMesh, bonesFor } from './turn-mesh.js';
-import { FOOT, COLOR } from './art.js';
+import { FOOT, COLOR, paletteSprite } from './art.js';
 
 const MAXP = 32, MAXD = 8, OUT = 1, MARKS = 200; // (the group of balls sunk into the body: no line between them)
 const f = (v) => (Number.isInteger(v) ? `${v}.0` : String(v));
@@ -576,31 +576,41 @@ export function createGLHi() {
 }
 
 // ----------------------------------------------------------------------------------------------------- the game's
-// the game's (?turn3d): an animal drawn on the GPU at its own resolution, in its palette on a clear canvas, copied onto
-// the game's at the corner of its box; how: 'mesh' (a skinned, textured mesh: made at once for each kind given, so the
-// first one drawn has no wait), 'rays' (stepping rays) or 'parts' (part by part). → { draw(ctx, kind, move, frame, yaw
-// (degrees), x, y, pal, { blink, chains, swing, snap }): a move's frame turned; posed(ctx, kind, P, x, y, pal, { blink,
-// chains, snap }): as art.js has posed it (any of its pictures), from the side }, or null (no WebGL: the game draws on
-// the CPU)
-export function createSprites({ how = 'mesh', kinds = [] } = {}) {
+// the game's (?turn3d): an animal drawn on the GPU once and read back, its palette indices made into a sprite as art.js
+// makes them (drawn into a canvas a palette, kept), and kept as the game keeps its 2D pictures: drawn again only when
+// something in it changes (its move's frame, where its ears are, the angle to a step). Drawing it live every frame cost
+// an older iPad about 1 ms an animal (tools/bench.html); a kept sprite costs it what a 2D one does. how: 'mesh' (a
+// skinned, textured mesh: made at once for each kind given, so the first one drawn has no wait), 'rays' (stepping
+// rays) or 'parts' (part by part). → { how, posed(kind, P, { blink, chains }) → a sprite as art.js has posed it (any of
+// its pictures), from the side (kept by art.js with the picture it stands in for: see set3d); turned(kind, move,
+// frame, yaw (degrees), { blink, chains, swing }) → a sprite, a move's frame turned, the angle to the nearest of steps
+// round (kept here, the most recent 300) }, or null (no WebGL: the game draws on the CPU)
+export function createSprites({ how = 'mesh', kinds = [], steps = 32 } = {}) {
   const r = createGL();
   if (!r || (how === 'mesh' && !r.skinned) || (how === 'parts' && !r.byParts)) return null;
   const meshes = {}, meshOf = (k) => meshes[k] || (meshes[k] = buildMesh(k, { depth: DEPTH[k] }));
   if (how === 'mesh') kinds.forEach(meshOf);
-  const put = (ctx, kind, m, yaw, x, y, pal, blink, snap) => {
+  const marks = how === 'mesh' ? 'none' : 'decals', step = 360 / steps, kept = new Map();
+  const render = (kind, m, yaw, blink) => {
     const skin = how === 'mesh' ? { mesh: meshOf(kind), bones: null } : null;
     if (skin) skin.bones = bonesFor(skin.mesh, m);
-    r.draw(m, (yaw * Math.PI) / 180, 0, { blink, parts: how === 'parts', skin, pal });
-    ctx.drawImage(r.canvas, snap(x + GX), snap(y + GY));
+    return paletteSprite(GW, GH, r.draw(m, (yaw * Math.PI) / 180, 0, { blink, parts: how === 'parts', skin }), { ox: GX, oy: GY });
   };
-  const marks = how === 'mesh' ? 'none' : 'decals';
   return {
     how,
-    draw(ctx, kind, move, frame, yaw, x, y, pal, { blink = false, chains = null, swing = null, snap = (v) => v } = {}) {
-      put(ctx, kind, model(kind, move, frame, { chains, swing, marks }), yaw, x, y, pal, blink, snap);
+    posed(kind, P, { blink = false, chains = null } = {}) {
+      return render(kind, modelPosed(kind, P, { chains, marks }), 0, blink);
     },
-    posed(ctx, kind, P, x, y, pal, { blink = false, chains = null, snap = (v) => v } = {}) {
-      put(ctx, kind, modelPosed(kind, P, { chains, marks }), 0, x, y, pal, blink, snap);
+    turned(kind, move, frame, yaw, { blink = false, chains = null, swing = null } = {}) {
+      const q = (v) => Math.round(v * 4) / 4, sw = {}, at = ((Math.round(yaw / step) * step) % 360 + 360) % 360;
+      for (const name in swing || {}) sw[name] = { flare: q(swing[name].flare), lag: q(swing[name].lag) };
+      const key = JSON.stringify([kind, move, frame, at, blink, chains, sw]);
+      let s = kept.get(key);
+      if (s) { kept.delete(key); kept.set(key, s); return s; } // (the most recent last)
+      s = render(kind, model(kind, move, frame, { chains, swing: sw, marks }), at, blink);
+      kept.set(key, s);
+      if (kept.size > 300) { const old = kept.keys().next().value; kept.get(old).free(); kept.delete(old); }
+      return s;
     },
   };
 }
