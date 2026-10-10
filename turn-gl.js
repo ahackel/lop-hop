@@ -178,6 +178,7 @@ void main() {
     float nZ = dep(nb);
     if (nZ <= myZ + 0.3 || nG == ${f(MARKS)} || myG == ${f(MARKS)}) continue;
     if (nG != myG) { outc = ${f(OUT)}; break; }
+    if (uGap < 0.0) continue; // (gap < 0: no line inside a part across air, the shape not worked out again)
     vec3 mid = (toWorld3(vec3(GX + i + 0.5, GY + j + 0.5, myZ)) + toWorld3(vec3(GX + a + 0.5, GY + b + 0.5, nZ))) * 0.5;
     if (scene(mid, g, c) > uGap) { outc = ${f(OUT)}; break; }
   }
@@ -297,6 +298,9 @@ function core(canvasOpts, canvas = document.createElement('canvas')) {
   gl.bindTexture(gl.TEXTURE_2D, tex);
   for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.NEAREST], [gl.TEXTURE_MAG_FILTER, gl.NEAREST], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v);
   const fbo = gl.createFramebuffer(), depthBuf = gl.createRenderbuffer();
+  // (into the first pass's texture, if not already: on a phone's or an iPad's GPU binding it again, even as it was,
+  // ends what it is drawing and starts again, its whole picture written out and read back in, an object at a time)
+  const onto = () => { if (gl.getParameter(gl.FRAMEBUFFER_BINDING) !== fbo) gl.bindFramebuffer(gl.FRAMEBUFFER, fbo); };
   let size = '';
   const target = (width, height) => {
     if (size === `${width}x${height}`) return;
@@ -357,7 +361,7 @@ function core(canvasOpts, canvas = document.createElement('canvas')) {
       const g = upload(skin.mesh), B = new Float32Array(3 * MAXP * 4), G = new Float32Array(8);
       B.set(skin.bones.subarray(0, Math.min(skin.bones.length, B.length)));
       skin.mesh.groups.forEach((name, i) => { G[i] = groups[name] || 1; });
-      gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+      onto();
       gl.viewport(ax, ay, width, height);
       if (clear) { gl.clearColor(0, 0, 0, 0); gl.clearDepth(1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); }
       gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LESS);
@@ -374,7 +378,7 @@ function core(canvasOpts, canvas = document.createElement('canvas')) {
       full();
       return;
     }
-    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+    onto();
     gl.viewport(ax, ay, width, height);
     if (!byParts) {
       full();
@@ -628,18 +632,23 @@ uniform sampler2D uTex;
 varying vec2 vUv;
 varying float vA;
 void main() { vec4 c = texture2D(uTex, vUv); gl_FragColor = vec4(c.rgb * c.a * vA, c.a * vA); }`;
-const AW = 1024, AH = 512, COLS = Math.floor(AW / GW), ROWS = Math.floor(AH / GH); // (the atlas: 23 × 16 tiles)
+const AW = 512, AH = 256, COLS = Math.floor(AW / GW), ROWS = Math.floor(AH / GH); // (the atlas: 11 × 8 tiles: as many objects at most)
 
 // → the objects layer on a canvas of the page ({ how, marks, info, size(width, height, scale, ox, oy): the canvas's
 // pixels, screen pixels an art pixel and where the art's 0, 0 is on it (as the game's transform); add(kind, m, x, y, {
 // yaw (degrees), tilt, pal, blink, alpha, gap }): an object this frame (m: its model, made with marks as the layer says;
 // x, y: where the game would draw its sprite); flush(): draws them all, the canvas cleared first }), or null (no WebGL,
 // or it can't draw that way). how: 'parts' (part by part) or 'mesh' (a skinned mesh, made for each kind the first time
-// it is added). iOS can take the GPU away from a page in the background: it is made again when it comes back
-export function createLayer(canvas, { how = 'parts' } = {}) {
+// it is added). res: 'screen' (the canvas has the screen's pixels: each object placed to the screen pixel) or 'art' (one
+// pixel an art pixel, the page scaling it up: a 49th of the pixels at 7 screen pixels an art pixel; placed to the art
+// pixel; size says where the canvas goes). iOS can take the GPU away from a page in the background: it is made again
+// when it comes back. stats: the CPU's time in each pass of the last flush (ms). opaque: the canvas not see-through, its
+// sky (bg: the color) drawn by the layer (the whole game in WebGL, nothing under it); mesh: buildMesh's options (h: its
+// grid, coarser: fewer triangles); sync: waits for the GPU after each pass (stats then the GPU's time too: to measure)
+export function createLayer(canvas, { how = 'parts', res = 'screen', opaque = false, bg = '#000000', mesh = {}, sync = false } = {}) {
   let c = null, finish, tile, atlas, atlasFbo, quads, lost = false;
   const make = () => {
-    c = core({ alpha: true, premultipliedAlpha: true }, canvas);
+    c = core({ alpha: !opaque, premultipliedAlpha: true }, canvas);
     if (!c) return;
     const { gl, program } = c;
     finish = program(VERT, FINISH);
@@ -657,17 +666,26 @@ export function createLayer(canvas, { how = 'parts' } = {}) {
   if (!c || (how === 'mesh' && !c.skinned) || (how === 'parts' && !c.byParts)) return null;
   canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); lost = true; });
   canvas.addEventListener('webglcontextrestored', () => { make(); lost = !c; });
-  const meshes = {}, meshOf = (k) => meshes[k] || (meshes[k] = buildMesh(k, { depth: DEPTH[k] }));
-  const D0 = new Float32Array(MAXD * 4), D1 = new Float32Array(MAXD * 4), list = [];
+  const meshes = {}, meshOf = (k) => meshes[k] || (meshes[k] = buildMesh(k, { depth: DEPTH[k], ...mesh }));
+  const D0 = new Float32Array(MAXD * 4), D1 = new Float32Array(MAXD * 4), list = [], sky = opaque ? parseInt(bg.slice(1, 7), 16) : 0;
   let corners = new Float32Array(0), scale = 1, ox = 0, oy = 0;
   return {
     how,
     marks: how === 'mesh' ? 'none' : 'decals',
     info: `WebGL ${c.gl.getParameter(c.gl.VERSION)}`,
+    stats: { first: 0, finish: 0, tiles: 0 },
+    // → where the canvas goes on the screen, in its pixels ({ left, top, width, height }): at the art's resolution a
+    // little left of and above the screen's corner, its art pixels on the world's
     size(width, height, s, x0, y0) {
-      if (canvas.width !== width) canvas.width = width;
-      if (canvas.height !== height) canvas.height = height;
-      scale = s; ox = x0; oy = y0;
+      let left = 0, top = 0, w = width, h = height;
+      if (res === 'art') {
+        left = x0 % s ? (x0 % s) - s : 0; top = y0 % s ? (y0 % s) - s : 0;
+        w = Math.ceil((width - left) / s); h = Math.ceil((height - top) / s);
+        scale = 1; ox = (x0 - left) / s; oy = (y0 - top) / s;
+      } else { scale = s; ox = x0; oy = y0; }
+      if (canvas.width !== w) canvas.width = w;
+      if (canvas.height !== h) canvas.height = h;
+      return { left, top, width: res === 'art' ? w * s : w, height: res === 'art' ? h * s : h };
     },
     add(kind, m, x, y, { yaw = 0, tilt = 0, pal, blink = false, alpha = 1, gap = 0.25 } = {}) {
       if (list.length < COLS * ROWS) list.push({ kind, m, x, y, yaw, tilt, pal, blink, alpha, gap });
@@ -675,7 +693,7 @@ export function createLayer(canvas, { how = 'parts' } = {}) {
     flush() {
       const n = list.length, gl = c && c.gl;
       if (lost || !gl || gl.isContextLost()) { list.length = 0; return; }
-      const parts = how === 'parts';
+      const parts = how === 'parts', t0 = performance.now();
       // 1: what each pixel of each object sees, into its tile (the first: the whole atlas cleared)
       for (let i = 0; i < n; i++) {
         const o = list[i];
@@ -685,6 +703,8 @@ export function createLayer(canvas, { how = 'parts' } = {}) {
         if (skin) skin.bones = bonesFor(skin.mesh, o.m);
         c.first(o.m, o.v, { width: GW, height: GH, S: 1, lift: 0, byParts: parts, eps: 0.01, steps: 120, skin, size: [AW, AH], at: o.at, clear: i === 0 });
       }
+      if (sync) gl.finish();
+      const t1 = performance.now();
       // 2: its outlines, what is stuck on and its colors, into the same tile of the second atlas (every pixel of it)
       if (n) {
         gl.bindFramebuffer(gl.FRAMEBUFFER, atlasFbo);
@@ -703,10 +723,13 @@ export function createLayer(canvas, { how = 'parts' } = {}) {
           gl.drawArrays(gl.TRIANGLES, 0, 3);
         }
       }
+      if (sync) gl.finish();
+      const t2 = performance.now();
       // 3: the tiles onto the canvas, in the order added (the later in front), each corner on a screen pixel
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
       gl.viewport(0, 0, canvas.width, canvas.height);
-      gl.clearColor(0, 0, 0, 0);
+      if (opaque) gl.clearColor((sky >> 16) / 255, ((sky >> 8) & 255) / 255, (sky & 255) / 255, 1);
+      else gl.clearColor(0, 0, 0, 0);
       gl.clear(gl.COLOR_BUFFER_BIT);
       if (n) {
         if (corners.length < n * 30) corners = new Float32Array(n * 30 * 2);
@@ -728,6 +751,23 @@ export function createLayer(canvas, { how = 'parts' } = {}) {
         gl.disable(gl.BLEND);
       }
       list.length = 0;
+      if (sync) gl.finish();
+      Object.assign(this.stats, { first: t1 - t0, finish: t2 - t1, tiles: performance.now() - t2 });
     },
+  };
+}
+
+// what this browser's WebGL can do (for the bench: why a way can't be drawn)
+export function glInfo() {
+  const gl = document.createElement('canvas').getContext('webgl');
+  if (!gl) return { webgl: false };
+  const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+  return {
+    version: gl.getParameter(gl.VERSION),
+    renderer: dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER),
+    fragmentUniforms: gl.getParameter(gl.MAX_FRAGMENT_UNIFORM_VECTORS), vertexUniforms: gl.getParameter(gl.MAX_VERTEX_UNIFORM_VECTORS),
+    fragDepth: !!gl.getExtension('EXT_frag_depth'), instancing: !!gl.getExtension('ANGLE_instanced_arrays'),
+    webgl2: !!document.createElement('canvas').getContext('webgl2'),
+    extensions: gl.getSupportedExtensions(),
   };
 }
