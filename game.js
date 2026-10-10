@@ -16,8 +16,9 @@
 import { StardriftPlayer, openSongZip } from './engine/src/index.js'; // (by path: Safari before 16.4 knows no import maps)
 import { songFor } from './music.js';
 import { W, H, GROUND, PALETTES, COLOR, FOOT, ANIMALS, TRUNK, animal, moveBody, stride, bird, crow, set3d,
-  FOOD, face, FACE_W, cloud, moon, heart, reaching, moveReaching, star, golden, flushed, shadow, text, textWidth, hits, snap, setScale, idleFrame, jumpFrame, leaps, hitbox, readying,
-  JUMP, GRAVITY, hill, strides, rgb, luma, holdUp, swing, moveHung, hung, hangDepth, heldAt, petted, made, GLYPHS, front, hasFront } from './art.js';
+  FOOD, face, FACE_W, cloud, moon, heart, reaching, moveReaching, star, golden, flushed, shadow, hits, snap, setScale, idleFrame, jumpFrame, leaps, hitbox, readying,
+  JUMP, GRAVITY, hill, strides, rgb, luma, holdUp, swing, moveHung, hung, hangDepth, heldAt, petted, made, front, hasFront } from './art.js';
+import { GLYPHS, text, textWidth } from './font.js';
 import { course, pace, topSpeed, drain, hardness, nightAt, random, seedOf, chaserOf, SCORE_PER_PX, CROWS_FROM, FAST_FROM, CHASE } from './level.js';
 import { ease } from './animals/kit.js';
 import { BUILT, APP_VERSION } from './version.js';

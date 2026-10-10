@@ -1424,56 +1424,6 @@ export const heart = fromRows([
   '..r..',
 ], { r: BERRY });
 
-// ------------------------------------------------------------------------------------------------- a 3×5 pixel font
-// A letter: its rows, top to bottom, each a number whose bits are its pixels (written in base 32), 3 wide (4: the left
-// column) or, where a row needs more, 5 wide (16: the left column, the M and the W). It is as wide as the columns it uses
-// (the I a line, the . a dot; the digits use all three: a score keeps its place as it counts), a space 2, a pixel between
-export const GLYPHS = {
-  A: '25755', B: '65656', C: '34443', D: '65556', E: '74647', F: '74644', G: '34553', H: '55755', I: '22222', J: '11152', K: '55655', L: '44447', M: 'hrlhh',
-  N: '65555', O: '25552', P: '65644', Q: '25563', R: '65655', S: '34216', T: '72222', U: '55557', V: '55552', W: 'hhlla', X: '55255', Y: '55222', Z: '71247',
-  0: '75557', 1: '26227', 2: '61247', 3: '61216', 4: '55711', 5: '74616', 6: '34757', 7: '71222', 8: '75757', 9: '75716',
-  Ä: '525755', Ö: '525552', Ü: '505557', // (German: the dots a row above the letter, the U a row shorter; ß is written SS)
-  ' ': '00000', '.': '00002', ':': '02020', '!': '22202', '-': '00700', '/': '11244', '+': '02720', '<': '12421', '>': '42124', '?': '61202', '(': '12221', ')': '42224', ',': '00024',
-  '€': '78u87', '$': '36362', '£': '32727', '¥': '52727', // (for prices, as the App Store writes them)
-};
-// a letter's rows as written (above) → its pixels: { rows (numbers), full (3 or 5: the bits a row has), from (the first
-// column it uses), w (how many) }; kept
-const glyphs = new Map();
-function glyphOf(gl) {
-  let g = glyphs.get(gl);
-  if (g) return g;
-  const rows = [...gl].map((c) => parseInt(c, 32)), full = rows.some((r) => r > 7) ? 5 : 3, all = rows.reduce((a, r) => a | r, 0), on = (c) => all & (1 << (full - 1 - c));
-  let from = 0, to = full - 1;
-  while (from < full && !on(from)) from++;
-  while (to > from && !on(to)) to--;
-  g = { rows, full, from: from < full ? from : 0, w: from < full ? to - from + 1 : 2 }; // (none: a space)
-  glyphs.set(gl, g);
-  return g;
-}
-const glyphFor = (ch, set) => glyphOf(set[ch] || GLYPHS[ch] || GLYPHS[' ']);
-// how wide text is (in pixels of the font: times its size), a pixel between its letters
-export function textWidth(s, set = GLYPHS) {
-  s = String(s).toUpperCase();
-  let w = -1;
-  for (let i = 0; i < s.length; i++) w += glyphFor(s[i], set).w + 1;
-  return Math.max(0, w);
-}
-// text at (x, y), its top left; align 'center' or 'right' moves x
-export function text(ctx, s, x, y, color, align = 'left', size = 1, set = GLYPHS) { // (size: each pixel of the font that many; set: some of its letters drawn otherwise)
-  s = String(s).toUpperCase();
-  if (align === 'center') x -= (textWidth(s, set) * size) / 2;
-  if (align === 'right') x -= textWidth(s, set) * size;
-  x = Math.round(x);
-  ctx.fillStyle = color;
-  ctx.beginPath(); // (every pixel of it in one path: one fill)
-  for (let i = 0, at = 0; i < s.length; i++) {
-    const g = glyphFor(s[i], set);
-    for (let r = 0, top = g.rows.length - 5; r < g.rows.length; r++) for (let c = 0; c < g.w; c++) if (g.rows[r] & (1 << (g.full - 1 - g.from - c))) ctx.rect(x + (at + c) * size, y + (r - top) * size, size, size); // (an umlaut's dots: above)
-    at += g.w + 1;
-  }
-  ctx.fill();
-}
-
 // do two sprites overlap, pixel for pixel (by their masks)?
 export function hits(a, ax, ay, b, bx, by) {
   ax = Math.round(ax + (a.ox || 0)); ay = Math.round(ay + (a.oy || 0)); bx = Math.round(bx + (b.ox || 0)); by = Math.round(by + (b.oy || 0));
