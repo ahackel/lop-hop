@@ -99,6 +99,13 @@ was missed, how much food was eaten, how runs ended. The game writes every run d
 an iPad in the house at http://<this computer>.local:8323) they come in by themselves (`data/runs.jsonl`), from the
 app they are shared from the credits (SHARE: AirDrop, Mail, Files…) and dropped onto the balance page.
 
+How many play on the web is counted at [GoatCounter](https://lophop.goatcounter.com) (the counter in `game.js`): no
+cookies, nothing kept in the browser for it, no address, only the sums. Only the game at andreashackel.de (not the iOS
+app, the dev server, nor `?cheats`, `?auto`, `?all`, `?treats`, `?shop`): the visit (where from, the screen) and the
+events `back` (played in this browser before), `home-screen` (opened from it), `run`, `first-run` (the first in this
+browser) and `unlocked/<animal>` (`unlocked/dog`: the three free animals played through). `?nocount` once leaves a
+browser out for good (your own; `?nocount=off` counts it again).
+
 | Path | |
 |---|---|
 | `index.html` | the page: only the game, on every screen (`?music` on a computer: the music's moods and calls under it) |

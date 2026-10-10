@@ -97,7 +97,7 @@ const keptJSON = (k) => { try { return JSON.parse(kept(k)); } catch { return nul
 // written down for balancing kept (?reset=all: them too); then gone from the address, so a reload does not reset again
 if (Q.has('reset')) {
   const runs = Q.get('reset') !== 'all' ? ['lop.runs', 'lop.runsSent', 'lop.runNow'] : [];
-  try { for (const k of Object.keys(localStorage)) if (k.startsWith('lop.') && !runs.includes(k)) localStorage.removeItem(k); } catch { /* no storage */ }
+  try { for (const k of Object.keys(localStorage)) if (k.startsWith('lop.') && !runs.includes(k) && k !== 'lop.nocount') localStorage.removeItem(k); } catch { /* no storage */ }
   Q.delete('reset');
   history.replaceState(null, '', location.pathname + (query() ? `?${query()}` : '') + location.hash);
 }
@@ -202,6 +202,7 @@ function start() {
   launch = null; fadeIn = FADE_IN;
   gained = null;
   rec = AUTO || CHEATING ? null : newRec();
+  countRun();
   beat = best(); // the best so far: passing it plays a fanfare
   if (kind === newKind) { newKind = null; keep('new', null); } // (no longer new)
   reset();
@@ -307,6 +308,7 @@ function unlock(k) { // (said as the run ends: see hud)
   gained = newKind = k;
   if (rec) rec.unlocked.push(k);
   keep('unlocked', JSON.stringify(open)); keep('new', k);
+  count(`unlocked/${k}`); // (unlocked/dog: the three free ones played through)
 }
 // words in the middle of the screen for a while, standing (rise: or rising; size 2: big, in the title's letters)
 const banner = (text, y, life = 2, rise = 0, size = 1) => floats.push({ text, x: W / 2 - (textWidth(text) * size) / 2, y, life, rise, size });
@@ -847,6 +849,29 @@ function sendRuns() {
     .then((r) => { if (r.ok) keep('runsSent', out[out.length - 1].id); }).catch(() => {});
 }
 sendRuns();
+
+// ------------------------------------------------------------------------------------------------------- the counter
+// How many play on the web, to know whether the game is worth more (the App Store): counted at GoatCounter
+// (https://lophop.goatcounter.com), which keeps nothing in the browser and no address, only the sums. Only the game at
+// andreashackel.de: not the iOS app, not the dev server, not with ?cheats, ?auto, ?all, ?treats, ?shop, not in a browser
+// that said ?nocount (kept, lop.nocount: the developer's own; ?nocount=off counts it again). Sent: the visit (the page:
+// where from, the screen) and as events: back (played here before), home-screen (opened from it), run (a run starts),
+// first-run (the first in this browser), unlocked/<animal> (one joins at dawn)
+const COUNTER = 'https://lophop.goatcounter.com/count';
+if (Q.has('nocount')) keep('nocount', Q.get('nocount') === 'off' ? null : '1');
+const COUNTING = /(^|\.)andreashackel\.de$/.test(location.hostname) && !window.Capacitor && !AUTO && !CHEATING && !ALL && !CHEAT_TREATS && !Q.has('shop') && !kept('nocount');
+function count(path, event = true) {
+  if (!COUNTING) return;
+  const q = { p: path, t: document.title, s: `${screen.width},${screen.height},${window.devicePixelRatio || 1}`, rnd: Math.random().toString(36).slice(2) };
+  if (event) q.e = 'true';
+  else q.r = document.referrer;
+  new Image().src = `${COUNTER}?${new URLSearchParams(q)}`; // (offline: lost, and nothing waits for it)
+}
+let played = !!kept('runs'); // (a run played in this browser before; not parsed: there may be many)
+function countRun() { count('run'); if (!played) { played = true; count('first-run'); } }
+count(location.pathname, false);
+if (played) count('back');
+if (matchMedia('(display-mode: standalone)').matches || navigator.standalone) count('home-screen');
 // all the runs, as a file: shared (a phone, the app: AirDrop, Mail, Files…), else saved (a computer), else copied
 async function shareRuns() {
   const json = JSON.stringify({ game: 'lop-hop', shared: new Date().toISOString(), runs: keptJSON('runs') || [] });
