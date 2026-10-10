@@ -17,7 +17,7 @@ delete globalThis.structuredClone;
 
 const root = new URL('../', import.meta.url);
 const js = (dir) => readdirSync(new URL(dir, root), { recursive: true }).filter((f) => f.endsWith('.js')).map((f) => `${dir}${f}`);
-export const FILES = ['index.html', 'sw.js', 'game.js', 'level.js', 'music.js', 'lang.js', 'art.js', 'font.js', 'asset.js', ...js('assets/'), 'turn3d.js', 'turn-gl.js', 'turn-mesh.js', 'tools/bench.html', 'tools/bench.js', ...js('animals/'), ...js('engine/src/')];
+export const FILES = ['index.html', 'sw.js', 'game.js', 'level.js', 'music.js', 'lang.js', 'art.js', 'font.js', 'icons.js', 'asset.js', ...js('assets/'), 'turn3d.js', 'turn-gl.js', 'turn-mesh.js', 'tools/bench.html', 'tools/bench.js', ...js('animals/'), ...js('engine/src/')];
 
 // [what, a pattern for it, a fallback must be on the same line] (in the code, not its comments)
 const NEWER = [

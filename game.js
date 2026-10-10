@@ -19,6 +19,7 @@ import { W, H, GROUND, PALETTES, COLOR, FOOT, ANIMALS, TRUNK, animal, moveBody, 
   FOOD, face, FACE_W, cloud, moon, heart, reaching, moveReaching, star, golden, flushed, shadow, hits, snap, setScale, idleFrame, jumpFrame, leaps, hitbox, readying,
   JUMP, GRAVITY, hill, strides, rgb, luma, holdUp, swing, moveHung, hung, hangDepth, heldAt, petted, made, front, hasFront } from './art.js';
 import { GLYPHS, text, textWidth } from './font.js';
+import { ICONS, PAD_ICONS } from './icons.js';
 import { course, pace, topSpeed, drain, hardness, nightAt, random, seedOf, chaserOf, SCORE_PER_PX, CROWS_FROM, FAST_FROM, CHASE } from './level.js';
 import { ease } from './animals/kit.js';
 import { BUILT, APP_VERSION } from './version.js';
@@ -658,17 +659,7 @@ document.addEventListener('fullscreenchange', () => { if (document.fullscreenEle
 // the game's buttons, in its own pixels from the top left of the screen: sound, the high scores, the credits, full
 // screen, and after a knock-out, back to the animals; while running only an arrow back (home); on the high scores, the
 // credits, the gate and the shop none (BACK in the middle: see buttons). A button acts when the press ends on it (a
-// phone lets full screen start only then).
-const ICONS = {
-  soundOn: ['..x....', '.xx.x..', 'xxx..x.', 'xxx..x.', 'xxx..x.', '.xx.x..', '..x....'],
-  soundOff: ['..x....', '.xx....', 'xxx.x.x', 'xxx..x.', 'xxx.x.x', '.xx....', '..x....'],
-  scores: ['xxxxxxx', 'x.xxx.x', '.xxxxx.', '..xxx..', '...x...', '..xxx..', '.xxxxx.'],
-  credits: ['.xx.xx.', 'xxxxxxx', 'xxxxxxx', 'xxxxxxx', '.xxxxx.', '..xxx..', '...x...'],
-  full: ['xx...xx', 'x.....x', '.......', '.......', '.......', 'x.....x', 'xx...xx'],
-  leave: ['.x...x.', 'xx...xx', '.......', '.......', '.......', 'xx...xx', '.x...x.'],
-  home: ['...x...', '..xxx..', '.xxxxx.', 'xxxxxxx', '.x...x.', '.x.x.x.', '.x.x.x.'],
-  back: ['...x...', '..xx...', '.xxxxxx', 'xxxxxxx', '.xxxxxx', '..xx...', '...x...'],
-};
+// phone lets full screen start only then). Their icons: ICONS (icons.js).
 const ACTS = {
   sound: toggleMute,
   scores: () => { if (board && !board.credits && !board.gate && !board.shop) leaveScores(); else { closeScores(); showScores(fresh); fresh = null; } },
@@ -761,10 +752,7 @@ function drawButtons(pal) {
 // round, half seen, in the bottom corners of the game (on a phone: of the screen, below the world, clear of a notch): on
 // the title, the animal before and after; on a phone while running, where to tap (the whole half of the screen works),
 // duck left, jump right. In the game's pixels and colors (--px, --game-ink, --game-bg)
-const ARROW = ['....x....', '...xxx...', '..xxxxx..', '.xxxxxxx.', 'xxxxxxxxx', '...xxx...', '...xxx...', '...xxx...', '...xxx...'];
-const LEFT = ARROW.map((_, y) => ARROW.map((r) => r[y]).join('')); // (turned: pointing left)
-const flip = (rows) => rows.map((r) => [...r].reverse().join(''));
-const PAD = 17, PAD_ICONS = { jump: ARROW, duck: [...ARROW].reverse(), prev: LEFT, next: flip(LEFT) };
+const PAD = 17; // (its icons: PAD_ICONS, icons.js)
 function padSvg(icon) {
   const r = PAD / 2, o = (PAD - icon.length) / 2;
   const inside = (x, y) => x >= 0 && y >= 0 && x < PAD && y < PAD && Math.hypot(x + 0.5 - r, y + 0.5 - r) <= r;

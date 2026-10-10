@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sprites</title>
+<link rel="icon" href="../icons/favicon.png">
+<style>
+  :root {
+    --bg: #f4f2ec; --panel: #fffdf8; --line: #ddd8cc; --ink: #2f2d29; --dim: #8a857a; --accent: #d9632b;
+    font: 13px/1.4 system-ui, -apple-system, sans-serif; color: var(--ink);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg: #1d1f26; --panel: #262932; --line: #3a3e4a; --ink: #e9e6de; --dim: #9a978f; --accent: #f08a4b; }
+  }
+  :root[data-theme="dark"] { --bg: #1d1f26; --panel: #262932; --line: #3a3e4a; --ink: #e9e6de; --dim: #9a978f; --accent: #f08a4b; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); }
+  header { display: flex; gap: 10px 16px; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; position: sticky; top: 0; z-index: 1; }
+  header h1 { font-size: 15px; margin: 0 8px 0 0; }
+  header label { display: flex; gap: 5px; align-items: center; color: var(--dim); }
+  input, select, button { font: inherit; color: inherit; }
+  select, button { background: var(--panel); border: 1px solid var(--line); border-radius: 5px; padding: 2px 6px; }
+  button { cursor: pointer; }
+  button:hover { border-color: var(--dim); }
+  main { padding: 12px 16px 40px; display: flex; flex-direction: column; gap: 14px; }
+  h2 { font-size: 13px; margin: 0 0 2px; }
+  h3 { font-size: 12px; margin: 10px 0 6px; color: var(--dim); font-weight: 600; }
+  .note { color: var(--dim); margin: 0 0 8px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px; min-width: 0; }
+  .items { display: flex; flex-wrap: wrap; gap: 6px; align-items: flex-end; }
+  figure { margin: 0; padding: 6px; border: 1px solid var(--line); border-radius: 6px; display: flex; flex-direction: column; align-items: center; gap: 4px; max-width: 100%; }
+  canvas { display: block; image-rendering: pixelated; max-width: 100%; }
+  figcaption { color: var(--dim); font-size: 11px; text-align: center; font-variant-numeric: tabular-nums; }
+  figcaption b { color: var(--ink); font-weight: 600; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Sprites</h1>
+  <label>size <input id="size" type="range" min="1" max="8" step="1" value="4"> <span id="sizeout"></span></label>
+  <label>palette <select id="pal"><option value="day">day</option><option value="night">night</option></select></label>
+  <label>look <select id="look"><option value="">as it is</option><option value="golden">golden (a super power)</option><option value="flushed">flushed (tired)</option><option value="shadow">shadow (not won yet)</option></select></label>
+  <button id="shuffle" title="Other obstacles: each is made differently every time">Shuffle obstacles</button>
+</header>
+<main>
+  <section class="card"><h2>Food</h2><p class="note">What each animal eats (its treats on the title, the food along a run).</p><div class="items" id="food"></div></section>
+  <section class="card"><h2>Icons</h2><p class="note">The buttons (7×7 in a frame of 11), as they are and pressed, and the pads (9×9 in a round pad of 17). From <code>icons.js</code>.</p><div class="items" id="icons"></div></section>
+  <section class="card"><h2>Sky and more</h2><div class="items" id="sky"></div></section>
+  <section class="card"><h2>Faces</h2><p class="note">Each animal's face on the high scores.</p><div class="items" id="faces"></div></section>
+  <section class="card"><h2>Obstacles</h2><p class="note">Each land's: big, small and other (jumped), and its branch (ducked under; only its lowest rows: its trunk goes on up into the sky). Made differently every time: Shuffle.</p><div id="lands"></div></section>
+</main>
+<script type="module">
+import { PALETTES, COLOR, FOOD, ANIMALS, LANDS, branch, cloud, moon, fullMoon, star, heart, bird, crow, face, golden, flushed, shadow } from '../art.js';
+import { ICONS, PAD_ICONS } from '../icons.js';
+import { random } from '../level.js';
+
+const $ = (id) => document.getElementById(id);
+const BRANCH_ROWS = 40; // (a branch: its lowest rows shown)
+let seed = 1;
+
+const palette = () => {
+  const base = PALETTES[$('pal').value], look = $('look').value;
+  return look === 'golden' ? golden(base) : look === 'flushed' ? flushed(base) : look === 'shadow' ? shadow(base) : base;
+};
+
+// a canvas w × h of the game's pixels at size, on the palette's background, sharp on the screen; draw(ctx) in the game's pixels
+function pixels(w, h, draw) {
+  const size = +$('size').value, k = window.devicePixelRatio || 1, pal = PALETTES[$('pal').value];
+  const art = document.createElement('canvas'), c = document.createElement('canvas');
+  art.width = w; art.height = h;
+  const actx = art.getContext('2d');
+  actx.fillStyle = pal.bg; actx.fillRect(0, 0, w, h);
+  draw(actx);
+  c.width = Math.round(w * size * k); c.height = Math.round(h * size * k);
+  c.style.width = `${w * size}px`; c.style.height = `${h * size}px`;
+  const ctx = c.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(art, 0, 0, c.width, c.height);
+  return c;
+}
+
+function item(box, name, canvas, note = '') {
+  const fig = document.createElement('figure'), cap = document.createElement('figcaption'), b = document.createElement('b');
+  b.textContent = name;
+  cap.append(b, document.createElement('br'), note);
+  fig.append(canvas, cap);
+  box.append(fig);
+}
+
+// a sprite with a pixel round it (its grid as it is: where it is placed moves it by ox, oy); a tall one only its lowest rows
+function spriteItem(box, name, s, rows = s.h) {
+  const h = Math.min(rows, s.h), pal = palette();
+  item(box, name, pixels(s.w + 2, h + 2, (ctx) => s.draw(ctx, 1 - (s.ox || 0), 1 - (s.oy || 0) - (s.h - h), pal)), `${s.w}×${s.h}`);
+}
+
+// a button as the game draws it (drawButton): a frame with round corners, the icon in it, inverted when pressed
+function button(ctx, x, y, icon, on, pal) {
+  const ink = pal[COLOR.INK];
+  ctx.fillStyle = ink;
+  ctx.fillRect(x + 1, y, 9, 1); ctx.fillRect(x + 1, y + 10, 9, 1); ctx.fillRect(x, y + 1, 1, 9); ctx.fillRect(x + 10, y + 1, 1, 9);
+  ctx.fillStyle = on ? ink : pal.bg; ctx.fillRect(x + 1, y + 1, 9, 9);
+  ctx.fillStyle = on ? pal.bg : ink;
+  icon.forEach((r, dy) => { for (let dx = 0; dx < r.length; dx++) if (r[dx] === 'x') ctx.fillRect(x + 2 + dx, y + 2 + dy, 1, 1); });
+}
+// a pad as the game draws it (padSvg): a round of 17, its edge and the icon in ink, the rest in the background (the game
+// shows it half seen, faint, in a corner)
+function pad(ctx, x, y, icon, pal) {
+  const P = 17, r = P / 2, o = (P - icon.length) / 2;
+  const inside = (u, v) => u >= 0 && v >= 0 && u < P && v < P && Math.hypot(u + 0.5 - r, v + 0.5 - r) <= r;
+  for (let v = 0; v < P; v++) for (let u = 0; u < P; u++) {
+    if (!inside(u, v)) continue;
+    const edge = !inside(u - 1, v) || !inside(u + 1, v) || !inside(u, v - 1) || !inside(u, v + 1);
+    ctx.fillStyle = edge || icon[v - o]?.[u - o] === 'x' ? pal[COLOR.INK] : pal[COLOR.WHITE];
+    ctx.fillRect(x + u, y + v, 1, 1);
+  }
+}
+
+function draw() {
+  $('sizeout').textContent = `×${$('size').value}`;
+  const pal = palette();
+  for (const id of ['food', 'icons', 'sky', 'faces', 'lands']) $(id).textContent = '';
+
+  for (const [name, s] of Object.entries(FOOD)) spriteItem($('food'), name, s);
+
+  for (const [name, icon] of Object.entries(ICONS)) item($('icons'), name, pixels(25, 13, (ctx) => { button(ctx, 1, 1, icon, false, pal); button(ctx, 13, 1, icon, true, pal); }), '7×7');
+  for (const [name, icon] of Object.entries(PAD_ICONS)) item($('icons'), name, pixels(19, 19, (ctx) => pad(ctx, 1, 1, icon, pal)), 'pad');
+
+  for (const [name, s] of [['cloud', cloud], ['moon', moon], ['full moon', fullMoon], ['star', star], ['heart', heart],
+    ['bird 1', bird(0)], ['bird 2', bird(1)], ['crow 1', crow(0)], ['crow 2', crow(1)]]) spriteItem($('sky'), name, s);
+
+  for (const kind of Object.keys(ANIMALS)) { const s = face(kind); if (s) spriteItem($('faces'), kind, s); }
+
+  const rnd = random(seed);
+  for (const land of LANDS) {
+    const h = document.createElement('h3'), box = document.createElement('div');
+    h.textContent = land.name.toLowerCase().replace(/^the /, '');
+    box.className = 'items';
+    $('lands').append(h, box);
+    for (const what of ['big', 'small', 'other']) for (let i = 0; i < 3; i++) spriteItem(box, what, land[what](rnd));
+    spriteItem(box, 'branch', branch(rnd, land.leaves), BRANCH_ROWS);
+  }
+}
+
+$('size').addEventListener('input', draw);
+$('pal').addEventListener('change', draw);
+$('look').addEventListener('change', draw);
+$('shuffle').addEventListener('click', () => { seed++; draw(); });
+draw();
+</script>
+</body>
+</html>

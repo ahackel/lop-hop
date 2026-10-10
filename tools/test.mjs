@@ -186,7 +186,7 @@ const newer = oldSafari();
 ok(!newer.length, `nothing newer than Safari 15 without a fallback${newer.length ? `:\n  ${newer.join('\n  ')}` : ''}`);
 
 // every file of the game parses (the rest above loads only some of them: a slip in game.js would pass, and the page stay blank)
-const broken = ['game.js', 'art.js', 'font.js', 'asset.js', 'level.js', 'music.js', 'lang.js', 'version.js'].filter((f) => {
+const broken = ['game.js', 'art.js', 'font.js', 'icons.js', 'asset.js', 'level.js', 'music.js', 'lang.js', 'version.js'].filter((f) => {
   try { execFileSync(process.execPath, ['--check', new URL(`../${f}`, import.meta.url).pathname], { stdio: 'pipe' }); return false; } catch { return true; }
 });
 ok(!broken.length, `every file of the game parses${broken.length ? ` (not ${broken.join(', ')}: node --check says why)` : ''}`);
