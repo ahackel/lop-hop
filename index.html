@@ -14,6 +14,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Lop Hop">
 <script>
+  // ?bench=25: the bench instead of the game (tools/bench.html: how many animals it draws at 60 frames a second, each way)
+  if (/[?&]bench\b/.test(location.search)) location.replace(`tools/bench.html${location.search}`);
   // ?music on a computer: the page around the game, with the music's moods and calls as the game makes them
   if (/[?&]music\b/.test(location.search) && !matchMedia('(pointer: coarse), (display-mode: standalone), (display-mode: fullscreen)').matches) document.documentElement.classList.add('page');
 </script>

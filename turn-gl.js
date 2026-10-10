@@ -31,6 +31,7 @@ const vec3 PIVOT = vec3(${PIVOT3.map(f).join(', ')});
 uniform int uCount;
 uniform vec4 uP0[${MAXP}], uP1[${MAXP}], uP2[${MAXP}]; // (type, k, group, color); ellipsoid: (c, cos), (r, sin); capsule: (a, r), (b, 0)
 uniform vec4 uView; // cos, sin of the turn; of the tilt
+uniform vec2 uAt; // where the picture's corner is in what it is drawn into (a tile of the objects layer's atlas; else 0)
 float sdOf(vec4 p0, vec4 p1, vec4 p2, vec3 p) {
   if (p0.x < 0.5) {
     vec3 d = p - p1.xyz;
@@ -84,7 +85,7 @@ uniform vec3 uMid, uDir;
 uniform float uR, uS, uH, uLift, uEps;
 uniform int uSteps;
 void main() {
-  float vx = GX + gl_FragCoord.x / uS, vy = GY + (uH - gl_FragCoord.y) / uS + uLift, ox = vx - uMid.x, oy = vy - uMid.y;
+  float vx = GX + (gl_FragCoord.x - uAt.x) / uS, vy = GY + (uH - gl_FragCoord.y + uAt.y) / uS + uLift, ox = vx - uMid.x, oy = vy - uMid.y;
   gl_FragColor = vec4(0.0);
   if (vy >= FLOOR || ox * ox + oy * oy > uR * uR) return;
   float zIn = uMid.z + sqrt(uR * uR - ox * ox - oy * oy), t = 0.0, g, c;
@@ -143,7 +144,7 @@ float meet(vec3 o, vec3 d) {
   return ball(o, d, y <= 0.0 ? pa : v2.xyz, r);
 }
 void main() {
-  float vx = GX + gl_FragCoord.x / uS, vy = GY + (uH - gl_FragCoord.y) / uS + uLift;
+  float vx = GX + (gl_FragCoord.x - uAt.x) / uS, vy = GY + (uH - gl_FragCoord.y + uAt.y) / uS + uLift;
   if (vy >= FLOOR) discard;
   float t = meet(toWorld3(vec3(vx, vy, uZ0)), uDir);
   if (t < 0.0) discard;
@@ -153,16 +154,17 @@ void main() {
 }`;
 const FINISH = `${COMMON}
 uniform sampler2D uTex;
+uniform vec2 uTexSize; // the first pass's texture (the picture at uAt in it)
 uniform float uGap, uBlink, uColor; // color: palette colors out (the sky clear), not palette indices
 uniform sampler2D uPal;
 uniform int uDecals;
 uniform vec4 uD0[${MAXD}], uD1[${MAXD}]; // (v, -), (nv.x, nv.y, color, eye)
-vec4 at(float i, float j) { return texture2D(uTex, vec2((i + 0.5) / GW, (GH - 1.0 - j + 0.5) / GH)); }
+vec4 at(float i, float j) { return texture2D(uTex, vec2((uAt.x + i + 0.5) / uTexSize.x, (uAt.y + GH - 1.0 - j + 0.5) / uTexSize.y)); }
 float grp(vec4 s) { return floor(s.g * 255.0 + 0.5); }
 float col(vec4 s) { return floor(s.r * 255.0 + 0.5); }
 float dep(vec4 s) { return (floor(s.b * 255.0 + 0.5) * 256.0 + floor(s.a * 255.0 + 0.5)) / 65535.0 * 128.0 - 64.0; }
 void main() {
-  float i = floor(gl_FragCoord.x), j = GH - 1.0 - floor(gl_FragCoord.y), g, c;
+  float i = floor(gl_FragCoord.x - uAt.x), j = GH - 1.0 - floor(gl_FragCoord.y - uAt.y), g, c;
   vec4 me = at(i, j);
   float myG = grp(me), myZ = dep(me), outc = col(me);
   for (int k = 0; k < 4; k++) {
@@ -260,10 +262,10 @@ function boxOf(q, toView) {
   return [x0 - 0.5, y0 - 0.5, x1 + 0.5, y1 + 0.5];
 }
 
-// what both renderers share: a WebGL canvas; the first pass (either way) into a texture as big as the picture
-// (target(width, height)); the parts into uniforms (setParts) or boxes (the parts pass)
-function core(canvasOpts) {
-  const canvas = document.createElement('canvas');
+// what the renderers share: a WebGL canvas (a new one, or the page's: the objects layer's); the first pass (either way)
+// into a texture as big as the picture (target(width, height)), or into a tile of a bigger one (the objects layer's
+// atlas); the parts into uniforms (setParts) or boxes (the parts pass)
+function core(canvasOpts, canvas = document.createElement('canvas')) {
   const gl = canvas.getContext('webgl', { antialias: false, depth: false, stencil: false, premultipliedAlpha: false, ...canvasOpts });
   if (!gl || gl.getParameter(gl.MAX_FRAGMENT_UNIFORM_VECTORS) < 3 * MAXP + 2 * MAXD + 12) return null;
   const program = (vs, fs, attribs = ['p']) => {
@@ -345,18 +347,19 @@ function core(canvasOpts) {
   };
   // the first pass, into the texture (width × height, S screen pixels an art pixel, lift: drawn that much higher):
   // marched (eps: how near a part counts as on it; steps: at most), part by part, or a skinned mesh (skin: { mesh,
-  // bones, shut, wire })
-  const first = (m, v, { width, height, S, lift, byParts, eps, steps, skin }) => {
-    target(width, height);
+  // bones, shut, wire }); or into a tile of it (size: the texture's [w, h], at: the tile's corner in it; clear: false,
+  // cleared already, each tile its own, see createLayer)
+  const first = (m, v, { width, height, S, lift, byParts, eps, steps, skin, size = null, at = null, clear = true }) => {
+    target(size ? size[0] : width, size ? size[1] : height);
+    const ax = at ? at[0] : 0, ay = at ? at[1] : 0;
     fill(m, byParts); // (a mesh melted as the march's: its light and outlines from the melted parts)
     if (skin && skinned) {
       const g = upload(skin.mesh), B = new Float32Array(3 * MAXP * 4), G = new Float32Array(8);
       B.set(skin.bones.subarray(0, Math.min(skin.bones.length, B.length)));
       skin.mesh.groups.forEach((name, i) => { G[i] = groups[name] || 1; });
       gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
-      gl.viewport(0, 0, width, height);
-      gl.clearColor(0, 0, 0, 0); gl.clearDepth(1);
-      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+      gl.viewport(ax, ay, width, height);
+      if (clear) { gl.clearColor(0, 0, 0, 0); gl.clearDepth(1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); }
       gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LESS);
       gl.useProgram(skinned.p);
       gl.bindBuffer(gl.ARRAY_BUFFER, g.buf);
@@ -372,10 +375,10 @@ function core(canvasOpts) {
       return;
     }
     gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
-    gl.viewport(0, 0, width, height);
+    gl.viewport(ax, ay, width, height);
     if (!byParts) {
       full();
-      gl.useProgram(march.p); setParts(march.u, m, v);
+      gl.useProgram(march.p); setParts(march.u, m, v); gl.uniform2f(march.u.uAt, ax, ay);
       gl.uniform3f(march.u.uMid, ...v.midV); gl.uniform3f(march.u.uDir, ...v.dirW); gl.uniform1f(march.u.uR, v.R);
       gl.uniform1f(march.u.uS, S); gl.uniform1f(march.u.uH, height); gl.uniform1f(march.u.uLift, lift);
       gl.uniform1f(march.u.uEps, eps); gl.uniform1i(march.u.uSteps, steps);
@@ -394,11 +397,10 @@ function core(canvasOpts) {
     gl.bindBuffer(gl.ARRAY_BUFFER, boxes);
     gl.bufferData(gl.ARRAY_BUFFER, corners.subarray(0, n * 6 * 14), gl.DYNAMIC_DRAW);
     [2, 4, 4, 4].forEach((k, i) => { gl.enableVertexAttribArray(i); gl.vertexAttribPointer(i, k, gl.FLOAT, false, 56, [0, 8, 24, 40][i]); });
-    gl.clearColor(0, 0, 0, 0); gl.clearDepth(1);
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    if (clear) { gl.clearColor(0, 0, 0, 0); gl.clearDepth(1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); }
     gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LESS);
     gl.useProgram(parts.p);
-    gl.uniform4f(parts.u.uView, v.cy, v.sy, v.ct, v.st);
+    gl.uniform4f(parts.u.uView, v.cy, v.sy, v.ct, v.st); gl.uniform2f(parts.u.uAt, ax, ay);
     gl.uniform3f(parts.u.uDir, ...v.dirW); gl.uniform1f(parts.u.uZ0, v.midV[2] + v.R); gl.uniform1f(parts.u.uR, v.R);
     gl.uniform1f(parts.u.uS, S); gl.uniform1f(parts.u.uH, height); gl.uniform1f(parts.u.uLift, lift);
     gl.drawArrays(gl.TRIANGLES, 0, n * 6);
@@ -420,7 +422,7 @@ function core(canvasOpts) {
     }
     gl.activeTexture(gl.TEXTURE0);
   };
-  return { canvas, gl, program, first, setParts, tex, usePalette, byParts: !!parts, skinned: !!skinned };
+  return { canvas, gl, program, first, fill, setParts, tex, fbo, full, usePalette, byParts: !!parts, skinned: !!skinned };
 }
 
 // → a renderer at the game's resolution ({ draw(m, yaw, tilt, { gap, blink, parts, skin, read }) → palette indices, as
@@ -449,6 +451,7 @@ export function createGL() {
       gl.viewport(0, 0, GW, GH);
       gl.useProgram(finish.p); setParts(finish.u, m, v);
       gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex); gl.uniform1i(finish.u.uTex, 0);
+      gl.uniform2f(finish.u.uTexSize, GW, GH); gl.uniform2f(finish.u.uAt, 0, 0);
       gl.uniform1f(finish.u.uGap, gap); gl.uniform1f(finish.u.uBlink, blink ? 1 : 0);
       gl.uniform1i(finish.u.uDecals, decals.length); gl.uniform4fv(finish.u.uD0, D0); gl.uniform4fv(finish.u.uD1, D1);
       gl.uniform1f(finish.u.uColor, pal ? 1 : 0);
@@ -594,6 +597,137 @@ export function createSprites({ how = 'mesh', kinds = [] } = {}) {
     },
     posed(ctx, kind, P, x, y, pal, { blink = false, chains = null, snap = (v) => v } = {}) {
       put(ctx, kind, modelPosed(kind, P, { chains, marks }), 0, x, y, pal, blink, snap);
+    },
+  };
+}
+
+// ------------------------------------------------------------------------------------------------ the objects layer
+// Every object drawn live each frame, all of them on the GPU, with nothing copied back to the CPU or into a 2D canvas
+// (each such copy waits for the GPU: 0.5 to 1 ms an object, where drawing one takes 0.04). Three passes a frame, each
+// with one target: the first pass of every object into its own tile of a big texture (an atlas); the outlines and
+// colors of each into the same tile of a second one; then each tile drawn onto the page's canvas (a WebGL canvas over
+// the game's 2D one, clear where nothing is), as big as the game draws its art pixels and where it would put that
+// object's sprite, to the screen pixel
+const TILE_VERT = `
+attribute vec2 p, uv;
+attribute float a;
+uniform vec2 uScreen, uAtlas;
+varying vec2 vUv;
+varying float vA;
+void main() {
+  vUv = uv / uAtlas; vA = a;
+  gl_Position = vec4(p.x / uScreen.x * 2.0 - 1.0, 1.0 - p.y / uScreen.y * 2.0, 0.0, 1.0);
+}`;
+const TILE = `
+#ifdef GL_FRAGMENT_PRECISION_HIGH
+precision highp float;
+#else
+precision mediump float;
+#endif
+uniform sampler2D uTex;
+varying vec2 vUv;
+varying float vA;
+void main() { vec4 c = texture2D(uTex, vUv); gl_FragColor = vec4(c.rgb * c.a * vA, c.a * vA); }`;
+const AW = 1024, AH = 512, COLS = Math.floor(AW / GW), ROWS = Math.floor(AH / GH); // (the atlas: 23 × 16 tiles)
+
+// → the objects layer on a canvas of the page ({ how, marks, info, size(width, height, scale, ox, oy): the canvas's
+// pixels, screen pixels an art pixel and where the art's 0, 0 is on it (as the game's transform); add(kind, m, x, y, {
+// yaw (degrees), tilt, pal, blink, alpha, gap }): an object this frame (m: its model, made with marks as the layer says;
+// x, y: where the game would draw its sprite); flush(): draws them all, the canvas cleared first }), or null (no WebGL,
+// or it can't draw that way). how: 'parts' (part by part) or 'mesh' (a skinned mesh, made for each kind the first time
+// it is added). iOS can take the GPU away from a page in the background: it is made again when it comes back
+export function createLayer(canvas, { how = 'parts' } = {}) {
+  let c = null, finish, tile, atlas, atlasFbo, quads, lost = false;
+  const make = () => {
+    c = core({ alpha: true, premultipliedAlpha: true }, canvas);
+    if (!c) return;
+    const { gl, program } = c;
+    finish = program(VERT, FINISH);
+    tile = program(TILE_VERT, TILE, ['p', 'uv', 'a']);
+    atlas = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, atlas);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, AW, AH, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.NEAREST], [gl.TEXTURE_MAG_FILTER, gl.NEAREST], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v);
+    atlasFbo = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, atlasFbo);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, atlas, 0);
+    quads = gl.createBuffer();
+  };
+  make();
+  if (!c || (how === 'mesh' && !c.skinned) || (how === 'parts' && !c.byParts)) return null;
+  canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); lost = true; });
+  canvas.addEventListener('webglcontextrestored', () => { make(); lost = !c; });
+  const meshes = {}, meshOf = (k) => meshes[k] || (meshes[k] = buildMesh(k, { depth: DEPTH[k] }));
+  const D0 = new Float32Array(MAXD * 4), D1 = new Float32Array(MAXD * 4), list = [];
+  let corners = new Float32Array(0), scale = 1, ox = 0, oy = 0;
+  return {
+    how,
+    marks: how === 'mesh' ? 'none' : 'decals',
+    info: `WebGL ${c.gl.getParameter(c.gl.VERSION)}`,
+    size(width, height, s, x0, y0) {
+      if (canvas.width !== width) canvas.width = width;
+      if (canvas.height !== height) canvas.height = height;
+      scale = s; ox = x0; oy = y0;
+    },
+    add(kind, m, x, y, { yaw = 0, tilt = 0, pal, blink = false, alpha = 1, gap = 0.25 } = {}) {
+      if (list.length < COLS * ROWS) list.push({ kind, m, x, y, yaw, tilt, pal, blink, alpha, gap });
+    },
+    flush() {
+      const n = list.length, gl = c && c.gl;
+      if (lost || !gl || gl.isContextLost()) { list.length = 0; return; }
+      const parts = how === 'parts';
+      // 1: what each pixel of each object sees, into its tile (the first: the whole atlas cleared)
+      for (let i = 0; i < n; i++) {
+        const o = list[i];
+        o.at = [(i % COLS) * GW, Math.floor(i / COLS) * GH];
+        o.v = view(o.m, (o.yaw * Math.PI) / 180, (o.tilt * Math.PI) / 180);
+        const skin = parts ? null : { mesh: meshOf(o.kind), bones: null, shut: o.blink };
+        if (skin) skin.bones = bonesFor(skin.mesh, o.m);
+        c.first(o.m, o.v, { width: GW, height: GH, S: 1, lift: 0, byParts: parts, eps: 0.01, steps: 120, skin, size: [AW, AH], at: o.at, clear: i === 0 });
+      }
+      // 2: its outlines, what is stuck on and its colors, into the same tile of the second atlas (every pixel of it)
+      if (n) {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, atlasFbo);
+        gl.useProgram(finish.p); c.full();
+        gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, c.tex); gl.uniform1i(finish.u.uTex, 0);
+        gl.uniform2f(finish.u.uTexSize, AW, AH); gl.uniform1f(finish.u.uColor, 1); gl.uniform1i(finish.u.uPal, 1);
+        for (let i = 0; i < n; i++) {
+          const o = list[i], decals = parts ? decalsAt(o.m, o.v.toView).slice(0, MAXD) : []; // (a mesh: its eyes in its texture)
+          decals.forEach((d, k) => { D0.set([...d.v, 0], k * 4); D1.set([d.nv[0], d.nv[1], d.color, d.eye ? 1 : 0], k * 4); });
+          gl.viewport(o.at[0], o.at[1], GW, GH);
+          c.fill(o.m, parts); c.setParts(finish.u, o.m, o.v);
+          gl.uniform2f(finish.u.uAt, o.at[0], o.at[1]);
+          gl.uniform1f(finish.u.uGap, o.gap); gl.uniform1f(finish.u.uBlink, o.blink ? 1 : 0);
+          gl.uniform1i(finish.u.uDecals, decals.length); gl.uniform4fv(finish.u.uD0, D0); gl.uniform4fv(finish.u.uD1, D1);
+          c.usePalette(o.pal);
+          gl.drawArrays(gl.TRIANGLES, 0, 3);
+        }
+      }
+      // 3: the tiles onto the canvas, in the order added (the later in front), each corner on a screen pixel
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.viewport(0, 0, canvas.width, canvas.height);
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      if (n) {
+        if (corners.length < n * 30) corners = new Float32Array(n * 30 * 2);
+        const w = GW * scale, h = GH * scale;
+        for (let i = 0; i < n; i++) {
+          const o = list[i], x = Math.round(ox + (o.x + GX) * scale), y = Math.round(oy + (o.y + GY) * scale), [u, t] = o.at;
+          [[x, y, u, t + GH], [x + w, y, u + GW, t + GH], [x, y + h, u, t], [x, y + h, u, t], [x + w, y, u + GW, t + GH], [x + w, y + h, u + GW, t]]
+            .forEach((q, k) => { corners.set(q, (i * 6 + k) * 5); corners[(i * 6 + k) * 5 + 4] = o.alpha; });
+        }
+        gl.useProgram(tile.p);
+        gl.bindBuffer(gl.ARRAY_BUFFER, quads);
+        gl.bufferData(gl.ARRAY_BUFFER, corners.subarray(0, n * 30), gl.DYNAMIC_DRAW);
+        [2, 2, 1].forEach((k, i) => { gl.enableVertexAttribArray(i); gl.vertexAttribPointer(i, k, gl.FLOAT, false, 20, [0, 8, 16][i]); });
+        for (let i = 3; i < 6; i++) gl.disableVertexAttribArray(i);
+        gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, atlas); gl.uniform1i(tile.u.uTex, 0);
+        gl.uniform2f(tile.u.uScreen, canvas.width, canvas.height); gl.uniform2f(tile.u.uAtlas, AW, AH);
+        gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+        gl.drawArrays(gl.TRIANGLES, 0, n * 6);
+        gl.disable(gl.BLEND);
+      }
+      list.length = 0;
     },
   };
 }

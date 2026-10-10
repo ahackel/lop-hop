@@ -2,7 +2,8 @@
 // (AudioWorklet module imports are cached aggressively and survive normal reloads). The workshop saves through it:
 // POST /save {kind, build} writes an animal's build into animals/<kind>.js (see tools/rig-format.js). The game sends its
 // runs to it: POST /runs [run, …] adds those not there yet to data/runs.jsonl (a run a line; see the runs in game.js),
-// which the balance page reads (tools/balance.html).
+// which the balance page reads (tools/balance.html). The bench (tools/bench.html, ?bench) sends what it measured: POST
+// /bench {…} adds it to data/bench.jsonl (a device's results a line).
 import http from 'node:http';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -38,8 +39,18 @@ async function runs(req, res) {
   res.writeHead(200, { 'Content-Type': 'text/plain' }).end(`${fresh.length} new`);
 }
 
+async function bench(req, res) {
+  let body = '';
+  for await (const chunk of req) body += chunk;
+  const sent = JSON.parse(body), file = path.join(root, 'data', 'bench.jsonl');
+  if (!sent || typeof sent !== 'object' || !Array.isArray(sent.results) || body.length > 100000) throw new Error('results?');
+  await fs.mkdir(path.dirname(file), { recursive: true });
+  await fs.appendFile(file, `${JSON.stringify({ at: new Date().toISOString(), ...sent })}\n`);
+  res.writeHead(200, { 'Content-Type': 'text/plain' }).end('kept');
+}
+
 http.createServer(async (req, res) => {
-  const act = req.method === 'POST' && { '/save': save, '/runs': runs }[req.url];
+  const act = req.method === 'POST' && { '/save': save, '/runs': runs, '/bench': bench }[req.url];
   if (act) {
     try { await act(req, res); } catch (e) { res.writeHead(400, { 'Content-Type': 'text/plain' }).end(String(e.message || e)); }
     return;

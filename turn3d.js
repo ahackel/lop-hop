@@ -278,16 +278,31 @@ export function view(m, yaw, tilt) {
 
 // what is stuck on, on the body's surface: each from where it starts along its way out to it (p), which way the surface
 // faces there (n), color, eye. The same however the model is turned: worked out once a model, kept on it
+// (and kept by the body's shape, ears and tail apart: a run's few poses come back every stride, and many animals share
+// them; the objects layer draws each live every frame)
+const decalsKept = new Map();
 export function decalPoints(m) {
   if (m.decalPts) return m.decalPts;
   for (const q of m.prims) if (q.type === 'ell') { q.cos = Math.cos(q.a); q.sin = Math.sin(q.a); }
+  const key = JSON.stringify([m.decals, m.prims.filter((q) => q.group === 'body')]);
+  if (decalsKept.has(key)) return (m.decalPts = decalsKept.get(key));
+  if (decalsKept.size >= 512) decalsKept.clear();
+  decalsKept.set(key, workOut(m));
+  return (m.decalPts = decalsKept.get(key));
+}
+function workOut(m) {
   const sd = (x, y, z) => scene(m, x, y, z, null, true);
-  return (m.decalPts = m.decals.map((dc) => {
-    let p = dc.from;
-    for (let s = 0; s < 200 && sd(p[0], p[1], p[2]) < 0; s++) p = add(p, mul(dc.dir, 0.05));
+  // the first point of its way out, in steps of 0.05, outside the body: strides as long as the body says it is still
+  // in (less a tenth), then halved back to the first step outside (the point stepping all the way would find)
+  const along = (dc, k) => add(dc.from, mul(dc.dir, 0.05 * k));
+  return m.decals.map((dc) => {
+    let k = 0, inside = -1, d = sd(...dc.from);
+    while (d < 0 && k < 200) { inside = k; k = Math.min(200, k + Math.max(1, Math.floor((-d * 0.9) / 0.05))); d = sd(...along(dc, k)); }
+    while (k - inside > 1) { const h = (inside + k) >> 1; if (sd(...along(dc, h)) < 0) inside = h; else k = h; }
+    const p = along(dc, k);
     const e = 0.05, n = norm([sd(p[0] + e, p[1], p[2]) - sd(p[0] - e, p[1], p[2]), sd(p[0], p[1] + e, p[2]) - sd(p[0], p[1] - e, p[2]), sd(p[0], p[1], p[2] + e) - sd(p[0], p[1], p[2] - e)]);
     return { p, n, color: dc.color, eye: !!dc.eye };
-  }));
+  });
 }
 // what is stuck on, as seen: those facing the eye (on the edge too: the nose in profile), in view (v), with which way
 // the surface faces there (nv), color, eye
