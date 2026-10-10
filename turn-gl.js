@@ -579,27 +579,45 @@ export function createGLHi() {
 // the game's (?turn3d): an animal drawn on the GPU once and read back, its palette indices made into a sprite as art.js
 // makes them (drawn into a canvas a palette, kept), and kept as the game keeps its 2D pictures: drawn again only when
 // something in it changes (its move's frame, where its ears are, the angle to a step). Drawing it live every frame cost
-// an older iPad about 1 ms an animal (tools/bench.html); a kept sprite costs it what a 2D one does. how: 'mesh' (a
-// skinned, textured mesh: made at once for each kind given, so the first one drawn has no wait), 'rays' (stepping
-// rays) or 'parts' (part by part). → { how, posed(kind, P, { blink, chains }) → a sprite as art.js has posed it (any of
-// its pictures), from the side (kept by art.js with the picture it stands in for: see set3d); turned(kind, move,
-// frame, yaw (degrees), { blink, chains, swing }) → a sprite, a move's frame turned, the angle to the nearest of steps
-// round (kept here, the most recent 300) }, or null (no WebGL: the game draws on the CPU)
+// an older iPad about 1 ms an animal (tools/bench.html); a kept sprite costs it what a 2D one does. A picture is drawn
+// on the GPU when it is first shown (not when made: the game makes many only for their masks), at most one a frame (a
+// turn: a new one every frame, ears swinging too): another one due that frame shows the animal's picture before for
+// a frame more. how: 'mesh' (a skinned, textured mesh: made at once for each kind given, so the first one drawn has no
+// wait), 'rays' (stepping rays) or 'parts' (part by part). → { how, posed(kind, P, { blink, chains }) → a sprite as
+// art.js has posed it (any of its pictures), from the side (kept by art.js with the picture it stands in for: see
+// set3d); turned(kind, move, frame, yaw (degrees), { blink, chains, swing }) → a sprite, a move's frame turned, the
+// angle to the nearest of steps round (kept here, the most recent 300) }, or null (no WebGL: the game draws on the CPU)
 export function createSprites({ how = 'mesh', kinds = [], steps = 32 } = {}) {
   const r = createGL();
   if (!r || (how === 'mesh' && !r.skinned) || (how === 'parts' && !r.byParts)) return null;
   const meshes = {}, meshOf = (k) => meshes[k] || (meshes[k] = buildMesh(k, { depth: DEPTH[k] }));
   if (how === 'mesh') kinds.forEach(meshOf);
-  const marks = how === 'mesh' ? 'none' : 'decals', step = 360 / steps, kept = new Map();
+  const marks = how === 'mesh' ? 'none' : 'decals', step = 360 / steps, kept = new Map(), last = {};
+  // (renders this frame: the frame's drawing is one task, so the count goes back to 0 once it is done)
+  let spent = 0;
+  const spend = () => { if (!spent++) Promise.resolve().then(() => { spent = 0; }); };
   const render = (kind, m, yaw, blink) => {
     const skin = how === 'mesh' ? { mesh: meshOf(kind), bones: null } : null;
     if (skin) skin.bones = bonesFor(skin.mesh, m);
     return paletteSprite(GW, GH, r.draw(m, (yaw * Math.PI) / 180, 0, { blink, parts: how === 'parts', skin }), { ox: GX, oy: GY });
   };
+  // a picture drawn on the GPU when first shown, if none has been this frame (or the animal has none to show yet)
+  const lazy = (kind, made, yaw, blink) => {
+    let s = null;
+    return {
+      draw(ctx, x, y, pal) {
+        if (!s && (!spent || !last[kind])) { spend(); s = render(kind, made(), yaw, blink); }
+        const shown = s || last[kind];
+        last[kind] = shown;
+        shown.draw(ctx, x, y, pal);
+      },
+      free() { if (s) { if (last[kind] === s) last[kind] = null; s.free(); s = null; } },
+    };
+  };
   return {
     how,
     posed(kind, P, { blink = false, chains = null } = {}) {
-      return render(kind, modelPosed(kind, P, { chains, marks }), 0, blink);
+      return lazy(kind, () => modelPosed(kind, P, { chains, marks }), 0, blink);
     },
     turned(kind, move, frame, yaw, { blink = false, chains = null, swing = null } = {}) {
       const q = (v) => Math.round(v * 4) / 4, sw = {}, at = ((Math.round(yaw / step) * step) % 360 + 360) % 360;
@@ -607,7 +625,7 @@ export function createSprites({ how = 'mesh', kinds = [], steps = 32 } = {}) {
       const key = JSON.stringify([kind, move, frame, at, blink, chains, sw]);
       let s = kept.get(key);
       if (s) { kept.delete(key); kept.set(key, s); return s; } // (the most recent last)
-      s = render(kind, model(kind, move, frame, { chains, swing: sw, marks }), at, blink);
+      s = lazy(kind, () => model(kind, move, frame, { chains, swing: sw, marks }), at, blink);
       kept.set(key, s);
       if (kept.size > 300) { const old = kept.keys().next().value; kept.get(old).free(); kept.delete(old); }
       return s;
