@@ -24,7 +24,7 @@ export const ALONG = { // (each kind's own settings along a bone)
 };
 export function boneDefaults(s) {
   const k = alongOf(s);
-  return { bone: '', along: k, ...ALONG[k], ...(k === 'capsule' && build.legs?.[s.bone] && { foot: null }), color: undefined, smooth: 1, marks: [], grows: false };
+  return { bone: '', along: k, ...ALONG[k], ...(ALONG[k].base && { base: ALONG[k].base.map((q) => [...q]) }), ...(k === 'capsule' && build.legs?.[s.bone] && { foot: null }), color: undefined, smooth: 1, marks: [], grows: false };
 }
 // an object as the inspector shows it: what it has, and what it does not have yet as it is drawn without it (setting one
 // sets it)
@@ -32,6 +32,7 @@ export function withDefaults(o, defaults) {
   const keys = () => [...Object.keys(defaults), ...Object.keys(o).filter((k) => !(k in defaults))];
   return new Proxy(o, {
     get: (t, k) => (k in t ? t[k] : defaults[k]),
+    set: (t, k, v) => { t[k] = v; return true; }, // (as any setting of it: not as the default shows it, see getOwnPropertyDescriptor)
     has: (t, k) => k in t || k in defaults,
     ownKeys: () => keys(),
     getOwnPropertyDescriptor: (t, k) => ({ value: k in t ? t[k] : defaults[k], enumerable: true, configurable: true, writable: true }),
