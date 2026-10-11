@@ -79,8 +79,10 @@ frames a second where the browser gives that many (not in Safari on an iPhone or
 iOS app: Xcode's console; a debugger attached holds up a frame now and then, so smoothness is judged with the app opened
 from the home screen).
 
-The animals are edited in the editor: with `npm run dev` running, open http://localhost:8323/editor.
-Drag the handles on the joints, shapes, legs, tails and ears, pick colors and layers in the list, watch the animal run in
+The animals are edited in the editor: with `npm run dev` running, open http://localhost:8323/editor. It has three
+modes: Setup (the build), Animate (the moves) and Play, where the animal is handled as on the home screen, by the game's
+own code (picked up, carried, dropped, petted, fed), with a slider for each number of how it is handled and of its ears'
+and tails' physics (`handling` in its file; `?mode=play` opens it there). Drag the handles on the joints, shapes, legs, tails and ears, pick colors and layers in the list, watch the animal run in
 the game's scene, and save: it writes the animal's build back into its file. Its moves are on a timeline, with the frames
 before and after faded: a jump, hurt or knocked-out pose can be set by hand (drag the joints, paws, head, tail and ears of
 each keyframe), a run or a crawl tuned by its gait's settings. In the game, an animal eases from one move into the next
@@ -116,7 +118,7 @@ browser out for good (your own; `?nocount=off` counts it again).
 | `font.js` | the pixel font: capitals 3×5 in a cell of 7 rows (a row above and below: Ä Ö Ü's dots, the $'s line, the comma's and Q's tails, brackets and / the whole height; room for accents), `text()` and `textWidth()` |
 | `icons.js` | the buttons' icons (7×7) and the pads' (9×9), as rows of pixels |
 | `lang.js`, `lang/` | what the game writes, in English and German: a file per language, a line each, `id = words`, written as usual (the game writes them in capitals); `npm test` checks every language has every id, the same `{name}` holes, only letters the font has, and lines that fit. A new language: a file with the ids of `en.txt`, its code in `LANGS` (`lang.js`), the file in `sw.js`, and the language in the Xcode project (`knownRegions`, Info.plist `CFBundleLocalizations`: an app reports only the languages it declares) |
-| `asset.js`, `assets/` | an object as an asset: one file of data each (`assets/<animal>.js`, format 2: its bones, the shapes on them, its face, the physics of its chains, its moves: gaits' settings and clips' keys), what the editor saves and the game draws from; `asset.js` says what is in one |
+| `asset.js`, `assets/` | an object as an asset: one file of data each (`assets/<animal>.js`, format 2: its bones, the shapes on them, its face, the physics of its chains, how it is handled on the home screen, its moves: gaits' settings and clips' keys), what the editor saves and the game draws from; `asset.js` says what is in one |
 | `editor/` | the editor, at /editor (through `npm run dev`, which saves for it: into the animal's file in `assets/`) |
 | `tools/balance.html` | the balance page: the animals' dials and the shared numbers, how hard each animal is (`balance-worker.js` works it out with `course.mjs`), and your runs |
 | `tools/font.html` | every letter of the font (`font.js`), any size (with its pixel grid and the cell's rows), a line to try (in capitals, as the game writes it; letters the font lacks named), and a suggestion: square letters like the title's |

@@ -3,10 +3,12 @@
 // the game's scene. Its moves on a timeline: keyframes set by hand (handles on the joints, paws, head, tail and ears of
 // a frame), a gait's settings, a loop to look at; the frames before and after faded (onion skin). After every change the
 // animal is made again from its build (as the game makes it) and drawn by the game's own code; Save writes the build back into its
-// file (POST /save, see serve.mjs and rig-format.js).
+// file (POST /save, see serve.mjs and rig-format.js). Three modes: Setup (the build), Animate (its moves), Play (handled
+// as on the home screen, see play.js: its handling's numbers, its chains' physics).
 import { ANIMALS, PALETTES, COLOR, FOOT, GROUND, W, H, animal, setRig, rigParts, moveBody, stride, strides, idleFrame, jumpFrame, golden, cactus, hill,
-  JUMP, GRAVITY, setStyle, colorOf, rigOf } from '../art.js';
+  JUMP, GRAVITY, setStyle, colorOf, rigOf, HANDLING } from '../art.js';
 import { toBuild, toAsset } from '../asset.js';
+import * as sandbox from './play.js';
 
 const { toWorld, toLocal, sdShape, NAMED } = rigParts;
 const KINDS = Object.keys(ANIMALS);
@@ -26,7 +28,8 @@ let Z = 16;
 const files = {}, builds = {}, saved = {}, histories = {}; // (each animal's file as loaded, its build as edited)
 const fileOf = (k) => `assets/${k}.js`; // (an animal's build: its file, see asset.js)
 let kind, build, P, G = [1, [0, 0]], sel = { type: 'rig' }, drag = null;
-const view = { move: 'edit', frame: 0, play: false, t: 0 };
+const view = { mode: 'setup', move: 'edit', frame: 0, play: false, t: 0 }; // (play: a move playing, in Animate)
+let lastMove = 'idle'; // (the move Animate shows)
 
 // ------------------------------------------------------------------------------------------------- the animal, edited
 const editable = () => !!build.joints; // (the wolf is the fox, recolored)
@@ -62,12 +65,22 @@ function undo() { const h = hist(); if (h.past.length) { h.future.push(snapshot(
 function redo() { const h = hist(); if (h.future.length) { h.past.push(snapshot()); restore(h.future.pop()); } }
 
 function choose(k) {
-  kind = k; build = builds[k]; sel = { type: 'rig' };
+  kind = k; build = builds[k]; sel = { type: view.move === 'edit' ? 'rig' : 'frame' };
   pv.body = {};
   $('kind').value = k;
   const url = new URL(location.href); url.searchParams.set('animal', k); window.history.replaceState(null, '', url);
-  fillMoves(); rebuild(); refresh(); status();
+  fillMoves(); rebuild(); sandbox.reset(k); refresh(); status();
 }
+// the mode: Setup (the build: what every move is made from), Animate (a move), Play (see play.js)
+function setMode(m) {
+  view.mode = m; document.body.className = m;
+  for (const b of $('modes').children) b.classList.toggle('on', b.dataset.mode === m);
+  setPlay(false);
+  if (m === 'play') { view.move = 'edit'; sandbox.reset(kind); sel = { type: 'rig' }; place(); refresh(); return; }
+  show(m === 'setup' ? 'edit' : animated());
+}
+const animated = () => (rigParts.move(kind, lastMove) ? lastMove : rigParts.moves(kind)[0]);
+for (const b of $('modes').children) b.onclick = () => setMode(b.dataset.mode);
 
 function status() {
   const s = $('status'), others = KINDS.filter((k) => k !== kind && dirty(k));
@@ -145,7 +158,7 @@ function parts() {
     const bits = shapeBits(s);
     out.push({ sel: { type: 'item', list: name, i }, group: label, label: s.name || geomOf(s), color: color(s), obj: s, ...bits });
   });
-  out.push({ sel: { type: 'rig' }, group: 'Animal', label: 'the animal', color: swatch(build.fur), obj: build, handles: [], lines: [] });
+  out.push({ sel: { type: 'rig' }, group: 'Animal', label: 'root', color: swatch(build.fur), obj: build, handles: [], lines: [] });
   for (const n in build.joints) {
     out.push({ sel: { type: 'joint', name: n }, group: 'Joints', label: n, obj: build.joints, key: n, lines: [],
       handles: [{ at: P.J[n], anchor: true, joint: true, set: (p) => { build.joints[n] = roundAll(p); } }] });
@@ -229,8 +242,14 @@ function sprite() { return view.move === 'edit' ? animal(kind, 'hurt', 0) : anim
 function draw() {
   const c = $('stage'), ctx = c.getContext('2d');
   const box = $('stageBox'); // (as big as fits in what the window leaves it)
+  if (view.mode === 'play') {
+    Z = Math.max(2, Math.floor(Math.min(box.clientWidth / sandbox.PW, box.clientHeight / sandbox.PH))) || 8;
+    if (c.width !== sandbox.PW * Z || c.height !== sandbox.PH * Z) { c.width = sandbox.PW * Z; c.height = sandbox.PH * Z; c.style.width = `${c.width}px`; c.style.height = `${c.height}px`; }
+    sandbox.draw(c, Z);
+    return;
+  }
   Z = Math.max(4, Math.floor(Math.min(box.clientWidth / VW, box.clientHeight / VH))) || 16;
-  if (c.width !== VW * Z) { c.width = VW * Z; c.height = VH * Z; c.style.width = `${VW * Z}px`; c.style.height = `${VH * Z}px`; }
+  if (c.width !== VW * Z || c.height !== VH * Z) { c.width = VW * Z; c.height = VH * Z; c.style.width = `${VW * Z}px`; c.style.height = `${VH * Z}px`; }
   ctx.fillStyle = PALETTES.day.bg; ctx.fillRect(0, 0, c.width, c.height); // (the game's day: its outlines show)
   ctx.fillStyle = 'rgba(128,128,128,0.08)';
   for (let x = 1; x < VW; x++) ctx.fillRect(x * Z, 0, 1, c.height);
@@ -259,7 +278,6 @@ function draw() {
   ctx.strokeRect((s.ox - X0) * Z, (s.oy - Y0) * Z, s.w * Z, s.h * Z);
   ctx.setLineDash([]);
   if (editing() && !view.play) drawHandles(ctx);
-  drawSprites(s);
   markFrames();
 }
 
@@ -277,20 +295,11 @@ function drawHandles(ctx) {
   if (on) for (const h of on.handles) dot(h.at, h.joint || h.move ? 6 : 5, h.size ? '#fff' : accent, h.size ? accent : '#fff');
 }
 
-// the frame as the game shows it (1×), magnified (3×), and giant (drawn 2×)
-function drawSprites(s) {
-  const box = $('sprites'), pal = PALETTES.day;
-  if (!box.children.length) for (const t of ['1×', '3×', 'giant']) box.append(el('div', {}, el('canvas'), el('div', { className: 'note', textContent: t })));
-  const big = view.move === 'edit' ? animal(kind, 'hurt', 0, { scale: 2 }) : animal(kind, view.move, view.frame, { scale: 2 });
-  [[s, 1], [s, 3], [big, 1]].forEach(([sp, k], i) => {
-    const c = box.children[i].firstChild;
-    c.width = sp.w; c.height = sp.h; c.style.width = `${sp.w * k}px`; c.style.height = `${sp.h * k}px`;
-    const ctx = c.getContext('2d'); ctx.clearRect(0, 0, c.width, c.height); sp.draw(ctx, -(sp.ox || 0), -(sp.oy || 0), pal);
-  });
-}
-
 // pick and drag: a handle of the picked part, a joint or another part's handle, or (a click) the part under the pointer
+const playAt = (e) => { const r = $('stage').getBoundingClientRect(), k = $('stage').width / r.width; return [((e.clientX - r.left) * k) / Z, ((e.clientY - r.top) * k) / Z]; };
+const hand = (c) => { $('stage').style.cursor = c || ''; };
 $('stage').addEventListener('pointerdown', (e) => {
+  if (view.mode === 'play') { $('stage').setPointerCapture(e.pointerId); hand(sandbox.down(...playAt(e))); return; }
   if (!editing()) return;
   if (view.play) setPlay(false);
   const p = toArt(e), near = (h) => Math.hypot(...minus(toScreen(h.at), toScreen(p))) < 9;
@@ -308,12 +317,14 @@ $('stage').addEventListener('pointerdown', (e) => {
   listParts(); inspect(); draw();
 });
 $('stage').addEventListener('pointermove', (e) => {
+  if (view.mode === 'play') { const c = sandbox.move(...playAt(e)); if (c !== null) hand(c); return; }
   if (!drag) return;
   step = e.shiftKey ? 0.5 : 0.1;
   const q = parts().find((x) => same(x.sel, drag.sel));
   q?.handles[drag.index]?.set(toArt(e));
   changed();
 });
+for (const type of ['pointerup', 'pointercancel']) $('stage').addEventListener(type, () => { if (view.mode === 'play') { sandbox.up(); hand(''); } });
 $('stage').addEventListener('pointerup', () => {
   if (!drag) return;
   drag = null; step = 0.1;
@@ -324,7 +335,7 @@ $('stage').addEventListener('pointerup', () => {
 });
 
 // --------------------------------------------------------------------------------------------- the lists of parts
-// two lists, as Spine has them: the bones (a tree: the animal at its root, hip, chest and head down the spine, each
+// two lists, as Spine has them: the bones (a tree: the root (the animal itself), hip, chest and head down the spine, each
 // joint's legs and chains under it) and the shapes hung on them, by layer in the order they are drawn, each with its bone
 const BONES = ['Animal', 'Frame', 'Joints', 'Legs', 'Chains', 'Paws', 'Tails and ears'];
 const ADD = { 'Body shapes': 'shapes', Paint: 'paint', 'On top': 'top', Dots: 'dots' };
@@ -332,6 +343,8 @@ const DRAWN = ['Body shapes', 'Paint', 'Spikes', 'On top', 'Dots', 'Face']; // (
 function listParts() {
   const bones = $('bones'), shapes = $('shapes'), note = (box, text) => box.append(el('p', { className: 'note', style: 'padding:0 10px', textContent: text }));
   bones.textContent = shapes.textContent = '';
+  $('bonesTitle').innerHTML = view.mode === 'play' ? 'Play <span>what to try on the stage</span>' : 'Bones <span>the skeleton: what moves</span>';
+  if (view.mode === 'play') { playHelp(bones); note(shapes, 'Shapes are set in Setup.'); return; }
   if (!editable()) { note(bones, `The ${kind} is the fox, recolored.`); return; }
   if (view.move !== 'edit' && kindOf(view.move) !== 'clip') { note(bones, ABOUT[kindOf(view.move)]); return; }
   const all = parts(), row = (p, depth, what) => {
@@ -353,7 +366,7 @@ function listParts() {
   });
   for (const p of bonesOf) if (!shown.has(p)) put(p, 1); // (on no joint)
   // the shapes
-  if (view.move !== 'edit') { note(shapes, 'Shapes are set in the build: pick “standing (the build)”.'); return; }
+  if (view.move !== 'edit') { note(shapes, 'Shapes are set in Setup.'); return; }
   for (const label of DRAWN) { // (a layer with nothing on it yet: to add to)
     const on = all.filter((p) => p.group === label);
     if (!on.length && !ADD[label]) continue;
@@ -394,7 +407,8 @@ function itemDo(what, arg) {
 // --------------------------------------------------------------------------------------------------- the inspector
 function inspect() {
   const box = $('inspector'); box.textContent = '';
-  if (!editable()) { box.append(el('p', { className: 'note', textContent: 'The wolf is made from the fox: its shapes are the fox’s, its colors swapped. Edit the fox.' })); return; }
+  if (!editable()) { box.append(el('p', { className: 'note', textContent: 'The wolf is made from the fox: its shapes are the fox’s, its colors swapped, and it is handled as the fox is. Edit the fox.' })); return; }
+  if (view.mode === 'play') { inspectPlay(box); return; }
   if (view.move !== 'edit') { inspectMove(box); return; }
   const p = current() || parts()[0], o = p.obj;
   const title = el('h2', {}, el('span', { className: 'sw', style: `width:12px;height:12px;border-radius:3px;background:${p.color || 'transparent'}` }), el('span', { textContent: p.label }));
@@ -410,8 +424,8 @@ function inspect() {
     }
   }
   if (sel.type === 'joint') { box.append(field('place', nums(o, sel.name))); return; }
-  if (sel.type === 'rig') { box.append(el('p', { className: 'note', textContent: 'Pick a part in the list or on the stage. The animal itself:' })); }
-  const skip = sel.type === 'rig' ? ['joints', 'shapes', 'paint', 'top', 'dots', 'legs', 'chains', 'face', 'spikes', 'moves'] : sel.list === 'top' ? ['shapes'] : [];
+  if (sel.type === 'rig') { box.append(el('p', { className: 'note', textContent: 'Pick a part in the list or on the stage. The root: the animal itself.' })); }
+  const skip = sel.type === 'rig' ? ['joints', 'shapes', 'paint', 'top', 'dots', 'legs', 'chains', 'face', 'spikes', 'moves', 'handling'] : sel.list === 'top' ? ['shapes'] : [];
   fields(o, box, skip);
   if (sel.type === 'item' && sel.list === 'top') o.shapes.forEach((s, i) => { box.append(el('div', { className: 'group', textContent: `shape ${i + 1}` })); fields(s, box, []); });
 }
@@ -558,12 +572,13 @@ let copied = null; // (a pose copied: Copy pose, to paste at another frame or in
 
 function fillMoves() {
   const s = $('move'); s.textContent = '';
-  s.append(el('option', { value: 'edit', textContent: editable() ? 'standing (the build)' : 'standing' }));
   for (const m of rigParts.moves(kind)) s.append(el('option', { value: m, textContent: m }));
-  s.value = view.move = 'edit'; view.frame = 0; setPlay(false);
+  view.move = view.mode === 'animate' ? animated() : 'edit'; view.frame = 0; setPlay(false);
+  s.value = view.mode === 'animate' ? view.move : animated();
 }
 function show(move, frame = 0) {
-  view.move = move; view.frame = frame; $('move').value = move;
+  view.move = move; view.frame = frame;
+  if (move !== 'edit') { lastMove = move; $('move').value = move; }
   if (!['joint', 'paw', 'chain', 'frame'].includes(sel.type) || move === 'edit') sel = { type: move === 'edit' ? 'rig' : 'frame' };
   place(); refresh();
 }
@@ -582,7 +597,8 @@ let strip = [];
 const goTo = (f, s) => { setPlay(false); view.frame = f; if (s) sel = s; place(); listParts(); inspect(); timeline(); draw(); };
 function timeline() {
   const box = $('timeline'); box.textContent = ''; strip = [];
-  if (view.move === 'edit') { box.append(el('span', { className: 'note', textContent: 'The build: what every move is made from. Pick a move to see its frames.' })); return; }
+  if (view.mode === 'play') return;
+  if (view.move === 'edit') { box.append(el('span', { className: 'note', textContent: 'The build: what every move is made from. Its moves are in Animate.' })); return; }
   const n = frames(view.move), what = kindOf(view.move), can = editable();
   if (what === 'gait') {
     const row = el('div', { className: 'frames' });
@@ -634,8 +650,8 @@ function markFrames() {
 }
 
 // playing the move, as fast as the game would (a gait: at the preview's speed)
-function setPlay(on) { view.play = on; view.t = 0; $('play').textContent = on ? '❚❚ Stop' : '▶ Play'; }
-$('play').onclick = () => { if (view.move === 'edit') show('run'); setPlay(!view.play); draw(); };
+function setPlay(on) { view.play = on; view.t = 0; $('play').textContent = on ? '❚❚' : '▶'; }
+$('play').onclick = () => { if (view.move === 'edit') return; setPlay(!view.play); draw(); };
 function fps() {
   const m = moveOf(view.move);
   return m.gait ? m.gait.frames * strides(kind, +$('speed').value, view.move === 'duck' ? 1 : undefined) : m.fps || 4;
@@ -697,12 +713,80 @@ function inspectGait(box) {
   }
 }
 
+// ------------------------------------------------------------------------------------------------------------ Play
+// how it is handled (see HANDLING in art.js, play.js): each number, from to, what it does; what its file doesn't set is
+// as HANDLING has it (a number set back to that: gone from the file)
+const HANDLED = {
+  held: ['Carried', { at: 'where the hand holds it, from the middle of its back', sag: [0, 3, 'how much its hips and head droop'], tip: [0, 4, 'how much moving it tips it'],
+    hang: [2, 40, 'how far under the hand it seems to hang: longer, slower swings'], settle: [0, 12, 'how fast its swinging dies down'], most: [0.1, 1.5, 'the most it tips, radians'] }],
+  squirm: ['Squirming', { fits: [0, 6, 'how quick its fits come'], strength: [0, 4, 'how hard it squirms'], paddle: [0, 4, 'how much its legs paddle'], nod: [0, 0.5, 'how much its head nods'] }],
+  dropped: ['Dropped', { righting: [50, 2000, 'how hard it rights itself as it falls'], damping: [0, 120, 'how little that wobbles'], squash: [0, 0.8, 'how flat it lands'],
+    squashFor: [0.05, 0.6, 'for how long, seconds'] }],
+  petted: ['Petted', { lean: [0, 0.3, 'how far it leans with the hand, radians'], duck: [0, 3, 'how far its head ducks into the hand'], nuzzle: [0, 0.6, 'how far its head turns down'],
+    ears: [0, 3, 'how far its ears lie back'], wag: [0, 1.5, 'how far its tail wags, radians'], wagRate: [2, 40, 'how fast'], happy: [0, 1, 'how much it must like it to shut its eyes happily'] }],
+  fed: ['Fed', { stretch: [0, 6, 'how far its head stretches for a treat'], upright: [0, 1.6, 'how far up it turns for one held high, radians'],
+    rears: [0, 1, 'how far up on its hind legs it gets for one'], chews: [1, 8, 'nods as it eats', true], nod: [0, 10, 'how big'], chewFor: [0.2, 3, 'for how long, seconds'] }],
+};
+const CHAIN = { stiffness: [0, 3000, 'how hard it springs back'], damping: [0, 80, 'how little it rings'], weight: [0, 300, 'how much it hangs down'] };
+const stepOf = (min, max) => 10 ** Math.floor(Math.log10((max - min) / 100));
+const handled = (g, k) => build.handling?.[g]?.[k] ?? HANDLING[g][k];
+function setHandling(g, k, v) {
+  const h = (build.handling ||= {}), o = (h[g] ||= {});
+  if (JSON.stringify(v) === JSON.stringify(HANDLING[g][k])) delete o[k]; else o[k] = v;
+  if (!Object.keys(o).length) delete h[g];
+  if (!Object.keys(h).length) delete build.handling;
+}
+function inspectPlay(box) {
+  box.append(el('h2', { textContent: `Handling the ${ANIMALS[kind].name.toLowerCase()}` }));
+  const own = (g, k) => build.handling?.[g]?.[k] !== undefined;
+  for (const [g, [title, specs]] of Object.entries(HANDLED)) {
+    const head = el('div', { className: `group${build.handling?.[g] ? ' own' : ''}` }, el('span', { textContent: title }));
+    if (build.handling?.[g]) head.append(el('button', { textContent: '↺ usual', title: `${title}: as every animal is (as art.js has it)`, onclick: () => { commit(() => { delete build.handling[g]; if (!Object.keys(build.handling).length) delete build.handling; }); inspect(); } }));
+    box.append(head);
+    for (const [k, spec] of Object.entries(specs)) {
+      let input, note = spec[2], f = null;
+      const set = (x) => { setHandling(g, k, x); f?.classList.toggle('own', own(g, k)); }; // (marked as set in its file, or not, as it changes)
+      if (k === 'at') {
+        const now = () => handled(g, k).slice();
+        input = el('span', { className: 'nums' }, ...handled(g, k).map((v, j) => numIn(v, (x) => { const q = now(); q[j] = x; set(q); }, { span: 3 })));
+        note = spec;
+      } else if (k === 'rears') {
+        const auto = handled(g, k) === null, legs = el('input', { type: 'checkbox', checked: auto, onchange: () => { commit(() => setHandling(g, k, legs.checked ? null : 0.5)); inspect(); } });
+        input = el('span', { className: 'num' }, el('label', {}, legs, ' by its legs'), ...(auto ? [] : [numIn(handled(g, k), set, { min: 0, max: 1, step: 0.01 })]));
+      } else {
+        const [min, max, , whole] = spec;
+        input = numIn(handled(g, k), set, whole ? { step: 1, min, max, whole: true } : { min, max, step: stepOf(min, max) });
+      }
+      f = field(k, input, note);
+      if (own(g, k)) f.classList.add('own');
+      box.append(f);
+    }
+  }
+  if (!build.chains || !Object.keys(build.chains).length) return;
+  box.append(el('div', { className: 'group' }, el('span', { textContent: 'Ears and tails' })));
+  for (const [n, c] of Object.entries(build.chains)) {
+    box.append(el('div', { className: 'note', style: 'margin-top:6px', textContent: `${n}${c.ear ? ' (an ear)' : ''}` }));
+    for (const [k, [min, max, note]] of Object.entries(CHAIN)) box.append(field(k, numIn(c[k] ?? 0, (x) => { c[k] = x; }, { min, max: Math.max(max, (c[k] || 0) * 2), step: stepOf(min, max) }), note));
+  }
+  box.append(el('p', { className: 'note', textContent: 'Orange: set in its file; the rest as every animal is. They are tried on the stage at once, and in the preview below.' }));
+}
+// what can be done on the stage, in Play
+function playHelp(box) {
+  const tips = [['Pick it up', 'press on it and pull up; carry it about'], ['Drop it', 'let go, high or low'], ['Pet it', 'press and rub sideways along its back'],
+    ['Make it duck', 'press it down'], ['Feed it', 'take the treat over it and hold it out; let go at its mouth (or drop it)'], ['A hop', 'double-click it']];
+  for (const [t, d] of tips) box.append(el('div', { className: 'row', style: 'cursor:default;display:block' }, el('b', { textContent: t }), el('div', { className: 'note', textContent: d })));
+  box.append(el('p', { className: 'note', style: 'padding:6px 10px', textContent: 'As the home screen does it, by the game’s own code; the row of animals and the treats it has are left out.' }));
+}
+$('slow').onchange = () => { sandbox.play.slow = $('slow').checked; };
+$('replay').onclick = () => sandbox.reset(kind);
+
 // ----------------------------------------------------------------------------------------- the preview: the game's scene
 const pv = { phase: 0, alt: 0, vAlt: 0, body: {}, t: 0, scroll: 0, wait: 0.6, cacti: [] };
 { let seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647); for (let i = 0; i < 3; i++) pv.cacti.push({ x: 140 + i * 110, s: cactus(rnd, i === 1) }); }
 let last = 0;
 function tick(now) {
   const dt = Math.min(0.05, (now - last) / 1000 || 0.016); last = now;
+  if (kind && view.mode === 'play') { sandbox.step(dt); draw(); }
   if (kind) { stepPlay(dt); stepPreview(dt); drawPreview(); }
   requestAnimationFrame(tick);
 }
@@ -750,8 +834,9 @@ document.addEventListener('keydown', (e) => {
   if (cmd && e.key.toLowerCase() === 'z' && !typing) { e.preventDefault(); e.shiftKey ? redo() : undo(); }
   else if (cmd && e.key.toLowerCase() === 's') { e.preventDefault(); save(); }
   else if (!typing && (e.key === 'Delete' || e.key === 'Backspace') && sel.type === 'item') { e.preventDefault(); itemDo('delete'); }
+  else if (view.mode === 'play') return;
   else if (!typing && e.key === 'Escape') { sel = { type: view.move === 'edit' ? 'rig' : 'frame' }; listParts(); inspect(); draw(); }
-  else if (!typing && e.key === ' ') { e.preventDefault(); $('play').click(); }
+  else if (!typing && e.key === ' ' && view.mode === 'animate') { e.preventDefault(); $('play').click(); }
   else if (!typing && (e.key === 'ArrowLeft' || e.key === 'ArrowRight') && view.move !== 'edit') { // a frame back or on
     e.preventDefault(); setPlay(false);
     const n = frames(view.move); view.frame = (view.frame + (e.key === 'ArrowLeft' ? n - 1 : 1)) % n; place(); listParts(); inspect(); draw();
@@ -768,4 +853,5 @@ for (const k of KINDS) {
 }
 const asked = new URLSearchParams(location.search).get('animal');
 await choose(KINDS.includes(asked) ? asked : 'cat');
+setMode(['setup', 'animate', 'play'].includes(new URLSearchParams(location.search).get('mode')) ? new URLSearchParams(location.search).get('mode') : 'setup');
 requestAnimationFrame(tick);

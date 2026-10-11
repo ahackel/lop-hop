@@ -27,6 +27,11 @@
 //   front        seen from the front, shown a moment as it turns round (see front in art.js): a build of its own, sitting,
 //                facing out of the screen: joints, shapes, top, dots, chains (ears hanging either side), face with eyes
 //                [[x, y] × 2] for its eye; no legs. None: it turns at once
+//   handling     how it is handled on the home screen, by the game's own code (see HANDLING in art.js: what is not here
+//                is as there; the editor's Play mode tries them): held { at (where the hand holds it, from the middle of its
+//                back), sag, tip, hang, settle, most }, squirm { fits, strength, paddle, nod }, dropped { righting, damping,
+//                squash, squashFor }, petted { lean, duck, nuzzle, ears, wag, wagRate, happy }, fed { stretch, upright,
+//                rears, chews, nod, chewFor }
 //   moves        by name (run, duck, jump, hurt, ko, idle; the gorilla's drum, the elephant's spray), each:
 //                a gait, worked out from where it is in its stride (the run, the crawl): { gait: its settings (see gaitPose
 //                  and leapPose in art.js), and what else of the pose it changes (lying low: joints, torso, shapes, pad) }
@@ -47,4 +52,8 @@ export function toBuild(asset) {
 }
 
 // a rig's build → its asset (of: kept from the asset it was, if any)
-export const toAsset = (name, build, was = {}) => ({ format: 2, name, ...(was.of && { of: was.of }), ...toBuild(build) });
+// (its moves last, as the files have them)
+export function toAsset(name, build, was = {}) {
+  const { moves, ...rest } = toBuild(build);
+  return { format: 2, name, ...(was.of && { of: was.of }), ...rest, ...(moves && { moves }) };
+}

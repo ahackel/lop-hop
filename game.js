@@ -17,7 +17,7 @@ import { StardriftPlayer, openSongZip } from './engine/src/index.js'; // (by pat
 import { songFor } from './music.js';
 import { W, H, GROUND, PALETTES, COLOR, FOOT, ANIMALS, TRUNK, animal, moveBody, stride, bird, crow,
   FOOD, face, FACE_W, cloud, moon, heart, reaching, moveReaching, star, golden, flushed, shadow, hits, snap, setScale, idleFrame, jumpFrame, leaps, hitbox, readying,
-  JUMP, GRAVITY, hill, strides, rgb, luma, holdUp, swing, moveHung, hung, hangDepth, heldAt, petted, made, front, hasFront, setStyle } from './art.js';
+  JUMP, GRAVITY, hill, strides, rgb, luma, holdUp, swing, moveHung, hung, hangDepth, heldAt, petted, handling, made, front, hasFront, setStyle } from './art.js';
 import { GLYPHS, text, textWidth } from './font.js';
 import { ICONS, PAD_ICONS } from './icons.js';
 import { course, pace, topSpeed, drain, hardness, nightAt, random, seedOf, chaserOf, SCORE_PER_PX, CROWS_FROM, FAST_FROM, CHASE } from './level.js';
@@ -1540,13 +1540,13 @@ function drawFacing(sp, x, y, pal) {
   if (!faceL) return sp.draw(ctx, x, y, pal);
   ctx.save(); ctx.translate(2 * x + 26, 0); ctx.scale(-1, 1); sp.draw(ctx, x, y, pal); ctx.restore();
 }
-// a treat eaten: chewing it (CHEW_SECS, its head nodding up and down CHEWS times, its eyes shut happily), then happy
-const CHEW_SECS = 0.8, CHEWS = 3;
-let chew = 0; // (seconds of chewing left)
+// a treat eaten: chewing it (for as long as its file says, its head nodding up and down as many times, its eyes shut
+// happily: see handling in art.js), then happy
+let chew = 0, chewFor = 1; // (seconds of chewing left, of how many)
 function eatTreat([mx, my]) {
   treats[kind]--; keep('treats', JSON.stringify(treats));
   pets[kind] = { joy: 1, t: 0, strokes: 0 };
-  chew = CHEW_SECS;
+  chew = chewFor = handling(kind).fed.chewFor;
   for (let i = 0; i < 5; i++) crumb([mx, my]);
 }
 // eaten up (chewed): happy, hearts float up from its head, a chime
@@ -1566,8 +1566,8 @@ function crumb([mx, my]) {
 }
 // chewing: as it reaches a little toward a point low in front of it (in its box), its head nodding (see sniff in reachPosed)
 function chewPose() {
-  const u = 1 - chew / CHEW_SECS;
-  return [30, FOOT - 6, 0.35, 1, 4 * Math.sin(u * CHEWS * Math.PI * 2)];
+  const u = 1 - chew / chewFor, { chews, nod } = handling(kind).fed;
+  return [30, FOOT - 6, 0.35, 1, nod * Math.sin(u * chews * Math.PI * 2)];
 }
 function chewing() {
   const [tx, ty, amount, look, nod] = chewPose();
@@ -1624,7 +1624,6 @@ const LIFT = 3; // (moved this far, in art pixels: a grab, not a tap)
 // pointer while it is pressed, see pointerdown)
 const hand = (c) => { stage.style.cursor = view.style.cursor = c; };
 const FINGER = 40; // (on a touch screen, an animal hangs this much further below the finger, in CSS pixels)
-const SQUASH_SECS = 0.2;
 const RUN = 2.2; // how fast the others run to their places (places a second)
 const runs = {}; // (an animal running to its place: how far in its stride, which way)
 // the place a held animal would go to (n in the row, with it), never past the padlocked ones (they stay last)
@@ -1672,7 +1671,7 @@ function pet(g, x) {
   const d = Math.sign(x - g.lastX);
   if (d) { p.lean = d; p.still = 0; } // (leaning the way the hand goes)
   if (d && d !== g.dir) { // the hand turns: a stroke (once it went some way)
-    if (g.dir && Math.abs(g.lastX - g.from) >= 3 && ++p.strokes % 2 === 0 && p.joy >= 0.5) heartUp(g.k);
+    if (g.dir && Math.abs(g.lastX - g.from) >= 3 && ++p.strokes % 2 === 0 && p.joy >= handling(g.k).petted.happy) heartUp(g.k);
     g.dir = d; g.from = g.lastX;
   }
   p.joy = Math.min(1, p.joy + Math.abs(x - g.lastX) / 60);
@@ -1735,7 +1734,7 @@ function updateRow(dt) {
       swing(d.h, [x + sx, d.y], dt);
       moveHung(heldBody, d.h, x + sx, d.y, dt);
       if (d.y >= floor && Math.abs(d.h.ang) < 0.12) { // (down, and upright)
-        d.landed = true; d.squash = SQUASH_SECS; d.hard = Math.min(1, 0.3 + d.vy / 600); // (from higher: flatter)
+        d.landed = true; d.squash = d.squashFor = handling(d.k).dropped.squashFor; d.hard = Math.min(1, 0.3 + d.vy / 600); // (from higher: flatter)
         for (let i = 0; i < 8; i++) {
           const side = i % 2 ? 1 : -1;
           parts.push({ x: x + 13 + side * (6 + rnd() * 6), y: GROUND - 1, vx: side * (25 + rnd() * 35), vy: -15 - rnd() * 30, life: 0.35, color: COLOR.FAINT });
@@ -1751,7 +1750,7 @@ function drawGrabbed(pal) {
   if (!g) return;
   const blink = blinking(blinkT + 0.7);
   if (dropped?.landed) { // flat as it lands, then up again
-    const x = placeX(at[g.k]), s = 0.3 * g.hard * Math.max(0, g.squash / SQUASH_SECS);
+    const x = placeX(at[g.k]), s = handling(g.k).dropped.squash * g.hard * Math.max(0, g.squash / g.squashFor);
     ctx.save();
     ctx.translate(x + 13, GROUND);
     ctx.scale(1 + s, 1 - s);
