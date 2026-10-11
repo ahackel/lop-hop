@@ -3,17 +3,21 @@ export default {
   format: 4,
   name: 'cheetah',
   fur: 'tan',
-  joints: { hip: [8, 10.8], chest: [15, 10.8], head: [19.6, 7.6] },
+  joints: { hip: [7, 10.8], chest: [15, 10.8], head: [19.6, 7.6] },
   layers: [
     {
       name: 'tail',
-      shapes: [{ name: 'tail', bone: 'tail', along: 'capsule', r: 0.8, marks: [[0.45, 'outline', 0], [0.7, 'outline', 0], [1, 'white', 0]] }],
+      shapes: [{ name: 'tail', bone: 'tail', along: 'capsule', r: 0.718, marks: [[0.45, 'outline', 0], [0.7, 'outline', 0], [1, 'white', 0]] }],
     },
     {
       name: 'far legs',
       far: true,
       hits: true,
-      shapes: [{ name: 'hindFar', bone: 'hindFar', along: 'capsule', r: 0.77 }, { name: 'frontFar', bone: 'frontFar', along: 'capsule', r: 0.77 }],
+      shapes: [
+        { name: 'hindFar', bone: 'hindFar', along: 'capsule', r: 0.6 },
+        { name: 'frontFar', bone: 'frontFar', along: 'capsule', r: 0.6 },
+        { name: 'ear', on: 'head', ellipse: [-0.7, -3.2, 1.1, 1.1] },
+      ],
     },
     {
       name: 'body',
@@ -24,10 +28,9 @@ export default {
         { name: 'chest', on: 'chest', ellipse: [0.5, 0.4, 2.6, 2.8] },
         { name: 'head', on: 'head', ellipse: [0, 0, 3.3, 3.1] },
         { name: 'muzzle', on: 'head', ellipse: [2.5, 1.4, 1.4, 1.1] },
-        { name: 'ear', on: 'head', ellipse: [-2, -2.8, 1.1, 1.1] },
-        { name: 'ear', on: 'head', ellipse: [1, -3.2, 1.1, 1.1] },
-        { name: 'hindNear', bone: 'hindNear', along: 'capsule', r: 0.85, smooth: 0.5 },
-        { name: 'frontNear', bone: 'frontNear', along: 'capsule', r: 0.85, smooth: 0.5 },
+        { name: 'ear', on: 'head', ellipse: [-3, -2.8, 1.1, 1.1] },
+        { name: 'hindNear', bone: 'hindNear', along: 'capsule', r: 0.6, smooth: 0.5 },
+        { name: 'frontNear', bone: 'frontNear', along: 'capsule', r: 0.6, smooth: 0.5 },
       ],
       paint: [
         { name: 'muzzle', color: 'white', on: 'head', ellipse: [2.5, 1.4, 1.4, 1.1] },
@@ -53,17 +56,18 @@ export default {
     hindNear: { on: 'hip', at: [0, 2], thigh: 2.9, shin: 2.9, bend: 1 },
     frontNear: { on: 'chest', at: [0, 2], thigh: 2.9, shin: 2.9, bend: -1 },
   },
-  chains: { tail: { on: 'hip', at: [-2.5, -0.8], angle: 1.1, links: 4, length: 8, curl: -0.15, stiffness: 600, damping: 18, weight: 40 } },
+  chains: { tail: { on: 'hip', at: [-2.5, -0.8], angle: 1.947, links: 4, length: 8, curl: -0.15, stiffness: 600, damping: 36.33, weight: 40 } },
   face: { eye: [0.9, -1], nose: [3.6, 1] },
+  handling: { fed: { upright: 0.04, rears: 0, stretch: 6, nod: 1.3 } },
   moves: {
     run: {
       gait: {
         frames: 8,
         stance: 0.4,
-        reach: 6.38,
-        lift: 2.726,
-        bob: 0.6,
-        ground: 18.4,
+        reach: 8.5,
+        lift: 3.15,
+        bob: 1.1,
+        ground: 17.475,
         legs: { hindNear: [0, -0.5], hindFar: [0.1, -0.5], frontNear: [0.5, 0.8], frontFar: [0.6, 0.8] },
       },
     },
@@ -123,7 +127,7 @@ export default {
       frames: 80,
       fps: 10,
       keys: [
-        { at: 0, paws: { hindFar: [10, 18.4], frontFar: [16.5, 18.4], hindNear: [8.5, 18.4], frontNear: [14.5, 18.4] }, joints: { hip: [8, 10.8] } },
+        { at: 0, paws: { hindFar: [9.4, 18.5], frontFar: [17, 18.5], hindNear: [7.8, 18.4], frontNear: [15.1, 18.9] }, joints: { hip: [8, 10.8] } },
         { at: 5, ease: 'sine', joints: { head: [19.6, 7.48] }, torso: { r: 3.3 } },
         { at: 5, ease: 'smooth', joints: { chest: [15, 10.71] } },
         { at: 10, ease: 'sine', chains: { tail: { angle: 2.35 } } },

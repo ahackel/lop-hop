@@ -24,7 +24,7 @@ export default {
       join: true,
       hits: true,
       shapes: [
-        { name: 'torso', bone: 'spine', along: 'ellipse', r: 5, ends: 3.6 },
+        { name: 'torso', bone: 'spine', along: 'ellipse', r: 5.9, ends: 3.6 },
         { name: 'head', on: 'head', ellipse: [0.6, 0.5, 4.3, 4.5] },
         { name: 'brow', on: 'head', ellipse: [-0.4, -1.9, 3.5, 2.7] },
         { name: 'hindNear', bone: 'hindNear', along: 'capsule', r: 1.6, foot: [1.7, 0.7], smooth: 0.5 },
@@ -32,8 +32,8 @@ export default {
       ],
     },
     { name: 'ear', color: 'slate', shapes: [{ on: 'head', triangle: [[-5.6, -2], [-1.4, -2.4], [-3.2, 3.8]] }] },
-    { name: 'tusk', color: 'white', shapes: [{ on: 'head', capsule: [2.8, 3, 5, 4, 0.55] }] },
-    { name: 'trunk', shapes: [{ name: 'trunk', bone: 'trunk', along: 'capsule', r: [1.35, 0.7], grows: true }] },
+    { name: 'trunk', shapes: [{ name: 'trunk', bone: 'trunk', along: 'capsule', r: [1.35, 0.514], grows: true, smooth: 1 }] },
+    { name: 'tusk', color: 'cream', shapes: [{ on: 'head', capsule: [2.8, 3, 7.1, 4.921, 0.756] }], outline: false },
     'face',
   ],
   legs: {
@@ -43,8 +43,8 @@ export default {
     frontNear: { on: 'chest', at: [0, 3.6], thigh: 2.2, shin: 2.2, bend: -1 },
   },
   chains: {
-    trunk: { on: 'head', at: [4, 3], angle: 3.3, links: 4, length: 7.5, curl: 0.18, stiffness: 900, damping: 20, weight: 50 },
-    tail: { on: 'hip', at: [-4.9, -1.4], angle: 1.6, links: 2, length: 4.8, stiffness: 500, damping: 14, weight: 60 },
+    trunk: { on: 'head', at: [4.3, 2.3], angle: -3.007, links: 4, length: 8.2, curl: 0.18, stiffness: 900, damping: 20, weight: 50 },
+    tail: { on: 'hip', at: [-3.9, -0.3], angle: 3, links: 2, length: 5.4, stiffness: 500, damping: 14, weight: 60 },
   },
   face: { eye: [1.4, -1] },
   moves: {
@@ -117,11 +117,7 @@ export default {
       frames: 80,
       fps: 10,
       keys: [
-        {
-          at: 0,
-          paws: { hindFar: [9.273, 18.4], frontFar: [15.773, 18.4], hindNear: [7.776, 18.4], frontNear: [13.276, 18.4] },
-          joints: { hip: [7, 10.5] },
-        },
+        { at: 0, paws: { hindFar: [8.6, 18.8], frontFar: [15.6, 18.6], hindNear: [6.9, 18.5], frontNear: [14.3, 18.5] }, joints: { hip: [7, 10.5] } },
         { at: 5, ease: 'sine', joints: { head: [18.3, 7.28] }, torso: { r: 5.3 } },
         { at: 5, ease: 'smooth', joints: { chest: [13.5, 9.91] } },
         { at: 10, ease: 'sine', chains: { tail: { angle: 2.6 } } },

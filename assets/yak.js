@@ -10,11 +10,22 @@ export default {
       name: 'far legs',
       far: true,
       hits: true,
-      shapes: [{ name: 'hindFar', bone: 'hindFar', along: 'capsule', r: 1.2 }, { name: 'frontFar', bone: 'frontFar', along: 'capsule', r: 1.2 }],
+      shapes: [{ name: 'hindFar', bone: 'hindFar', along: 'capsule', r: 0.77 }, { name: 'frontFar', bone: 'frontFar', along: 'capsule', r: 0.782 }],
+    },
+    {
+      name: 'horns',
+      color: 'grey',
+      shapes: [
+        { on: 'head', capsule: [-0.4, -2.8, 2.8, -4, 0.85] },
+        { on: 'head', capsule: [2.8, -4, 4, -5.6, 0.7] },
+        { on: 'head', capsule: [4.4, -5.2, 4.8, -7.5, 0.5] },
+      ],
+      at: [1.675, 1.379],
+      far: true,
+      outline: false,
     },
     {
       name: 'body',
-      join: true,
       hits: true,
       shapes: [
         { name: 'torso', bone: 'spine', along: 'ellipse', r: 4.6, ends: 3.8 },
@@ -26,11 +37,11 @@ export default {
         { name: 'tuft', on: 'spine', triangle: [[8.4, 3.8], [10.6, 3.8], [9.8, 6.4]] },
         { name: 'head', on: 'head', ellipse: [0.4, 0.2, 3.7, 3.6] },
         { name: 'muzzle', on: 'head', ellipse: [2.8, 1.8, 1.9, 1.7] },
-        { name: 'hindNear', bone: 'hindNear', along: 'capsule', r: 1.35, smooth: 0.5 },
-        { name: 'frontNear', bone: 'frontNear', along: 'capsule', r: 1.35, smooth: 0.5 },
+        { name: 'hindNear', bone: 'hindNear', along: 'capsule', r: 0.759, smooth: 0.5 },
+        { name: 'frontNear', bone: 'frontNear', along: 'capsule', r: 0.732, smooth: 0.5 },
       ],
       paint: [
-        { name: 'blaze', color: 'white', on: 'head', capsule: [0.6, -2.4, 2.8, 2.2, 1.6] },
+        { name: 'blaze', color: 'cream', on: 'head', capsule: [0.6, -2.4, 2.8, 2.2, 1.6] },
         { name: 'strands', color: 'darkBrown', on: 'spine', capsule: [-1.6, 1.6, -2, 5.6, 0.4] },
         { name: 'strands', color: 'darkBrown', on: 'spine', capsule: [2, 1.8, 1.8, 5.8, 0.4] },
         { name: 'strands', color: 'darkBrown', on: 'spine', capsule: [6.4, 1.8, 6.2, 5.8, 0.4] },
@@ -39,12 +50,13 @@ export default {
     },
     {
       name: 'horns',
-      color: 'cream',
+      color: 'grey',
       shapes: [
         { on: 'head', capsule: [-0.4, -2.8, 2.8, -4, 0.85] },
         { on: 'head', capsule: [2.8, -4, 4, -5.6, 0.7] },
-        { on: 'head', capsule: [4, -5.6, 5.4, -5.8, 0.5] },
+        { on: 'head', capsule: [4, -5.6, 3.2, -7.1, 0.5] },
       ],
+      outline: false,
     },
     'face',
   ],
@@ -55,7 +67,7 @@ export default {
     hindNear: { on: 'hip', at: [0, 3.4], thigh: 1.9, shin: 1.9, bend: 1 },
     frontNear: { on: 'chest', at: [0, 3.4], thigh: 1.9, shin: 1.9, bend: -1 },
   },
-  chains: { tail: { on: 'hip', at: [-4.2, -1.6], angle: 2.4, links: 2, length: 4.4, stiffness: 500, damping: 14, weight: 60 } },
+  chains: { tail: { on: 'hip', at: [-3.3, -0.2], angle: 2.813, links: 2, length: 4.6, stiffness: 500, damping: 14, weight: 60 } },
   face: { eye: [1.2, -0.4] },
   moves: {
     run: {
@@ -143,7 +155,7 @@ export default {
       frames: 80,
       fps: 10,
       keys: [
-        { at: 0, paws: { hindFar: [9.5, 18.4], frontFar: [16.5, 18.4], hindNear: [8, 18.4], frontNear: [14, 18.4] }, joints: { hip: [7.5, 10.6] } },
+        { at: 0, paws: { hindFar: [8.5, 19.5], frontFar: [16.2, 18.6], hindNear: [7, 19.4], frontNear: [14.6, 18.9] }, joints: { hip: [7.5, 10.6] } },
         { at: 5, ease: 'sine', joints: { head: [19.4, 10.88] }, torso: { r: 4.9 } },
         { at: 5, ease: 'smooth', joints: { chest: [14.5, 10.51] } },
         { at: 10, ease: 'sine', chains: { tail: { angle: 2.75 } } },
