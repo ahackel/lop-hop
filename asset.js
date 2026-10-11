@@ -47,9 +47,10 @@
 //                pulls each link to its rest, damping stops it ringing, weight pulls it down
 //   face         eye, nose, mouth (none: no mouth drawn), points in the head's frame; noseColor; frames: its own pictures
 //                for its eye and its mouth, or more of them, by name: { eye: { open: { at: [column, row] (the pixel put
-//                on the eye's point), rows: ['x', 'x'] (. nothing, x the dark line, w white, p pink, r red, k ink) } },
-//                mouth: {…} }; what it doesn't have is as FACE_FRAMES in art.js has it (eye: open, blink, hurt, ko, happy;
-//                mouth: shut, open, happy)
+//                on the eye's point), rows: ['x', 'x'] (. nothing, x the dark line, w white, p pink, r red, k ink, or one
+//                of its inks) } }, mouth: {…} }; what it doesn't have is as FACE_FRAMES in art.js has it (eye: open, blink,
+//                hurt, ko, happy; mouth: shut, open, happy); inks: its own, any color of the palette by a letter of its
+//                own: { a: 'brown' }
 //   recolor      { name: name }: colors swapped everywhere (the wolf: a grey fox)
 //   front        seen from the front, shown a moment as it turns round (see front in art.js): a build of its own, sitting,
 //                facing out of the screen: joints, layers, dots, chains (ears hanging either side),

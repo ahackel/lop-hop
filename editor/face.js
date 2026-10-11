@@ -3,12 +3,14 @@ import { FACE_FRAMES, FACE_INKS, PALETTES, animal, colorOf } from '../art.js';
 import { css, el, iconBtn } from './dom.js';
 import { field, inspect } from './inspector.js';
 import { draw } from './stage.js';
-import { NAMED, build, changed, commit, hist, kind, remember, snapshot, status } from './state.js';
+import { NAMED, build, changed, commit, hist, kind, nice, paints, remember, snapshot, status } from './state.js';
 
 // its eye's and its mouth's pictures, drawn pixel by pixel (see FACE_FRAMES in art.js): a frame picked, drawn on a grid
 // over the animal's own pixels around it (faded), its anchor (the face's point) in the middle; what is drawn goes into
-// its file (as the usual one again: gone from it). The stage shows the frame on the animal as it is drawn
-export const faceEdit = { part: 'eye', name: 'open', ink: 'x' };
+// its file (as the usual one again: gone from it). The stage shows the frame on the animal as it is drawn. Inks: any
+// color of the palette (one not among FACE_INKS: one of the face's own inks, by a letter given it when it is first drawn
+// with; one no frame uses: gone)
+export const faceEdit = { part: 'eye', name: 'open', ink: 'outline' }; // (ink: a color by its name; '.': erasing)
 const CELLS = 9, MID = 4, CELL = 22;
 export const frameNames = (part) => [...new Set([...Object.keys(FACE_FRAMES[part]), ...Object.keys(build.face?.frames?.[part] || {})])];
 const frameNow = (part = faceEdit.part, name = faceEdit.name) => build.face?.frames?.[part]?.[name] || FACE_FRAMES[part][name] || { at: [0, 0], rows: ['.'] };
@@ -31,13 +33,29 @@ function setFrame(part, name, f) { // (f: null, gone)
   else ((face.frames ||= {})[part] ||= {})[name] = f;
   if (face.frames?.[part] && !Object.keys(face.frames[part]).length) delete face.frames[part];
   if (face.frames && !Object.keys(face.frames).length) delete face.frames;
+  if (face.inks) { // (the face's inks no frame uses: gone)
+    const used = new Set(Object.values(face.frames || {}).flatMap((fs) => Object.values(fs)).flatMap((fr) => [...fr.rows.join('')]));
+    for (const ch in face.inks) if (!used.has(ch)) delete face.inks[ch];
+    if (!Object.keys(face.inks).length) delete face.inks;
+  }
 }
-const inkColor = (ch) => PALETTES.day[NAMED[FACE_INKS[ch]]];
+const inkOf = (ch) => build.face?.inks?.[ch] || FACE_INKS[ch];
+const inkColor = (ch) => PALETTES.day[NAMED[inkOf(ch)]];
+// the letter a color is drawn with: FACE_INKS', the face's own, else a new one of its own
+function charOf(color) {
+  const face = build.face, has = (o) => Object.keys(o || {}).find((ch) => o[ch] === color);
+  const ch = has(FACE_INKS) || has(face.inks);
+  if (ch) return ch;
+  const free = [...'abcdefghijlmnoqstuvyz'].find((c) => !(c in FACE_INKS) && !(c in (face.inks || {})));
+  (face.inks ||= {})[free] = color;
+  return free;
+}
 export function faceFrames(box) {
   const face = build.face, { part } = faceEdit;
   if (!frameNames(part).includes(faceEdit.name)) faceEdit.name = part === 'eye' ? 'open' : 'shut';
   const redo = () => { inspect(); draw(); };
-  box.append(el('div', { className: 'group' }, el('span', { textContent: 'Frames' })));
+  const head = el('div', { className: 'group' }, el('span', { textContent: 'Frames' }));
+  box.append(head);
   const parts = el('span', { className: 'modes' });
   for (const p of ['eye', 'mouth']) parts.append(el('button', { textContent: p, className: p === part ? 'on' : '', onclick: () => { faceEdit.part = p; faceEdit.name = p === 'eye' ? 'open' : 'shut'; redo(); } }));
   box.append(field('part', parts));
@@ -78,14 +96,16 @@ export function faceFrames(box) {
     setFrame(part, faceEdit.name, fromCells(drawing.cells)); changed(); paint();
   };
   grid.oncontextmenu = (e) => e.preventDefault();
-  grid.onpointerdown = (e) => { remember(); drawing = { cells: toCells(frameNow()), ink: e.button === 2 ? '.' : faceEdit.ink }; put(e); try { grid.setPointerCapture(e.pointerId); } catch { /* (no such pointer) */ } };
+  grid.onpointerdown = (e) => { remember(); drawing = { cells: toCells(frameNow()), ink: e.button === 2 || faceEdit.ink === '.' ? '.' : charOf(faceEdit.ink) }; put(e); try { grid.setPointerCapture(e.pointerId); } catch { /* (no such pointer) */ } };
   grid.onpointermove = (e) => { if (drawing) put(e); };
   grid.onpointerup = () => { if (!drawing) return; drawing = null; const h = hist(); if (h.past[h.past.length - 1] === snapshot()) h.past.pop(); redo(); status(); };
   paint();
   box.append(grid);
-  // the inks, and what can be done with the frame
-  const inks = el('div', { className: 'keys' });
-  for (const ch of [...Object.keys(FACE_INKS), '.']) inks.append(el('button', { className: `ink${ch === faceEdit.ink ? ' on' : ''}`, title: ch === '.' ? 'erase' : FACE_INKS[ch].toLowerCase(), style: ch === '.' ? '' : `background:${inkColor(ch)}`, textContent: ch === '.' ? '⌫' : '', onclick: () => { faceEdit.ink = ch; redo(); } }));
+  // the inks (the usual ones first, then every color of the palette), and what can be done with the frame
+  const inks = el('div', { className: 'keys inks' }), usualInks = Object.values(FACE_INKS);
+  for (const c of [...usualInks, ...paints().filter((c) => !usualInks.includes(c)), '.']) {
+    inks.append(el('button', { className: `ink${c === faceEdit.ink ? ' on' : ''}${usualInks.includes(c) || c === '.' ? '' : ' more'}`, title: c === '.' ? 'erase' : nice(c), style: c === '.' ? '' : `background:${PALETTES.day[NAMED[c]]}`, textContent: c === '.' ? '⌫' : '', onclick: () => { faceEdit.ink = c; redo(); } }));
+  }
   box.append(inks);
   const acts = el('div', { className: 'keys' }), name = faceEdit.name, usual = !!FACE_FRAMES[part][name];
   acts.append(iconBtn('revert', 'usual', { title: 'The usual frame, as every animal has it', disabled: !usual || !ownFrame(part, name), onclick: () => { commit(() => setFrame(part, name, FACE_FRAMES[part][name])); redo(); } }));
@@ -96,6 +116,7 @@ export function faceFrames(box) {
   } }));
   acts.append(iconBtn('trash', '', { title: 'Delete this frame (only one of its own, not a usual one)', disabled: usual, onclick: () => { commit(() => setFrame(part, name, null)); faceEdit.name = part === 'eye' ? 'open' : 'shut'; redo(); } }));
   if (part === 'mouth') acts.append(el('button', { textContent: 'No mouth', title: 'No mouth drawn (its frames stay)', onclick: () => { commit(() => { delete face.mouth; }); redo(); } }));
-  box.append(acts, el('p', { className: 'note', textContent: `${usual ? (ownFrame(part, name) ? 'Its own, in its file.' : 'The usual one, as every animal has it: drawing makes it its own.') : 'One of its own.'} In Animate a key picks which frame shows.` }));
+  box.append(acts);
+  head.title = `${usual ? (ownFrame(part, name) ? 'This frame: its own, in its file.' : 'This frame: the usual one, as every animal has it; drawing makes it its own.') : 'This frame: one of its own.'} In Animate a key picks which frame shows.`;
 }
 

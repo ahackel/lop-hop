@@ -316,7 +316,7 @@ export function animal(kind, pose, frame = 0, { blink = false, body = null, scal
 
 // the face's frames: small pixel pictures for its eye and its mouth, each by name, drawn with its anchor (at: a column
 // and row of it) on the face's point (the eye's, the mouth's). Rows of characters: '.' nothing, the rest an ink (see
-// FACE_INKS). Which frame a pose shows: its eye and mouth (a clip's keys set them: hurt, ko; petted and eating: happy),
+// FACE_INKS, or one of the face's own: face.inks, any color of the palette by a letter). Which frame a pose shows: its eye and mouth (a clip's keys set them: hurt, ko; petted and eating: happy),
 // else open (blinking: blink) and shut. An animal's file can draw its own, or more (face.frames: see asset.js); what it
 // doesn't have is as here. A mouth is drawn only where the face has one (face.mouth)
 export const FACE_FRAMES = {
@@ -336,11 +336,11 @@ export const FACE_FRAMES = {
 export const FACE_INKS = { x: 'outline', w: 'white', p: 'pink', r: 'red', k: 'ink' };
 const faceFrame = (head, part, name) => head.frames?.[part]?.[name] || FACE_FRAMES[part][name];
 // (put: a pixel of the sprite's grid; at: the one the anchor goes on; n: how big a pixel of the frame is there)
-function faceDraw(put, frame, [X, Y], n) {
+function faceDraw(put, frame, [X, Y], n, inks) {
   if (!frame) return;
   const [ax, ay] = frame.at;
   frame.rows.forEach((row, r) => {
-    for (let c = 0; c < row.length; c++) if (row[c] !== '.') for (let a = 0; a < n; a++) for (let b = 0; b < n; b++) put(X + (c - ax) * n + a, Y + (r - ay) * n + b, NAMED[FACE_INKS[row[c]]] || OUT);
+    for (let c = 0; c < row.length; c++) if (row[c] !== '.') for (let a = 0; a < n; a++) for (let b = 0; b < n; b++) put(X + (c - ax) * n + a, Y + (r - ay) * n + b, NAMED[inks?.[row[c]] || FACE_INKS[row[c]]] || OUT);
   });
 }
 
@@ -902,9 +902,9 @@ function drawRig(rig, P, blink, chains, S = 1, [dx, dy] = [0, 0], floor = Math.r
     for (const [[x, y], c] of dots) face.dot(x, y, c);
     if (rig.recolor) { const to = {}; for (const a in rig.recolor) to[NAMED[a]] = NAMED[rig.recolor[a]]; for (let i = 0; i < g.px.length; i++) g.px[i] = to[g.px[i]] ?? g.px[i]; }
     const look = p.eye || 'open', eyeFrame = faceFrame(head, 'eye', blink && look === 'open' ? 'blink' : look);
-    for (const q of both) faceDraw(put, eyeFrame, pin(q), n);
+    for (const q of both) faceDraw(put, eyeFrame, pin(q), n, head.inks);
     if (head.nose) { const nose = toWorld(F.head, head.nose); face.dot(nose[0], nose[1], NAMED[head.noseColor] || OUT); }
-    if (mouth) faceDraw(put, faceFrame(head, 'mouth', p.mouth || 'shut'), pin(mouth), n);
+    if (mouth) faceDraw(put, faceFrame(head, 'mouth', p.mouth || 'shut'), pin(mouth), n, head.inks);
   };
 
   const hits = [], fars = [], nearHits = [];
@@ -1212,7 +1212,7 @@ export function front(kind, { blink = false, scale = 1 } = {}) {
   const key = `${kind} front ${blink} ${scale}`;
   let s = rigFrames.get(key);
   if (s) { rigFrames.delete(key); rigFrames.set(key, s); return s; }
-  const F = RIGS[kind].front, rig = { legs: {}, chains: {}, torso: { r: 0 }, fur: RIGS[kind].fur, ...F, face: { frames: RIGS[kind].face?.frames, ...F.face } }; // (its face's frames: the animal's, or its own)
+  const F = RIGS[kind].front, rig = { legs: {}, chains: {}, torso: { r: 0 }, fur: RIGS[kind].fur, ...F, face: { frames: RIGS[kind].face?.frames, inks: RIGS[kind].face?.inks, ...F.face } }; // (its face's frames and inks: the animal's, or its own)
   const P = posedAs(rig, {}), n = SIZE[kind] || 0, [k, d] = growth(n, scale);
   s = drawRig(rig, P, blink, chainsAt(rig, P), scale * k, d, Math.round((FOOT + 1) * scale), n > 0);
   rigFrames.set(key, s);
