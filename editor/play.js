@@ -3,8 +3,9 @@
 // pulled up, picked up by the middle of its back and carried about (it hangs, tips as it is moved, squirms); let go, it
 // drops, rights itself and lands with a squash; rubbed sideways, petted (pressed down: it ducks); the treat over it taken
 // and held out, it reaches for it, eats it at its mouth (dropped: it falls, caught passing its mouth, else eaten where it
-// lands near it); a double click, a hop. What the game does around it (the row of animals, how many treats it has, its
-// tries for one held out) is left out. Slow: everything at a quarter speed.
+// lands near it; held over it, now and then it hops after it, as high as fed.hop lets it); a double click, a hop. What
+// the game does around it (the row of animals, how many treats it has, its tries for one held out) is left out. Slow:
+// everything at a quarter speed.
 import { ANIMALS, FOOD, FOOT, PALETTES, COLOR, GRAVITY, JUMP, animal, idleFrame, jumpFrame, moveBody, holdUp, swing, moveHung, hung, hangDepth,
   heldAt, petted, reaching, moveReaching, handling, heart, hill } from '../art.js';
 
@@ -16,7 +17,7 @@ export const play = { slow: false };
 
 export function reset(kind) {
   s = { kind, bx: HOME, t: 0, body: {}, grip: null, held: null, dropped: null, pet: null, feed: null, loose: null, chew: 0, chewFor: 1,
-    reach: { amount: 0, t: 0 }, hop: null, faceL: false, tapped: null, parts: [], floats: [] };
+    reach: { amount: 0, t: 0, alt: 0, v: 0, wait: 1 }, hop: null, faceL: false, tapped: null, parts: [], floats: [] };
 }
 const meal = () => FOOD[ANIMALS[s.kind].food];
 const blinking = (t) => t % 3.2 < 0.12;
@@ -28,11 +29,11 @@ const onTreat = (x, y) => { const [cx, cy] = treatSpot(), m = meal(); return sho
 const treatAt = () => (s.feed ? [s.feed.x, s.feed.y] : s.loose ? [s.loose.x + meal().w / 2, s.loose.y + meal().h / 2] : null);
 function reachTo([tx, ty]) { // (in its box, as it faces: turned round for one behind it)
   if (tx < s.bx + 10) s.faceL = true; else if (tx > s.bx + 16) s.faceL = false;
-  return [s.faceL ? s.bx + 26 - tx : tx - s.bx, ty - (G - FOOT)];
+  return [s.faceL ? s.bx + 26 - tx : tx - s.bx, ty - (G - FOOT - s.reach.alt)]; // (hopping after it: from up there)
 }
 const amount = () => s.reach.amount * (0.92 + 0.08 * Math.cos(s.reach.t * 4.4)); // (straining after it)
 const reachFor = (at, eating = false) => reaching(s.kind, ...reachTo(at), eating, amount(), 1, s.body);
-const mouthOf = (sp) => { const [mx, my] = sp.mouth || [sp.head[0] + 4, sp.head[1] + 8]; return [s.faceL ? s.bx + 26 - mx : s.bx + mx, G - FOOT + my]; };
+const mouthOf = (sp) => { const [mx, my] = sp.mouth || [sp.head[0] + 4, sp.head[1] + 8]; return [s.faceL ? s.bx + 26 - mx : s.bx + mx, G - FOOT - s.reach.alt + my]; };
 function chewPose() {
   const u = 1 - s.chew / s.chewFor, { chews, nod } = handling(s.kind).fed;
   return [30, FOOT - 6, 0.35, 1, nod * Math.sin(u * chews * Math.PI * 2)];
@@ -48,12 +49,26 @@ function crumb([mx, my]) {
   const colors = [...new Set(meal().px)].filter(Boolean), dir = (s.faceL ? -1 : 1) * (Math.random() < 0.75 ? 1 : -0.6);
   s.parts.push({ x: mx, y: my, vx: dir * (10 + Math.random() * 40), vy: -25 - Math.random() * 45, life: 0.35 + Math.random() * 0.3, color: colors[Math.floor(Math.random() * colors.length)] });
 }
+// held over its mouth: a hop after it, a little short of it, at most fed.hop high (as the game's: see hopAfter there)
+const HOP_TRIES = 0.6, HOP_OVER = 4;
+function hopAfter() {
+  const gap = mouthOf(reachFor(treatAt()))[1] - s.feed.y, most = handling(s.kind).fed.hop;
+  if (s.reach.alt || !(most > 0) || gap <= HOP_OVER || Math.random() >= HOP_TRIES) return;
+  s.reach.v = Math.sqrt(2 * GRAVITY * ANIMALS[s.kind].gravity * Math.min(most, gap * 0.7));
+}
+function stepHop(dt) {
+  const r = s.reach;
+  if (!r.v && !r.alt) return;
+  r.v -= GRAVITY * ANIMALS[s.kind].gravity * dt; r.alt += r.v * dt;
+  if (r.alt <= 0) { r.alt = r.v = 0; dust(s.bx + 13, 4, 8); }
+}
 function dropTreat() {
   const mouth = mouthOf(reachFor(treatAt()));
   if (Math.hypot(s.feed.x - mouth[0], s.feed.y - mouth[1]) < 8) eat(mouth);
   else { s.loose = { x: s.feed.x - meal().w / 2, y: s.feed.y - meal().h / 2, vy: 0, down: false, t: 0 }; s.feed = null; }
 }
 function stepTreat(dt) {
+  stepHop(dt); // (caught in the air: chewing on the way down)
   if (s.chew > 0) {
     if (Math.random() < dt * 12) crumb(mouthOf(chewing()));
     if ((s.chew -= dt) <= 0) { s.chew = 0; hearts(); }
@@ -61,6 +76,7 @@ function stepTreat(dt) {
   }
   if (!treatAt()) { s.reach.amount = 0; s.reach.t = 0; return; }
   s.reach.amount = Math.min(1, s.reach.amount + 3 * dt); s.reach.t += dt;
+  if (s.feed && (s.reach.wait -= dt) <= 0) { s.reach.wait = 1 + Math.random() * 1.2; hopAfter(); }
   const L = s.loose;
   if (!L) return;
   if (!L.down) {
@@ -189,8 +205,8 @@ export function step(dt) {
     if (j.alt <= 0) { s.hop = null; dust(s.bx + 13, 6, 10); }
     else { moveBody(s.body, k, 'jump', jumpFrame(k, j.v / (JUMP * ANIMALS[k].jump)), s.bx, G - FOOT - j.alt, 0, dt); return; }
   }
-  if (s.chew > 0) { const [tx, ty, a, look, nod] = chewPose(); moveReaching(s.body, k, tx, ty, a, look, s.bx, G - FOOT, dt, nod); }
-  else if (treatAt()) moveReaching(s.body, k, ...reachTo(treatAt()), amount(), 1, s.bx, G - FOOT, dt);
+  if (s.chew > 0) { const [tx, ty, a, look, nod] = chewPose(); moveReaching(s.body, k, tx, ty, a, look, s.bx, G - FOOT - s.reach.alt, dt, nod); }
+  else if (treatAt()) moveReaching(s.body, k, ...reachTo(treatAt()), amount(), 1, s.bx, G - FOOT - s.reach.alt, dt);
   else moveBody(s.body, k, 'idle', idleFrame(k, s.t), s.bx, G - FOOT, 0, dt);
 }
 
@@ -221,8 +237,8 @@ export function draw(stage, Z) {
     sp.draw(ctx, Math.round(x - pin[0]), Math.round(g.y - pin[1]), pal);
   } else if (s.hop) animal(k, 'jump', jumpFrame(k, s.hop.v / (JUMP * ANIMALS[k].jump)), { body: s.body }).draw(ctx, s.bx, Math.round(G - FOOT - s.hop.alt), pal);
   else if (s.grip?.duck) animal(k, 'duck', 0).draw(ctx, s.bx, G - FOOT, pal); // pushed down
-  else if (s.chew > 0) facing(chewing(), s.bx, G - FOOT);
-  else if (treatAt()) facing(reachFor(treatAt(), !!s.loose?.down), s.bx, G - FOOT);
+  else if (s.chew > 0) facing(chewing(), s.bx, G - FOOT - Math.round(s.reach.alt));
+  else if (treatAt()) facing(reachFor(treatAt(), !!s.loose?.down), s.bx, G - FOOT - Math.round(s.reach.alt));
   else if (s.pet) pettedNow().draw(ctx, s.bx, G - FOOT, pal);
   else animal(k, 'idle', idleFrame(k, s.t), { blink, body: s.body }).draw(ctx, s.bx, G - FOOT, pal);
   const m = meal();

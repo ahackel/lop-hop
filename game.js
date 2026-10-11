@@ -1481,13 +1481,14 @@ const reachFor = (x, at, eating = false) => reaching(kind, ...reachTo(x, at), ea
 // (some of each try's lengths a little different), and tries again. One let go: after it at once, all out. With none
 // out, now and then (every 4 to 10 s) it tries once for its treats over it (begging: looking away again after). One held
 // out of its reach, over its mouth: as it strains, now and then (HOP_TRIES of the tries) it hops up after it too, a
-// little short of it (alt, v: how high it is, how fast it goes up; hopped: this try's chance had)
+// little short of it, at most as high as its file says (fed.hop, see HANDLING in art.js; 0: never) (alt, v: how high it
+// is, how fast it goes up; hopped: this try's chance had)
 const reach = { t: 0, rest: 0.25, amount: 0, look: 0, strain: 0.7, sniff: 0, alt: 0, v: 0, hopped: false };
-const HOP_TRIES = 0.6, HOP_OVER = 4, HOP_MAX = 12; // (HOP_OVER: art pixels over its mouth before it hops; HOP_MAX: the highest it hops)
+const HOP_TRIES = 0.6, HOP_OVER = 4; // (HOP_OVER: art pixels over its mouth before it hops)
 function hopAfter() {
-  const x = placeX(at[kind]), gap = mouthOf(reachFor(x, [feed.x, feed.y]), x)[1] - feed.y; // (how far over its mouth it is)
-  if (gap <= HOP_OVER || rnd() >= HOP_TRIES) return;
-  reach.v = Math.sqrt(2 * GRAVITY * ANIMALS[kind].gravity * Math.min(HOP_MAX, gap * 0.7));
+  const x = placeX(at[kind]), gap = mouthOf(reachFor(x, [feed.x, feed.y]), x)[1] - feed.y, most = handling(kind).fed.hop; // (how far over its mouth it is; the highest it hops)
+  if (!(most > 0) || gap <= HOP_OVER || rnd() >= HOP_TRIES) return;
+  reach.v = Math.sqrt(2 * GRAVITY * ANIMALS[kind].gravity * Math.min(most, gap * 0.7));
 }
 // the hop: up, and down again, landing with a puff of dust
 function stepHop(dt) {

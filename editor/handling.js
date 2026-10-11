@@ -16,7 +16,7 @@ const HANDLED = {
   petted: ['Petted', { lean: [0, 0.3, 'how far it leans with the hand, radians'], duck: [0, 3, 'how far its head ducks into the hand'], nuzzle: [0, 0.6, 'how far its head turns down'],
     ears: [0, 3, 'how far its ears lie back'], wag: [0, 1.5, 'how far its tail wags, radians'], wagRate: [2, 40, 'how fast'], happy: [0, 1, 'how much it must like it to shut its eyes happily'] }],
   fed: ['Fed', { stretch: [0, 6, 'how far its head stretches for a treat'], upright: [0, 1.6, 'how far up it turns for one held high, radians'],
-    rears: [0, 1, 'how far up on its hind legs it gets for one'], chews: [1, 8, 'nods as it eats', true], nod: [0, 10, 'how big'], chewFor: [0.2, 3, 'for how long, seconds'] }],
+    rears: [0, 1, 'how far up on its hind legs it gets for one'], hop: [0, 30, 'the highest it hops after one held over it, pixels (0: never)'], chews: [1, 8, 'nods as it eats', true], nod: [0, 10, 'how big'], chewFor: [0.2, 3, 'for how long, seconds'] }],
 };
 const CHAIN = { stiffness: [0, 3000, 'how hard it springs back'], damping: [0, 80, 'how little it rings'], weight: [0, 300, 'how much it hangs down'] };
 const stepOf = (min, max) => 10 ** Math.floor(Math.log10((max - min) / 100));

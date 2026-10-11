@@ -58,7 +58,7 @@
 //                is as there; the editor's Play mode tries them): held { at (where the hand holds it, from the middle of its
 //                back), sag, tip, hang, settle, most }, squirm { fits, strength, paddle, nod }, dropped { righting, damping,
 //                squash, squashFor }, petted { lean, duck, nuzzle, ears, wag, wagRate, happy }, fed { stretch, upright,
-//                rears, chews, nod, chewFor }
+//                rears, hop, chews, nod, chewFor }
 //   moves        by name (run, duck, jump, hurt, ko, idle; the gorilla's drum, the elephant's spray), each:
 //                a gait, worked out from where it is in its stride (the run, the crawl): { gait: its settings (see gaitPose
 //                  and leapPose in art.js), and what else of the pose it changes (lying low: joints, torso, shapes, pad) }

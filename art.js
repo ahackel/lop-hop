@@ -1008,13 +1008,14 @@ function drawRig(rig, P, blink, chains, S = 1, [dx, dy] = [0, 0], floor = Math.r
 // how hard, its legs paddling, its head nodding), dropped (how hard it rights itself, how much that wobbles; how flat it
 // lands, for how long), petted (how far it leans with the hand, ducks its head into it and turns it down, lays its ears
 // back, wags its tail and how fast; how much it must like it to shut its eyes happily), fed (how far its head stretches
-// for a treat, how far up it turns for one, how far up on its hind legs it gets (0…1; none: as its legs let it); as it eats: how many nods, how big, for how long)
+// for a treat, how far up it turns for one, how far up on its hind legs it gets (0…1; none: as its legs let it), the
+// highest it hops after one held over it (art pixels, 0: never); as it eats: how many nods, how big, for how long)
 export const HANDLING = {
   held: { at: [0, 0], sag: 1, tip: 1, hang: 10, settle: 3.5, most: 0.9 },
   squirm: { fits: 1.9, strength: 1, paddle: 1, nod: 0.12 },
   dropped: { righting: 600, damping: 45, squash: 0.3, squashFor: 0.2 },
   petted: { lean: 0.07, duck: 0.8, nuzzle: 0.2, ears: 1, wag: 0.6, wagRate: 16, happy: 0.5 },
-  fed: { stretch: 3, upright: 1.35, rears: null, chews: 3, nod: 4, chewFor: 0.8 }, // (rears: none, by its legs)
+  fed: { stretch: 3, upright: 1.35, rears: null, hop: 12, chews: 3, nod: 4, chewFor: 0.8 }, // (rears: none, by its legs)
 };
 const handled = new WeakMap(); // (rig → its handling)
 function handlingOf(rig) {
