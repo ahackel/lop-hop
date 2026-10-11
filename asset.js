@@ -11,30 +11,39 @@
 //   night        the colors by night, each channel: day × contrast + lift (toward the middle: dark ones lighter, light
 //                ones darker, to show against the night sky)
 //
-// format 2, an animal (2D, from the side; x forward, y down, in the 26 × 20 box, its feet on row 19):
+// format 3, an animal (2D, from the side; x forward, y down, in the 26 × 20 box, its feet on row 19). Its bones are what
+// moves (joints, legs, chains), only that; all it looks like is shapes, each in the box, on a joint, or on a bone (bone:
+// following it, see the shapes on bones, below)
 //   format, name; of: the animal it is made from, a skin of it (the wolf: the fox's, its own over it: recolored; the
 //                editor makes one, and edits it with the one it is made from)
 //   fur          its color (a palette name: see the palette, above), as every color is
 //   joints       the bones down the spine: hip, chest, head, places in the box. The spine runs from the hip to the chest
-//   torso        r (how thick), ends (how far past the hip and the chest), capsule (round ends): along the spine; r 0: none
 //   shapes       the body: ellipse [x, y, rx, ry], capsule [ax, ay, bx, by, r], box [x0, y0, x1, y1, r] or triangle
 //                [[x, y] × 3], `on` a joint (in its frame: spine, hip, chest turn with the spine; head with the head) or in
-//                the box; joined smoothly (smooth: how much), outlined, and what collisions test; a name to use it by
+//                the box, or on a bone; joined smoothly (smooth: how much, 1 if none), outlined, and what collisions test;
+//                a name to use it by
+//   back         shapes on bones behind the body, each outlined on its own (a tail; the far legs, as one, after the
+//                tails, counting for collisions)
 //   paint        markings: shapes in a color, only on the body
-//   top          groups of shapes drawn over the body, outlined (horns, fangs): { name, color, shapes, at, angle }; no
-//                collisions. A group's shapes are placed from its pivot (at: a point in their joint's frame; none: [0, 0]),
-//                turned about it by its angle: moved or turned, all of them go with it
+//   top          over the body, outlined, no collisions: groups of shapes (horns, fangs): { name, color, shapes, at,
+//                angle }, a group's shapes placed from its pivot (at: a point in their joint's frame; none: [0, 0]),
+//                turned about it by its angle: moved or turned, all of them go with it; and shapes on bones (a lop ear,
+//                a trunk), after the groups
 //   dots         single pixels: { on, at, color }
 //   spikes       a shape where the body bristles (speck: a color for specks inside)
 //   socks        a color for the lower legs
-//   legs         bones that bend to reach their paws, each: on (hip or chest), at (where it joins), thigh, shin, r, far
-//                (behind the body), bend (1: the knee back, -1: forward), foot [rx, ry] (a flat foot)
-//   chains       bones swung by the body's motion: a tail (on, at, angle from straight up, more: further back; links, length,
-//                r or [r at the root, r at the tip], curl per link, +: forward; color, marks [[t along it, color, r]], end (a
-//                round end), front (drawn over the body), joined (in front, grown out of the body: not outlined where it
-//                starts), overEye (in front, over the eyes too: the pig's lop ear), line (a thin line, not outlined: a
-//                rhino's tail)) or a pointed ear (ear: its base [[x, y] × 2] on the head, tip). stiffness pulls each link to
-//                its rest, damping stops it ringing, weight pulls it down
+//   legs         bones that bend to reach their paws, each: on (hip or chest), at (where it joins), thigh, shin, bend (1:
+//                the knee back, -1: forward)
+//   chains       bones swung by the body's motion: a tail (on, at, angle from straight up, more: further back; links,
+//                length, curl per link, +: forward) or an ear (ear: true; at, its root, and tip, on the head). stiffness
+//                pulls each link to its rest, damping stops it ringing, weight pulls it down
+//   the shapes on bones: { name, bone, … }, in shapes (joined into the body), back or top, by what the bone is:
+//                spine (the torso, from the hip to the chest: r, how thick; ends, how far past them; round: round ends,
+//                else an ellipse; a move's torso changes r and ends), a leg (r; foot [rx, ry]: a flat foot), a tail (r,
+//                or [r at the root, r at the tip]; end: a round end; color; outline: false, a thin line, not outlined;
+//                far: in the far side's tone; marks [[t along it, color, r]]; on top: joined, grown out of the body, not
+//                outlined where it starts, overEye, over the eyes too) or an ear (base [[x, y] × 2]: its base's ends,
+//                from its root; tipColor, tipSize: its tip in a color). A bone with none on it moves, but is not drawn
 //   face         eye, nose, mouth (none: no mouth drawn), points in the head's frame; noseColor; frames: its own pictures
 //                for its eye and its mouth, or more of them, by name: { eye: { open: { at: [column, row] (the pixel put
 //                on the eye's point), rows: ['x', 'x'] (. nothing, x the dark line, w white, p pink, r red, k ink) } },
@@ -42,8 +51,8 @@
 //                mouth: shut, open, happy)
 //   recolor      { name: name }: colors swapped everywhere (the wolf: a grey fox)
 //   front        seen from the front, shown a moment as it turns round (see front in art.js): a build of its own, sitting,
-//                facing out of the screen: joints, shapes, top, dots, chains (ears hanging either side), face with eyes
-//                [[x, y] × 2] for its eye; no legs. None: it turns at once
+//                facing out of the screen: joints, shapes, top, dots, chains (ears hanging either side, their shapes on top),
+//                face with eyes [[x, y] × 2] for its eye; no legs. None: it turns at once
 //   handling     how it is handled on the home screen, by the game's own code (see HANDLING in art.js: what is not here
 //                is as there; the editor's Play mode tries them): held { at (where the hand holds it, from the middle of its
 //                back), sag, tip, hang, settle, most }, squirm { fits, strength, paddle, nod }, dropped { righting, damping,
@@ -56,7 +65,7 @@
 //                  it sets }] }. Each thing a key sets goes from it to the next key that sets it by its ease (step,
 //                  linear, smooth, sine; linear if none); a loop's last on round to its first; null: not set
 //                a pose: joints, paws { leg: [x, y] }, headAngle, torso, chains { name: angle, at, curl, tip }, roots
-//                  { leg: [x, y] }, flip (on its back), pad, over; eye, mouth (its face's frames by name: open and shut if
+//                  { leg: [x, y] }, flip (on its back), pad (the near paws flat: [rx, ry]), over (drawn over the body); eye, mouth (its face's frames by name: open and shut if
 //                  none; blinking, open is blink); shapes (ownShapes: only its own), paint, top, dots. A
 //                  shape of the build's own by its name: { use: name, move: [dx, dy], what of it is other }
 
@@ -73,5 +82,5 @@ export function toBuild(asset) {
 // (its moves last, as the files have them)
 export function toAsset(name, build, was = {}) {
   const { moves, ...rest } = toBuild(build);
-  return { format: 2, name, ...(was.of && { of: was.of }), ...rest, ...(moves && { moves }) };
+  return { format: 3, name, ...(was.of && { of: was.of }), ...rest, ...(moves && { moves }) };
 }

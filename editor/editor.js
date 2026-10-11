@@ -25,7 +25,7 @@ const nice = (c) => (c ? c.replace(/[A-Z]/g, (m) => ` ${m.toLowerCase()}`) : 'no
 const paletteDirty = () => JSON.stringify(palette) !== savedPalette;
 const COLOR_KEYS = ['color', 'fur', 'tipColor', 'noseColor', 'socks'];
 const GEOMS = ['ellipse', 'capsule', 'box', 'triangle'];
-const LAYERS = { shapes: 'body', paint: 'paint', top: 'on top' };
+const LAYERS = { back: 'behind', shapes: 'body', paint: 'paint', top: 'on top' };
 const $ = (id) => document.getElementById(id);
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); e.append(...kids); return e; };
 const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -36,6 +36,7 @@ const ICONS = {
   redo: '<path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/>',
   revert: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
   save: '<path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/>',
+  cog: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
   keyboard: '<rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/>',
   play: '<path d="M7 4.5v15l12.5-7.5z" fill="currentColor"/>',
   pause: '<rect x="6" y="4.5" width="4" height="15" rx="1" fill="currentColor"/><rect x="14" y="4.5" width="4" height="15" rx="1" fill="currentColor"/>',
@@ -93,16 +94,16 @@ const touched = () => [base, ...(skin ? [kind] : [])].filter(dirty); // (the fil
 // the pose the build's handles edit; a move's frame: the one its handles edit). One another is made from (the fox: the
 // wolf's) makes that one again too
 const assetOf = (k) => toAsset(k, builds[k], files[k]);
-const rigFor = (k) => shown(rigOf(assetOf(k), files[k].of && assetOf(files[k].of)));
-// what is hidden (its row's eye: the editor's only, never saved) left out of what is drawn: a shape, a marking, the torso
+const rigFor = (k) => rigOf(k === base ? shown(assetOf(k)) : assetOf(k), files[k].of && (files[k].of === base ? shown(assetOf(files[k].of)) : assetOf(files[k].of)));
+// what is hidden (its row's eye: the editor's only, never saved) left out of what is drawn: a shape (one on a bone: the bone
+// not drawn), a marking
 const hidden = new Set();
 const keyOf = (s) => [s.type, s.list, s.i, s.j, s.name].filter((x) => x !== undefined).join(':');
 function shown(rig) {
   if (!hidden.size) return rig;
   const r = { ...rig };
-  for (const list of ['shapes', 'paint', 'dots']) if (r[list]) r[list] = r[list].filter((_, i) => !hidden.has(`item:${list}:${i}`));
-  if (r.top) r.top = r.top.map((t, i) => (hidden.has(`item:top:${i}`) ? null : { ...t, shapes: t.shapes.filter((_, j) => !hidden.has(`item:top:${i}:${j}`)) })).filter((t) => t?.shapes.length); // (a group, or shapes in it)
-  if (hidden.has('torso')) r.torso = { ...r.torso, r: 0 };
+  for (const list of ['back', 'shapes', 'paint', 'dots']) if (r[list]) r[list] = r[list].filter((_, i) => !hidden.has(`item:${list}:${i}`));
+  if (r.top) r.top = r.top.map((t, i) => (hidden.has(`item:top:${i}`) ? null : t.bone ? t : { ...t, shapes: t.shapes.filter((_, j) => !hidden.has(`item:top:${i}:${j}`)) })).filter((t) => t && (t.bone || t.shapes.length)); // (a group, or shapes in it)
   if (hidden.has('spikes')) delete r.spikes;
   return r;
 }
@@ -132,7 +133,9 @@ function restore(json) {
   if (view.mode === 'game') { into(palette, was); setPalette(palette); refresh(); status(); return; }
   into(build, was.build);
   if (skin && was.skin) into(skin, was.skin);
-  changed(); refresh();
+  changed();
+  if (!current()) sel = { type: view.move === 'edit' ? 'rig' : 'frame' }; // (the part picked: gone with what was undone)
+  refresh();
 }
 function undo() { const h = hist(); if (h.past.length) { h.future.push(snapshot()); restore(h.past.pop()); } }
 function redo() { const h = hist(); if (h.future.length) { h.past.push(snapshot()); restore(h.future.pop()); } }
@@ -202,6 +205,69 @@ const roundAll = (p) => p.map((v) => +round(v).toFixed(3));
 const plus = (a, b) => [a[0] + b[0], a[1] + b[1]], minus = (a, b) => [a[0] - b[0], a[1] - b[1]], times = (a, k) => [a[0] * k, a[1] * k];
 
 function geomOf(s) { return GEOMS.find((g) => Array.isArray(s[g])); }
+// a shape on a bone (bone: see asset.js): the kind of bone it follows; where it may go (its layers); its settings, each
+// as art.js draws it if not set (so every one shows in the inspector)
+const boneKind = (s) => (s.bone === 'spine' ? 'spine' : build.legs?.[s.bone] ? 'leg' : build.chains?.[s.bone]?.ear ? 'ear' : build.chains?.[s.bone] ? 'tail' : null);
+const spineShape = () => (build.shapes || []).find((s) => s.bone === 'spine');
+const shapeOn = (bone) => ['back', 'shapes', 'top'].flatMap((l) => (build[l] || []).map((s, i) => ({ s, list: l, i }))).find((x) => x.s.bone === bone);
+const BONE_LAYERS = { spine: ['shapes'], leg: ['shapes', 'back'], ear: ['shapes'], tail: ['back', 'top'] };
+function boneDefaults(s, list) {
+  const kind = boneKind(s);
+  if (kind === 'spine') return { bone: '', r: 3, ends: 0, round: false, smooth: 1 };
+  if (kind === 'leg') return { bone: '', r: 1, foot: null, smooth: 1 };
+  if (kind === 'ear') return { bone: '', tipColor: undefined, tipSize: 2, smooth: 1 };
+  return { bone: '', r: 1, end: 0, color: build.fur, outline: true, marks: [], ...(list === 'back' ? { far: false } : { joined: false, overEye: false }) };
+}
+// an object as the inspector shows it: what it has, and what it does not have yet as it is drawn without it (setting one
+// sets it)
+function withDefaults(o, defaults) {
+  const keys = () => [...Object.keys(defaults), ...Object.keys(o).filter((k) => !(k in defaults))];
+  return new Proxy(o, {
+    get: (t, k) => (k in t ? t[k] : defaults[k]),
+    has: (t, k) => k in t || k in defaults,
+    ownKeys: () => keys(),
+    getOwnPropertyDescriptor: (t, k) => ({ value: k in t ? t[k] : defaults[k], enumerable: true, configurable: true, writable: true }),
+  });
+}
+// a shape on a bone as the stage shows it: its outline and what picks it (as the pose has the bone), its handles (how
+// thick it is; an ear's base)
+function boneBits(s) {
+  const kind = boneKind(s), F = P.F, handles = [], parts = [], n = s.bone;
+  const cap = (a, b, r) => parts.push({ capsule: [a[0], a[1], b[0], b[1], Math.max(r, 0.05)] });
+  const thick = (at, dir, r, put) => { const nrm = [-dir[1], dir[0]]; handles.push({ at: plus(at, times(nrm, r)), size: true, set: (p) => put(Math.max(0.1, +round(Math.hypot(...minus(p, at))).toFixed(3))) }); };
+  if (kind === 'spine') {
+    const t = P.torso, f = F.spine, len = Math.hypot(P.J.chest[0] - P.J.hip[0], P.J.chest[1] - P.J.hip[1]), r = Math.max(t.r || 0, 0.05), e = t.ends || 0;
+    parts.push(t.capsule ? { on: 'spine', capsule: [-e, 0, len + e, 0, r] } : { on: 'spine', ellipse: [len / 2, 0, len / 2 + e, r] });
+    handles.push({ at: world(f, [len / 2, -r]), size: true, set: (p) => { s.r = Math.max(0, +round(Math.abs(local(f, p)[1])).toFixed(3)); } });
+    handles.push({ at: world(f, [len + e, 0]), size: true, set: (p) => { s.ends = Math.max(0, +round(local(f, p)[0] - len).toFixed(3)); } });
+    const bits = parts.map((q) => shapeBits(q));
+    return { handles, lines: bits.flatMap((b) => b.lines), hit: (p) => bits.some((b) => b.hit(p)) };
+  }
+  if (kind === 'leg') {
+    const L = build.legs[n], root = P.p.roots?.[n] || world(F[L.on], L.at), paw = P.p.paws?.[n];
+    if (paw) {
+      const [knee, end] = reach(root, paw, L.thigh, L.shin, L.bend), r = s.r ?? 1;
+      cap(root, knee, r); cap(knee, end, r);
+      if (s.foot) parts.push({ ellipse: [end[0] + s.foot[0] - 0.8, end[1] + 0.3, s.foot[0], s.foot[1]] });
+      const d = minus(end, knee), l = Math.hypot(...d) || 1;
+      thick(knee, [d[0] / l, d[1] / l], r, (v) => { s.r = v; });
+    }
+  } else if (kind === 'tail') {
+    const c = rigParts.chainRest(kind_(), P, n), pts = restPoints(c), rr = (i) => (Array.isArray(s.r) ? s.r[0] + ((s.r[1] - s.r[0]) * i) / Math.max(1, pts.length - 2) : s.r ?? 1);
+    for (let i = 1; i < pts.length; i++) cap(pts[i - 1], pts[i], rr(i - 1));
+    if (s.end) { const q = pts[pts.length - 1]; parts.push({ ellipse: [q[0], q[1], s.end, s.end] }); }
+    thick(pts[0], c.dir, rr(0), (v) => { if (Array.isArray(s.r)) s.r = [v, s.r[1]]; else s.r = v; });
+  } else if (kind === 'ear') {
+    const c = build.chains[n], f = F[c.on], rest = rigParts.chainRest(kind_(), P, n), tip = plus(rest.root, times(rest.dir, rest.length));
+    const base = (s.base || [[0, 0], [0, 0]]).map((d) => world(f, plus(c.at, d)));
+    parts.push({ triangle: [base[0], tip, base[1]] });
+    (s.base || []).forEach((d, i) => handles.push({ at: base[i], set: (p) => { s.base[i] = roundAll(minus(local(f, p), c.at)); } }));
+  }
+  const bits = parts.map((q) => shapeBits(q, null));
+  return { handles, lines: bits.flatMap((b) => b.lines), hit: (p) => bits.some((b) => b.hit(p)) };
+}
+const kind_ = () => kind; // (the animal shown: boneBits has a kind of its own)
+const bitsOf = (s) => (s.bone ? boneBits(s) : shapeBits(s));
 // a group's frame for one of its shapes: its pivot (at) in the shape's joint's frame, turned by its angle (as drawRig)
 function groupFrame(t, s) {
   if (!t.at && !t.angle) return frameOf(s.on);
@@ -276,24 +342,21 @@ function parts() {
   if (!editable()) return out;
   if (view.move !== 'edit') return kindOf(view.move) === 'clip' ? poseParts() : out;
   const list = (name, label, color) => (build[name] || []).forEach((s, i) => {
-    const bits = shapeBits(s);
-    out.push({ sel: { type: 'item', list: name, i }, group: label, label: s.name || geomOf(s), color: color(s), obj: s, ...bits });
+    const bits = bitsOf(s);
+    out.push({ sel: { type: 'item', list: name, i }, group: label, label: s.name || geomOf(s) || s.bone, color: color(s), obj: s, ...bits });
   });
   out.push({ sel: { type: 'rig' }, group: 'Animal', label: 'root', obj: build, handles: [], lines: [] });
   for (const n in build.joints) {
     out.push({ sel: { type: 'joint', name: n }, group: 'Joints', label: n, obj: build.joints, key: n, lines: [],
       handles: [{ at: P.J[n], anchor: true, joint: true, set: (p) => { build.joints[n] = roundAll(p); } }] });
   }
-  if (build.torso) { // (along the spine, from the hip to the chest: as drawRig makes it)
-    const t = P.torso, len = Math.hypot(P.J.chest[0] - P.J.hip[0], P.J.chest[1] - P.J.hip[1]);
-    const bits = shapeBits(t.capsule ? { on: 'spine', capsule: [-t.ends, 0, len + t.ends, 0, Math.max(t.r, 0.01)] } : { on: 'spine', ellipse: [len / 2, 0, len / 2 + t.ends, Math.max(t.r, 0.01)] });
-    out.push({ sel: { type: 'torso' }, group: 'Body shapes', label: 'torso', color: swatch(build.fur), obj: build.torso, lines: bits.lines, handles: [], hit: t.r > 0 ? bits.hit : null });
-  }
+  list('back', 'Behind', (s) => swatch(s.color || build.fur));
   list('shapes', 'Body shapes', () => swatch(build.fur));
   list('paint', 'Paint', (s) => swatch(s.color));
   // a group on top: its pivot (dragged: all of it moves; with ⌥: the pivot alone) and its turn (the handle on the line
   // out of the pivot), then its shapes, each a part of its own
   (build.top || []).forEach((t, i) => {
+    if (t.bone) { out.push({ sel: { type: 'item', list: 'top', i }, group: 'On top', label: t.name || t.bone, color: swatch(t.color || build.fur), obj: t, ...boneBits(t) }); return; } // (a lop ear, a trunk)
     const b = frameOf(t.shapes[0]?.on), kids = t.shapes.map((s) => shapeBits(s, groupFrame(t, s))), at = t.at || [0, 0], a = t.angle || 0;
     const pivot = world(b, at), turnAt = world(b, plus(at, [Math.cos(a) * 3, Math.sin(a) * 3]));
     out.push({ sel: { type: 'item', list: 'top', i }, group: 'On top', label: t.name || 'group', color: swatch(t.color || build.fur), obj: t,
@@ -315,10 +378,10 @@ function parts() {
   }
   for (const n in build.chains) {
     const c = build.chains[n], f = frameOf(c.on), handles = [], lines = [];
-    if (c.ear) {
-      c.ear.forEach((q, i) => handles.push({ at: world(f, q), set: (p) => { c.ear[i] = roundAll(local(f, p)); } }));
+    if (c.ear) { // (its root, its tip; its base: its shape's)
+      handles.push({ at: world(f, c.at), set: (p) => { c.at = roundAll(local(f, p)); } });
       handles.push({ at: world(f, c.tip), anchor: true, set: (p) => { c.tip = roundAll(local(f, p)); } });
-      lines.push([world(f, c.ear[0]), world(f, c.tip), world(f, c.ear[1])]);
+      lines.push([world(f, c.at), world(f, c.tip)]);
     } else {
       const root = world(f, c.at), th = f.a - c.angle, tip = plus(root, [Math.sin(th) * c.length, -Math.cos(th) * c.length]);
       handles.push({ at: root, anchor: true, set: (p) => { c.at = roundAll(local(f, p)); } });
@@ -536,7 +599,7 @@ $('stage').addEventListener('pointerup', () => {
 // joint's legs and chains under it) and the shapes hung on them, by layer in the order they are drawn, each with its bone
 const BONES = ['Animal', 'Frame', 'Joints', 'Legs', 'Chains', 'Paws', 'Tails and ears'];
 const ADD = { 'Body shapes': 'shapes', Paint: 'paint', 'On top': 'top', Dots: 'dots' };
-const DRAWN = ['Body shapes', 'Paint', 'Spikes', 'On top', 'Dots', 'Face']; // (as drawRig in art.js draws them)
+const DRAWN = ['Behind', 'Body shapes', 'Paint', 'Spikes', 'On top', 'Dots', 'Face']; // (as drawRig in art.js draws them)
 function listParts() {
   const bones = $('bones'), shapes = $('shapes'), note = (box, text) => box.append(el('p', { className: 'note', style: 'padding:0 10px', textContent: text }));
   bones.textContent = shapes.textContent = '';
@@ -581,9 +644,10 @@ function listParts() {
     if (ADD[label]) h.append(iconBtn('plus', '', { title: `Add to ${label.toLowerCase()}`, onclick: () => add(ADD[label]) }));
     shapes.append(h);
     for (const p of on) {
+      if (p.obj?.bone) { shapes.append(row(p, 0, `on ${p.obj.bone}`, true)); continue; } // (a shape on a bone)
       if (p.sel.list === 'top' && p.sel.j === undefined) { shapes.append(row(p, 0, `group · ${p.obj.shapes[0]?.on || 'box'}`, true)); continue; }
       if (p.depth) { shapes.append(row(p, p.depth, geomOf(p.obj), true)); continue; }
-      const what = p.sel.type === 'torso' ? `${p.obj.capsule ? 'capsule' : 'ellipse'} · spine` : p.obj && geomOf(p.obj) ? `${geomOf(p.obj)}${p.obj.on ? ` · ${p.obj.on}` : ''}` : p.obj?.on || '';
+      const what = p.obj && geomOf(p.obj) ? `${geomOf(p.obj)}${p.obj.on ? ` · ${p.obj.on}` : ''}` : p.obj?.on || '';
       shapes.append(row(p, 0, what, p.sel.type !== 'face'));
     }
   }
@@ -658,6 +722,12 @@ function add(list) { commit(() => { (build[list] ||= []).push(fresh(list)); sel 
 function itemDo(what, arg) {
   if (sel.j !== undefined) { childDo(what, arg); return; }
   const { list, i } = sel, arr = build[list];
+  if (what === 'layer' && arr[i].bone) { // (a shape on a bone: as it is, to a layer its bone lets it be in)
+    if (arg === list || !BONE_LAYERS[boneKind(arr[i])]?.includes(arg)) return;
+    rehide(list, (x) => (x === i ? -1 : x > i ? x - 1 : x));
+    commit(() => { const [x] = arr.splice(i, 1); if (!arr.length && list !== 'shapes') delete build[list]; const into = (build[arg] ||= []); into.push(x); sel = { type: 'item', list: arg, i: into.length - 1 }; });
+    listParts(); inspect(); return;
+  }
   commit(() => {
     if (what === 'move') { const j = i + arg; if (j < 0 || j >= arr.length) return; [arr[i], arr[j]] = [arr[j], arr[i]]; sel = { ...sel, i: j }; rehide(list, (x) => (x === i ? j : x === j ? i : x)); }
     else if (what === 'copy') { arr.splice(i + 1, 0, JSON.parse(JSON.stringify(arr[i]))); sel = { ...sel, i: i + 1 }; rehide(list, (x) => (x > i ? x + 1 : x)); }
@@ -714,20 +784,21 @@ function inspect() {
     title.append(acts);
     const name = el('input', { type: 'text', value: o.name || '', placeholder: p.label, onchange: () => rename(sel, o, name.value) }), head = [field('name', name, 'Its name (Enter, or double-click its row): a move uses it by it')];
     if (sel.list !== 'dots' && sel.j === undefined) {
-      const layer = el('select', { onchange: () => itemDo('layer', layer.value) });
-      for (const [k, t] of Object.entries(LAYERS)) layer.append(el('option', { value: k, textContent: t, selected: k === sel.list }));
-      head.push(field('layer', layer, sel.list === 'shapes' ? 'Body: outlined, counts for hits' : sel.list === 'paint' ? 'Paint: colors the body' : 'On top: outlined, over the body, no hits'));
+      const layer = el('select', { onchange: () => itemDo('layer', layer.value) }), may = o.bone ? BONE_LAYERS[boneKind(o)] || [sel.list] : Object.keys(LAYERS).filter((k) => k !== 'back');
+      for (const [k, t] of Object.entries(LAYERS)) if (may.includes(k)) layer.append(el('option', { value: k, textContent: t, selected: k === sel.list }));
+      head.push(field('layer', layer, { back: 'Behind: behind the body, outlined on its own (a far leg: in the far tone, counts for hits)', shapes: 'Body: joined into it, outlined, counts for hits', paint: 'Paint: colors the body', top: 'On top: outlined, over the body, no hits' }[sel.list]));
     }
     box.append(section('Layer', head));
   }
   if (sel.type === 'joint') { box.append(field('place', nums(o, sel.name))); return; }
+  if (sel.type === 'item' && o.bone) { fields(withDefaults(o, boneDefaults(o, sel.list)), box, ['name']); return; } // (a shape on a bone: all it can be)
   if (sel.type === 'item' && sel.list === 'top' && sel.j === undefined) { groupFields(o, box); return; }
-  const skip = sel.type === 'rig' ? ['joints', 'torso', 'shapes', 'paint', 'top', 'dots', 'legs', 'chains', 'face', 'spikes', 'moves', 'handling', 'recolor']
+  const skip = sel.type === 'rig' ? ['joints', 'back', 'shapes', 'paint', 'top', 'dots', 'legs', 'chains', 'face', 'spikes', 'moves', 'handling', 'recolor']
     : sel.type === 'item' ? ['name', ...(sel.j !== undefined ? ['on'] : [])] : []; // (a shape in a group: on its group's joint)
   fields(o, box, sel.type === 'face' ? ['frames'] : skip);
   if (sel.type === 'face') faceFrames(box);
   if (sel.type === 'rig') rootMore(box);
-  if (sel.type === 'leg' || sel.type === 'chain') farSide(box);
+  if (sel.type === 'leg' || sel.type === 'chain') { itsShape(box); farSide(box); }
 }
 // a group: its color, its joint (all its shapes'), its pivot and turn, the rest; its shapes: added here, each picked in
 // the list or on the stage
@@ -755,7 +826,7 @@ function field(label, input, note) {
 // the inspector in sections, as Figma has it: each setting in the one it belongs to, in this order
 const SECTIONS = ['Place', 'Shape', 'Look', 'Motion', 'More'];
 const SECTION_OF = {
-  on: 'Place', at: 'Place', tip: 'Place', ear: 'Place', eye: 'Place', eyes: 'Place', nose: 'Place', mouth: 'Place', angle: 'Place', bend: 'Place',
+  bone: 'Place', base: 'Shape', round: 'Shape', outline: 'Look', on: 'Place', at: 'Place', tip: 'Place', ear: 'Place', eye: 'Place', eyes: 'Place', nose: 'Place', mouth: 'Place', angle: 'Place', bend: 'Place',
   thigh: 'Shape', shin: 'Shape', length: 'Shape', links: 'Shape', curl: 'Shape', r: 'Shape', ends: 'Shape', capsule: 'Shape', foot: 'Shape', smooth: 'Shape', end: 'Shape', tipSize: 'Shape', box: 'Shape',
   color: 'Look', fur: 'Look', noseColor: 'Look', tipColor: 'Look', socks: 'Look', speck: 'Look', far: 'Look', front: 'Look', joined: 'Look', overEye: 'Look', line: 'Look', marks: 'Look',
   stiffness: 'Motion', damping: 'Motion', weight: 'Motion',
@@ -774,7 +845,13 @@ function fields(o, box, skip, flat = false) {
     const v = o[k];
     let input;
     if (COLOR_KEYS.includes(k)) input = colorPick(v, (c) => { commit(() => { o[k] = c; }); listParts(); inspect(); });
-    else if (k === 'on') {
+    else if (k === 'foot') { // (a flat foot: its size; none: a round paw)
+      input = v ? el('div', { className: 'keys' }, nums(o, k, null, ['rx', 'ry']), iconBtn('x', '', { title: 'No flat foot: a round paw', onclick: () => { commit(() => { delete o.foot; }); inspect(); } }))
+        : el('input', { type: 'checkbox', title: 'A flat foot', onchange: () => { commit(() => { o.foot = [1.3, 0.6]; }); inspect(); } });
+    } else if (k === 'bone') {
+      input = el('select', { onchange: () => { commit(() => { o.bone = input.value; }); listParts(); inspect(); } });
+      for (const c of ['spine', ...Object.keys(build.legs || {}), ...Object.keys(build.chains || {})]) input.append(el('option', { value: c, textContent: c, selected: c === v }));
+    } else if (k === 'on') {
       input = el('select', { onchange: () => commit(() => { if (input.value) o.on = input.value; else delete o.on; }) });
       for (const c of ['', 'spine', 'hip', 'chest', 'head']) input.append(el('option', { value: c, textContent: c || 'the box', selected: c === (v || '') }));
     } else if (GEOMS.includes(k) && Array.isArray(v)) {
@@ -1040,9 +1117,9 @@ function inspectMove(box) {
       one('curl', `chains.${row}.curl`, c.curl || 0, { step: 0.05, span: 1 });
     }
   } else {
-    const t = { ...build.torso, ...pose.torso };
+    const sp = spineShape(), t = { ...(sp && { r: sp.r, ends: sp.ends }), ...pose.torso };
     one('head turn', 'headAngle', pose.headAngle || 0, { step: 0.05, span: 1.5 }, 'radians, + down');
-    if (build.torso?.r || pose.torso) { one('torso r', 'torso.r', t.r, { min: 0, max: 8 }); one('torso ends', 'torso.ends', t.ends ?? 0, { min: 0, max: 8 }); }
+    if (sp?.r || pose.torso) { one('torso r', 'torso.r', t.r, { min: 0, max: 8 }); one('torso ends', 'torso.ends', t.ends ?? 0, { min: 0, max: 8 }); }
     const flip = el('input', { type: 'checkbox', checked: !!pose.flip, onchange: () => commit(() => setKey('flip', flip.checked || null)) });
     box.append(field('on its back', flip));
     for (const part of ['eye', 'mouth']) { // its face's frames: a key sets which
@@ -1111,14 +1188,27 @@ const by = (q, d) => [round3(q[0] + d[0]), round3(q[1] + d[1])];
 const farName = (n, list) => { const f = /Near/.test(n) ? n.replace('Near', 'Far') : `${n}Far`; return list[f] ? null : f; };
 function after(o, at, name, v) { const out = {}; for (const k in o) { out[k] = o[k]; if (k === at) out[name] = v; } for (const k of Object.keys(o)) delete o[k]; Object.assign(o, out); }
 function eachPose(fn) { for (const [name, m] of Object.entries(build.moves || {})) { fn(m, name); for (const k of m.keys || []) fn(k, name); } } // (a gait's own pose, and each key of a clip)
+// a bone's shape (what is drawn on it): picked from the bone; none, one made (as the others are)
+function itsShape(box) {
+  if (view.move !== 'edit') return;
+  const n = sel.name, on = shapeOn(n), ear = sel.type === 'chain' && build.chains[n].ear;
+  if (on) { box.append(section('Shape', [el('div', { className: 'keys' }, el('button', { textContent: `${on.s.name || n} (${LAYERS[on.list]})`, title: 'The shape on this bone: what is drawn of it', onclick: () => { sel = { type: 'item', list: on.list, i: on.i }; listParts(); inspect(); draw(); } }))])); return; }
+  box.append(section('Shape', [el('div', { className: 'keys' }, iconBtn('plus', 'Its shape', { title: 'Nothing is drawn on this bone: a shape on it', onclick: () => {
+    const list = sel.type === 'leg' ? 'shapes' : ear ? 'shapes' : 'back', s = sel.type === 'leg' ? { name: n, bone: n, r: 1, smooth: 0.5 } : ear ? { name: n, bone: n, base: [[-1.2, 0.5], [1.2, -0.5]], smooth: 0.4 } : { name: n, bone: n, r: 1 };
+    commit(() => { (build[list] ||= []).push(s); sel = { type: 'item', list, i: build[list].length - 1 }; });
+    refresh();
+  } }))], 'Nothing is drawn on this bone'));
+}
 function farSide(box) {
   if (view.move !== 'edit') return;
   if (sel.type === 'leg') {
-    const n = sel.name, L = build.legs[n], f = !L.far && farName(n, build.legs), twin = Object.values(build.legs).some((o) => o !== L && o.far && o.on === L.on);
+    const n = sel.name, L = build.legs[n], behind = (m) => (build.back || []).some((x) => x.bone === m), f = !behind(n) && farName(n, build.legs), twin = Object.keys(build.legs).some((m) => m !== n && behind(m) && build.legs[m].on === L.on);
     if (!f || twin) return;
     box.append(el('div', { className: 'group' }, el('span', { textContent: 'Far side' })), el('button', { textContent: `+ Far leg (${f})`, title: 'A leg behind this one, as the cat has them: a pixel forward, a little thinner, in every move', onclick: () => {
       commit(() => {
-        after(build.legs, n, f, { ...JSON.parse(JSON.stringify(L)), at: by(L.at, FAR_LEG), r: round3(Math.max(0.3, L.r - 0.1)), far: true });
+        after(build.legs, n, f, { ...JSON.parse(JSON.stringify(L)), at: by(L.at, FAR_LEG) });
+        const near = shapeOn(n)?.s; // (its shape behind the body, a little thinner)
+        if (near) { const far = { ...JSON.parse(JSON.stringify(near)), name: f, bone: f, r: round3(Math.max(0.3, (near.r ?? 1) - 0.1)) }; delete far.smooth; (build.back ||= []).push(far); }
         eachPose((p, move) => {
           for (const part of ['paws', 'roots']) if (p[part]?.[n]) after(p[part], n, f, by(p[part][n], FAR_LEG));
           const g = p.gait?.legs?.[n];
@@ -1133,7 +1223,9 @@ function farSide(box) {
     if (!f) return;
     box.append(el('div', { className: 'group' }, el('span', { textContent: 'Far side' })), el('button', { textContent: `+ Far ear (${f})`, title: 'The other ear, behind this one, as the squirrel has it: on along the head, a little lower, in every move', onclick: () => {
       commit(() => {
-        after(build.chains, n, f, { ...JSON.parse(JSON.stringify(c)), ear: c.ear.map((q) => by(q, FAR_EAR)), tip: by(c.tip, FAR_EAR) });
+        after(build.chains, n, f, { ...JSON.parse(JSON.stringify(c)), at: by(c.at, FAR_EAR), tip: by(c.tip, FAR_EAR) });
+        const near = shapeOn(n);
+        if (near) build[near.list].splice(near.i + 1, 0, { ...JSON.parse(JSON.stringify(near.s)), name: f, bone: f });
         eachPose((p) => { const t = p.chains?.[n]; if (t) after(p.chains, n, f, { ...t, ...(t.tip && { tip: by(t.tip, FAR_EAR) }) }); });
         sel = { type: 'chain', name: f };
       });
@@ -1564,7 +1656,7 @@ $('gameMode').onclick = () => setMode(view.mode === 'game' ? 'setup' : 'game');
 $('revert').onclick = () => { remember(); if (view.mode === 'game') { restore(savedPalette); return; } restore(JSON.stringify({ build: saved[base] ? JSON.parse(saved[base]) : build, skin: skin && saved[kind] ? JSON.parse(saved[kind]) : skin })); };
 // the keyboard: what each key does (shown with ?), by when it works
 const KEYS = [
-  ['Everywhere', [['⌘Z', 'Undo'], ['⇧⌘Z', 'Redo'], ['⌘S', 'Save'], ['1 2 3', 'Setup, Animate, Play'], ['4', 'Game'], ['?', 'These shortcuts'], ['Esc', 'Pick nothing (close a popup)']]],
+  ['Everywhere', [['⌘Z', 'Undo'], ['⇧⌘Z', 'Redo'], ['⌘S', 'Save'], ['1 2 3', 'Setup, Animate, Play'], ['4', 'Game settings (the palette)'], ['?', 'These shortcuts'], ['Esc', 'Pick nothing (close a popup)']]],
   ['Parts', [['Tab  ⇧Tab', 'The next part in the lists, the one before'], ['← → ↑ ↓', 'Move the part picked a tenth of a pixel (in a move: its key at the frame)'], ['⇧ + arrows', 'A whole pixel'],
     ['⌘D', 'Copy the shape picked'], ['⌫', 'Delete the shape picked'], ['[  ]', 'Drawn earlier, later'], ['H', 'Hide or show the part picked'], ['Enter', 'Rename the shape picked (or double-click it)'], ['⌥H', 'Show everything hidden']]],
   ['Animate', [['Space', 'Play the move, stop'], [',  .', 'A frame back, on'], ['← →', 'A frame back, on (nothing picked)'], ['Home  End', 'The first frame, the last']]],
@@ -1625,7 +1717,7 @@ document.addEventListener('keydown', (e) => {
   if (low === 'o' && view.mode === 'animate') { take(); flip('onion'); return; }
   if (low === 'p' && view.mode === 'setup') { take(); flip('fine'); return; }
   if (e.code === 'KeyH' && e.altKey) { take(); hidden.clear(); rebuild(); listParts(); draw(); return; }
-  if (low === 'h' && ['item', 'torso', 'spikes'].includes(sel.type) && view.move === 'edit') { take(); hide(sel); return; }
+  if (low === 'h' && ['item', 'spikes'].includes(sel.type) && view.move === 'edit') { take(); hide(sel); return; }
   if (k === 'Tab') { take(); nextPart(e.shiftKey ? -1 : 1); return; }
   if (k === 'Enter' && sel.type === 'item' && view.move === 'edit') { const r = [...document.querySelectorAll('#shapes .row.on')][0], p = current(); if (r && p) { take(); renaming(r, p); } return; }
   if ((k === 'Delete' || k === 'Backspace') && sel.type === 'item') { take(); itemDo('delete'); return; }

@@ -1,14 +1,15 @@
 // ostrich: an asset (see asset.js), written by the editor; data only
 export default {
-  format: 2,
+  format: 3,
   name: 'ostrich',
   fur: 'charcoal',
   joints: { hip: [9, 9.6], chest: [14, 9.2], head: [18.8, 1] },
-  torso: { r: 3.8, ends: 3 },
   shapes: [
+    { name: 'torso', bone: 'spine', r: 3.8, ends: 3 },
     { name: 'neck', on: 'chest', capsule: [1.6, -1.6, 4.8, -7.8, 0.6], smooth: 0.3 },
     { name: 'head', on: 'head', ellipse: [0, 0, 2.6, 2.2] },
     { name: 'beak', on: 'head', capsule: [1.4, 0.7, 4, 0.9, 0.8] },
+    { name: 'hindNear', bone: 'hindNear', r: 0.85, foot: [1.3, 0.6], smooth: 0.5 },
   ],
   paint: [
     { name: 'neck', color: 'skin', on: 'chest', capsule: [1.6, -1.6, 4.8, -7.8, 0.6] },
@@ -18,24 +19,11 @@ export default {
   ],
   socks: 'skin',
   legs: {
-    hindFar: { on: 'hip', at: [2.2, 2.6], thigh: 4, shin: 4.4, r: 0.75, foot: [1.3, 0.6], far: true, bend: -1 },
-    hindNear: { on: 'hip', at: [0.6, 2.6], thigh: 4, shin: 4.4, r: 0.85, foot: [1.3, 0.6], bend: -1 },
+    hindFar: { on: 'hip', at: [2.2, 2.6], thigh: 4, shin: 4.4, bend: -1 },
+    hindNear: { on: 'hip', at: [0.6, 2.6], thigh: 4, shin: 4.4, bend: -1 },
   },
-  chains: {
-    tail: {
-      on: 'hip',
-      at: [-3.2, -1.2],
-      angle: 0.9,
-      links: 2,
-      length: 3.2,
-      r: [1.2, 0.9],
-      end: 1,
-      color: 'white',
-      stiffness: 700,
-      damping: 14,
-      weight: 40,
-    },
-  },
+  chains: { tail: { on: 'hip', at: [-3.2, -1.2], angle: 0.9, links: 2, length: 3.2, stiffness: 700, damping: 14, weight: 40 } },
+  back: [{ name: 'tail', bone: 'tail', r: [1.2, 0.9], end: 1, color: 'white' }, { name: 'hindFar', bone: 'hindFar', r: 0.75, foot: [1.3, 0.6] }],
   face: { eye: [0.2, -0.6] },
   moves: {
     run: { gait: { frames: 8, stance: 0.45, reach: 7, lift: 3, bob: 0.6, ground: 18.4, legs: { hindNear: [0, 0.5], hindFar: [0.5, -0.5] } } },

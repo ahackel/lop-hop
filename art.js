@@ -374,7 +374,30 @@ const balls = [0, 1, 2, 3].map((f) => {
 // drawn into a grid just big enough for it, with its offset (ox, oy) from the 26×20 box the game places every animal by:
 // a tail can reach out of the box. One made from another (of: the wolf, the fox's) is that one's, with its own over it
 const FILES = { rabbit, guineapig, cat, dog, pig, fox, hedgehog, squirrel, otter, skunk, wolf, boar, bear, yak, ostrich, cheetah, dromedary, rhino, gorilla, elephant, dino };
-export const rigOf = (asset, of = FILES[asset.of]) => (of ? { ...rigOf(of), ...toBuild(asset) } : { ...toBuild(asset), poses: asset.moves || {} });
+const rawRig = (asset, of = FILES[asset.of]) => (of ? { ...rawRig(of), ...toBuild(asset) } : { ...toBuild(asset), poses: asset.moves || {} });
+export const rigOf = (asset, of = FILES[asset.of]) => onBones(rawRig(asset, of));
+// the shapes on bones (see asset.js: the torso on the spine, a leg's, a tail's, an ear's), as drawRig draws them: the
+// torso, and each leg's and chain's look on it (a leg behind the body: a far one; a chain on top: in front of it). A bone
+// with no shape on it is not drawn; the chains are drawn in the order of their shapes
+const defined = (o) => { for (const k in o) if (o[k] === undefined) delete o[k]; return o; };
+function onBones(b) {
+  const r = { ...b, legs: {}, chains: {}, torso: { r: 0, none: true } }, order = [];
+  for (const n in b.legs) r.legs[n] = { ...b.legs[n], r: 0 };
+  const look = (s, where) => {
+    if (s.bone === 'spine') { r.torso = defined({ r: s.r, ends: s.ends, capsule: s.round }); return; }
+    const L = b.legs?.[s.bone], c = b.chains?.[s.bone];
+    if (L) r.legs[s.bone] = defined({ ...L, r: s.r, smooth: s.smooth, foot: s.foot, far: where === 'back' || undefined });
+    else if (c?.ear) { r.chains[s.bone] = defined({ ...c, ear: (s.base || [[0, 0], [0, 0]]).map(([x, y]) => [c.at[0] + x, c.at[1] + y]), smooth: s.smooth, tipColor: s.tipColor, tipSize: s.tipSize }); order.push(s.bone); }
+    else if (c) { r.chains[s.bone] = defined({ ...c, r: s.r, end: s.end, color: s.color, marks: s.marks, line: s.outline === false || undefined, far: s.far, joined: s.joined, overEye: s.overEye, front: where === 'top' || undefined }); order.push(s.bone); }
+  };
+  for (const [list, where] of [['back', 'back'], ['shapes', 'body'], ['top', 'top']]) if (b[list]) r[list] = b[list].filter((s) => !s.bone || look(s, where));
+  const chains = {};
+  for (const n of order) chains[n] = r.chains[n];
+  for (const n in b.chains) if (!chains[n]) chains[n] = { ...b.chains[n], unseen: true, ...(b.chains[n].ear && { ear: [b.chains[n].at, b.chains[n].at] }) }; // (none on it: moves, not drawn)
+  r.chains = chains;
+  if (b.front) r.front = onBones(b.front);
+  return r;
+}
 const RIGS = Object.fromEntries(Object.entries(FILES).map(([k, a]) => [k, rigOf(a)]));
 
 const plus = (a, b) => [a[0] + b[0], a[1] + b[1]], minus = (a, b) => [a[0] - b[0], a[1] - b[1]], times = (a, k) => [a[0] * k, a[1] * k];
@@ -552,7 +575,7 @@ function posedAs(rig, p) {
   const J = { ...rig.joints, ...p.joints }, a = Math.atan2(J.chest[1] - J.hip[1], J.chest[0] - J.hip[0]);
   const F = { spine: jointFrame(J.hip, a, p.flip), hip: jointFrame(J.hip, a, p.flip), chest: jointFrame(J.chest, a, p.flip), head: jointFrame(J.head, p.headAngle || 0),
     box: p.turn ? jointFrame(plus(minus(p.turn.pivot, turn(p.turn.pivot, p.turn.angle)), p.turn.by || [0, 0]), p.turn.angle) : null }; // (box: what is on no joint, turned with the whole body, moved by: see hung)
-  return { p, J, F, a, torso: { ...rig.torso, ...p.torso } };
+  return { p, J, F, a, torso: rig.torso?.none ? { r: 0 } : { ...rig.torso, ...p.torso } }; // (none: no shape on the spine)
 }
 // a pose between two (u: 0 the first, 1 the second): the joints, the paws, the head's turn, the torso and the chains' rest
 // part way; what cannot be part way (the shapes of a pose of its own, flipped, pads), the nearer one's
@@ -771,11 +794,11 @@ function drawRig(rig, P, blink, chains, S = 1, [dx, dy] = [0, 0], floor = Math.r
     const len = Math.hypot(P.J.chest[0] - P.J.hip[0], P.J.chest[1] - P.J.hip[1]), half = len / 2;
     body.unshift(placed(torso.capsule ? { on: 'spine', capsule: [-torso.ends, 0, len + torso.ends, 0, torso.r] } : { on: 'spine', ellipse: [half, 0, half + torso.ends, torso.r] }));
   }
-  const legs = Object.entries(rig.legs || {}).map(([name, L]) => {
+  const legs = Object.entries(rig.legs || {}).filter(([, L]) => L.r > 0).map(([name, L]) => { // (r 0: no shape on it)
     const root = p.roots?.[name] || toWorld(F[L.on], L.at), [knee, paw] = reach(root, p.paws[name], L.thigh, L.shin, L.bend);
     const pad = p.pad && !L.far ? [paw[0], paw[1] + 0.3, ...p.pad] : L.foot ? [paw[0] + L.foot[0] - 0.8, paw[1] + 0.3, ...L.foot] : null; // a paw flat on the ground (a foot: always)
     const parts = [[...root, ...knee, L.r], [...knee, ...paw, L.r]];
-    return { far: L.far, r: L.r, parts, pad, sock: [...mix(knee, paw, 0.35), ...paw, L.r], box: pad ? join(boxOf(parts), ovalBox(pad)) : boxOf(parts),
+    return { far: L.far, r: L.r, smooth: L.smooth ?? 1, parts, pad, sock: [...mix(knee, paw, 0.35), ...paw, L.r], box: pad ? join(boxOf(parts), ovalBox(pad)) : boxOf(parts),
       k: pad ? Math.min(pad[2], pad[3]) / Math.max(pad[2], pad[3]) : 1 };
   });
   const legSd = (L, x, y) => Math.min(sdCapsule(x, y, L.parts[0]), sdCapsule(x, y, L.parts[1]), L.pad ? sdEllipse(x, y, L.pad) : Infinity);
@@ -783,6 +806,7 @@ function drawRig(rig, P, blink, chains, S = 1, [dx, dy] = [0, 0], floor = Math.r
   const soft = [], front = [], ears = [];
   for (const name in rig.chains) {
     const c = { ...rig.chains[name], ...p.chains?.[name] }, pts = chains[name];
+    if (c.unseen) continue; // (no shape on it)
     if (c.ear) { const [a, b] = chainRest(rig, P, name).base; ears.push({ tri: [a, pts[1], b], tip: pts[1], c }); continue; }
     const r = (i) => (Array.isArray(c.r) ? c.r[0] + ((c.r[1] - c.r[0]) * i) / Math.max(1, pts.length - 2) : c.r ?? 1);
     const parts = pts.slice(1).map((q, i) => [...pts[i], ...q, r(i)]), last = pts[pts.length - 1];
@@ -838,8 +862,8 @@ function drawRig(rig, P, blink, chains, S = 1, [dx, dy] = [0, 0], floor = Math.r
   // passed over (smin leaves it as it is when the part is at least its smoothing further), and once a point is inside,
   // it stays so (smin only ever takes away)
   const joined = [...body.map((b) => ({ d: (x, y) => sd(b, x, y), box: b.box, near: b.k, k: k * (b.s.smooth ?? 1) })),
-    ...ears.map((e) => ({ d: (x, y) => sdTriangle(x, y, e.tri), box: triBox(e.tri), near: 1, k: k * 0.4 })),
-    ...legs.filter((L) => !L.far).map((L) => ({ d: (x, y) => legSd(L, x, y), box: L.box, near: L.k, k: k * 0.5 }))];
+    ...ears.map((e) => ({ d: (x, y) => sdTriangle(x, y, e.tri), box: triBox(e.tri), near: 1, k: k * (e.c.smooth ?? 1) })),
+    ...legs.filter((L) => !L.far).map((L) => ({ d: (x, y) => legSd(L, x, y), box: L.box, near: L.k, k: k * L.smooth }))];
   const bodyMask = g.layer(inside((x, y) => {
     let d = Infinity;
     for (let i = 0; i < joined.length; i++) {

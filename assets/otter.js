@@ -1,15 +1,17 @@
 // otter: an asset (see asset.js), written by the editor; data only
 export default {
-  format: 2,
+  format: 3,
   name: 'otter',
   fur: 'brown',
   joints: { hip: [6, 14], chest: [15.5, 11.8], head: [20.3, 8.3] },
-  torso: { r: 3.8, ends: 0, capsule: true },
   shapes: [
+    { name: 'torso', bone: 'spine', r: 3.8, ends: 0, round: true },
     { name: 'neck', on: 'chest', capsule: [0, 0, 4, -1.9, 2.8] },
     { name: 'head', on: 'head', ellipse: [0, 0, 3.4, 3.3] },
     { name: 'snout', on: 'head', ellipse: [2.7, 1.2, 1.8, 1.5] },
     { name: 'ear', on: 'head', ellipse: [-2, -3.3, 1.2, 1.1] },
+    { name: 'hindNear', bone: 'hindNear', r: 1, smooth: 0.5 },
+    { name: 'frontNear', bone: 'frontNear', r: 1, smooth: 0.5 },
   ],
   paint: [
     { name: 'snout', color: 'beige', on: 'head', ellipse: [2.7, 1.2, 1.8, 1.5] },
@@ -17,12 +19,13 @@ export default {
     { name: 'belly', color: 'beige', on: 'spine', ellipse: [5.4, 3.1, 4.5, 1.2] },
   ],
   legs: {
-    hindFar: { on: 'hip', at: [2.5, 2.6], thigh: 1.4, shin: 1.4, r: 0.9, far: true, bend: 1 },
-    frontFar: { on: 'chest', at: [0.4, 2.85], thigh: 2.2, shin: 2.2, r: 0.9, far: true, bend: -1 },
-    hindNear: { on: 'hip', at: [1.5, 2.4], thigh: 1.4, shin: 1.4, r: 1, bend: 1 },
-    frontNear: { on: 'chest', at: [-0.1, 2.75], thigh: 2.2, shin: 2.2, r: 1, bend: -1 },
+    hindFar: { on: 'hip', at: [2.5, 2.6], thigh: 1.4, shin: 1.4, bend: 1 },
+    frontFar: { on: 'chest', at: [0.4, 2.85], thigh: 2.2, shin: 2.2, bend: -1 },
+    hindNear: { on: 'hip', at: [1.5, 2.4], thigh: 1.4, shin: 1.4, bend: 1 },
+    frontNear: { on: 'chest', at: [-0.1, 2.75], thigh: 2.2, shin: 2.2, bend: -1 },
   },
-  chains: { tail: { on: 'hip', at: [-1, 0], angle: 1.45, links: 5, length: 11, r: [1.9, 0.6], curl: -0.05, stiffness: 900, damping: 28, weight: 35 } },
+  chains: { tail: { on: 'hip', at: [-1, 0], angle: 1.45, links: 5, length: 11, curl: -0.05, stiffness: 900, damping: 28, weight: 35 } },
+  back: [{ name: 'tail', bone: 'tail', r: [1.9, 0.6] }, { name: 'hindFar', bone: 'hindFar', r: 0.9 }, { name: 'frontFar', bone: 'frontFar', r: 0.9 }],
   face: { eye: [0.7, -0.9], nose: [4.3, 0.6] },
   moves: {
     run: {
