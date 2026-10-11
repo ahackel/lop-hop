@@ -33,6 +33,10 @@ const fileOf = (k) => `assets/${k}.js`; // (an animal's build: its file, see ass
 // base's build (its bones, shapes, moves, handling: what Setup, Animate and Play edit, for its skins too); skin: the
 // skin's own (its colors swapped), or null
 export let kind, base, build, skin = null, P, G = [1, [0, 0]], sel = { type: 'rig' }, drag = null;
+// picked with it (⌘- or ⇧-clicked in the shapes' list or on the stage: shapes, markings, dots, groups): copied, deleted,
+// moved, hidden, dragged with it; the inspector shows the one picked last (sel)
+export let also = [];
+export const picked = () => [sel, ...also];
 export const baseOf = (k) => files[k].of || k;
 export const skinsOf = (k) => KINDS.filter((o) => files[o].of === k);
 const inGame = (k) => k in GAME_ANIMALS;
@@ -74,7 +78,7 @@ function pathOf(o) {
   return null;
 }
 const atPath = (q) => (q[0] === 'dots' ? build.dots?.[q[1]] : q.reduce((o, k) => o?.[k], build.layers));
-export function hide(o) { if (!hidden.delete(o)) hidden.add(o); rebuild(); listParts(); draw(); }
+export function hide(...os) { for (const o of os) if (!hidden.delete(o)) hidden.add(o); rebuild(); listParts(); draw(); }
 export function rebuild() {
   setRig(base, rigFor(base));
   for (const k of skinsOf(base)) setRig(k, rigFor(k));
@@ -95,7 +99,7 @@ function restore(json) {
   const keep = [...hidden].map(pathOf).filter(Boolean);
   into(build, was.build);
   if (skin && was.skin) into(skin, was.skin);
-  hidden.clear();
+  hidden.clear(); also = [];
   for (const q of keep) { const o = atPath(q); if (o) hidden.add(o); }
   changed();
   if (!current()) sel = { type: view.move === 'edit' ? 'rig' : 'frame' }; // (the part picked: gone with what was undone)
@@ -106,7 +110,7 @@ export function redo() { const h = hist(); if (h.future.length) { h.past.push(sn
 
 export function choose(k) {
   if (baseOf(k) !== base) hidden.clear();
-  kind = k; base = baseOf(k); build = builds[base]; skin = k === base ? null : builds[k]; sel = { type: view.move === 'edit' ? 'rig' : 'frame' };
+  kind = k; base = baseOf(k); build = builds[base]; skin = k === base ? null : builds[k]; also = []; sel = { type: view.move === 'edit' ? 'rig' : 'frame' };
   pv.body = {};
   fillKinds();
   const url = new URL(location.href); url.searchParams.set('animal', k); window.history.replaceState(null, '', url);
@@ -121,7 +125,7 @@ export function setMode(m) {
   $('gameMode').classList.toggle('on', m === 'game');
   setPlay(false);
   if (m === 'game') { view.move = 'edit'; setCast(castOf()); place(); refresh(); status(); return; }
-  if (m === 'play') { view.move = 'edit'; sandbox.reset(kind); sel = { type: 'rig' }; place(); refresh(); status(); return; }
+  if (m === 'play') { view.move = 'edit'; sandbox.reset(kind); also = []; sel = { type: 'rig' }; place(); refresh(); status(); return; }
   show(m === 'setup' ? 'edit' : animated());
   status();
 }
@@ -201,6 +205,7 @@ export const gameToggle = () => setMode(view.mode === 'game' ? before : 'game');
 $('gameMode').onclick = gameToggle;
 $('leaveGame').onclick = gameToggle;
 $('revert').onclick = () => { remember(); if (view.mode === 'game') { restore(savedPalette); return; } restore(JSON.stringify({ build: saved[base] ? JSON.parse(saved[base]) : build, skin: skin && saved[kind] ? JSON.parse(saved[kind]) : skin })); };
-export function setSel(v) { return (sel = v); }
+export function setSel(v, keep = false) { if (!keep) also = []; return (sel = v); } // (keep: what is picked with it too)
+export function setAlso(v) { return (also = v); }
 export function setDrag(v) { return (drag = v); }
 export function setLastMove(v) { return (lastMove = v); }

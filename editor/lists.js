@@ -2,12 +2,12 @@
 import { $, el, icon } from './dom.js';
 import { playHelp } from './handling.js';
 import { inspect } from './inspector.js';
-import { SWITCHES, addDot, addGroup, addShape, moveTo, rename, switchOn, toggle } from './layers.js';
+import { SWITCHES, addDot, addGroup, addShape, many, moveMany, rename, switchOn, toggle } from './layers.js';
 import { html, nothing, render } from './lit/lit-html.js';
 import { listPalette } from './palette.js';
 import { alongOf, geomOf, parts, same } from './parts.js';
 import { draw, editing } from './stage.js';
-import { P, build, commit, editable, hide, isGroup, kind, refresh, sel, toLocal, toWorld, view, setSel } from './state.js';
+import { P, also, build, commit, editable, hide, isGroup, kind, picked, refresh, sel, toLocal, toWorld, view, setAlso, setSel } from './state.js';
 import { ABOUT, keysAt, kindOf, leaves, pathsOf, rowOf } from './timeline.js';
 
 // two tables, as Spine has them: the bones (a tree: the root (the animal itself), hip, chest and head down the spine, each
@@ -45,9 +45,30 @@ function fold(what) {
   listParts();
 }
 const chevron = (what, has = true) => (has ? html`<button class=${`fold${folded(what) ? ' shut' : ''}`} title=${folded(what) ? 'Unfold: what is under it' : 'Fold: what is under it'} @click=${stop(() => fold(what))} @dblclick=${stop(() => {})}></button>` : html`<span class="fold"></span>`);
-const pick = (s) => { if (same(s, sel)) return; setSel(s); listParts(); inspect(); draw(); };
+// picked (a click); with ⌘ added to what is picked or taken from it, with ⇧ the rows from the one picked to it too
+// (shapes, markings, dots, groups: see also)
+const pick = (s, e) => {
+  if (e && (e.metaKey || e.ctrlKey || e.shiftKey)) { if (e.shiftKey && many(s) && many(sel)) pickRange(s); else togglePick(s); }
+  else if (same(s, sel) && !also.length) return;
+  else setSel(s);
+  listParts(); inspect(); draw();
+};
+export const isPicked = (s) => picked().some((x) => same(x, s));
+export function togglePick(s) {
+  if (!many(s) || !many(sel)) { setSel(s); return; }
+  if (same(s, sel)) { if (also.length) { setSel(also[also.length - 1], true); setAlso(also.slice(0, -1)); } return; }
+  const k = also.findIndex((x) => same(x, s));
+  if (k >= 0) setAlso(also.filter((_, i) => i !== k)); else { setAlso([...also, sel]); setSel(s, true); }
+}
+function pickRange(s) {
+  const rows = [...$('shapes').querySelectorAll('tr.row')].map((r) => r.sel).filter((x) => x && x.type === s.type); // (of its kind)
+  const a = rows.findIndex((x) => same(x, sel)), b = rows.findIndex((x) => same(x, s));
+  if (a < 0 || b < 0) { togglePick(s); return; }
+  const range = rows.slice(Math.min(a, b), Math.max(a, b) + 1).filter((x) => !same(x, s));
+  setAlso([...also.filter((x) => !range.some((y) => same(x, y))), ...range]); setSel(s, true);
+}
 const point = (h) => { hover = h; if (editing()) draw(); };
-const rowClass = (p, more = '') => `row${same(p.sel, sel) ? ' on' : ''}${p.off ? ' hidden' : ''}${more}`;
+const rowClass = (p, more = '') => `row${isPicked(p.sel) ? ' on' : ''}${p.off ? ' hidden' : ''}${more}`;
 const stop = (fn) => (e) => { e.stopPropagation(); fn(e); };
 
 // the bones: an icon (a bone; its kind: its tooltip), name (down the tree); a clip's: its keys (◆ here, ◇ at another frame). What
@@ -85,7 +106,7 @@ function bonesTable(all) {
     <colgroup><col>${clip ? html`<col class="cKey">` : nothing}</colgroup>
     <thead><tr><th>Name</th>${clip ? html`<th>Key</th>` : nothing}</tr></thead>
     <tbody>${shown.map(([p, depth, kids]) => html`<tr class=${rowClass(p)} .sel=${p.sel} draggable=${!clip && (p.sel.type === 'leg' || p.sel.type === 'chain') ? 'true' : 'false'}
-        @click=${() => pick(p.sel)} @mouseenter=${() => point({ sels: [p.sel] })}
+        @click=${(e) => pick(p.sel, e)} @mouseenter=${() => point({ sels: [p.sel] })}
         @dragstart=${(e) => { boneDragged = p.sel; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', p.sel.name); }} @dragend=${boneDragEnd}
         @dragover=${(e) => { if (!boneDropOn(p.sel)) return; e.preventDefault(); e.currentTarget.classList.add('dropInto'); }}
         @dragleave=${(e) => { if (!e.currentTarget.contains(e.relatedTarget)) e.currentTarget.classList.remove('dropInto'); }}
@@ -133,7 +154,7 @@ function shapesTable(all) {
     if (!isGroup(G)) { // the face: where it is drawn among the groups, the dots with it
       const fp = all.find((p) => p.sel.type === 'face'), dots = all.filter((p) => p.sel.type === 'dot');
       return html`<tbody>
-        ${fp ? html`<tr class=${rowClass(fp, ' layer')} .sel=${fp.sel} draggable="true" @click=${() => pick(fp.sel)} @mouseenter=${() => point({ sels: [fp.sel] })}>
+        ${fp ? html`<tr class=${rowClass(fp, ' layer')} .sel=${fp.sel} draggable="true" @click=${(e) => pick(fp.sel, e)} @mouseenter=${() => point({ sels: [fp.sel] })}>
           <td></td><th colspan="2"><div>${chevron('face', dots.length > 0)}${typeIcon(['face', 'The face'])}<span title="The eye, nose and mouth, and the dots: everything before them recolored (see recolor)">face</span>
           <button class="icon" title="Add a dot" aria-label="Add a dot" @click=${stop(addDot)}>${icon('plus')}</button></div></th></tr>` : nothing}
         ${folded('face') ? nothing : dots.map((p) => shapeRow(p))}
@@ -142,7 +163,7 @@ function shapesTable(all) {
     const gp = all.find((p) => p.sel.type === 'group' && p.sel.g === g), kids = all.filter((p) => p.sel.g === g && p.sel.type === 'item');
     const paint = all.filter((p) => p.sel.g === g && p.sel.type === 'paint'), spikes = all.find((p) => p.sel.g === g && p.sel.type === 'spikes');
     return html`<tbody>
-      <tr class=${rowClass(gp, ' layer')} .sel=${gp.sel} draggable=${dragging(gp).draggable} @click=${() => pick(gp.sel)} @mouseenter=${() => point({ sels: [gp.sel] })}
+      <tr class=${rowClass(gp, ' layer')} .sel=${gp.sel} draggable=${dragging(gp).draggable} @click=${(e) => pick(gp.sel, e)} @mouseenter=${() => point({ sels: [gp.sel] })}
         @dblclick=${(e) => { if (!e.target.closest('button')) startRename(gp.sel); }}>
         <td>${eyeOf(gp)}</td>
         <th colspan="2"><div>${chevron(`group:${G.name}`, kids.length + paint.length > 0 || !!spikes)}${typeIcon(['group', 'A group: drawn as one'])}<span class="sw" style=${`background:${gp.color}`}></span>${nameOf(gp)}
@@ -164,7 +185,7 @@ function shapesTable(all) {
 function shapeRow(p, depth = p.depth || 0) {
   const [on, type] = whereWhat(p), renames = p.sel.type !== 'spikes', own = p.sel.type === 'item' ? p.obj.color : p.sel.type !== 'spikes';
   return html`<tr class=${rowClass(p)} .sel=${p.sel} draggable=${p.sel.type === 'spikes' ? 'false' : dragging(p).draggable}
-      @click=${() => pick(p.sel)} @dblclick=${(e) => { if (renames && !e.target.closest('.eye')) startRename(p.sel); }} @mouseenter=${() => point({ sels: [p.sel] })}>
+      @click=${(e) => pick(p.sel, e)} @dblclick=${(e) => { if (renames && !e.target.closest('.eye')) startRename(p.sel); }} @mouseenter=${() => point({ sels: [p.sel] })}>
     <td>${eyeOf(p)}</td>
     <td><div class="name" style=${`padding-left:${depth * 12}px`}>${typeIcon(type)}${own && p.color ? html`<span class="sw" style=${`background:${p.color}`}></span>` : nothing}${nameOf(p)}${p.obj.grows ? html`<span class="flag" title="Grown out of the body: not outlined where it starts on it">${icon('joined')}</span>` : nothing}</div></td>
     <td class="dim">${on}</td>
@@ -172,7 +193,8 @@ function shapeRow(p, depth = p.depth || 0) {
 }
 
 // dragged: a shape into another group (onto its head: at its end) or to a place among its shapes; a marking among the
-// markings; a dot among the dots; a group (or the face) to a place among the groups
+// markings; a dot among the dots; a group (or the face) to a place among the groups. One of those picked: those of its
+// kind picked with it too
 let dragged = null;
 const modeOf = (from, to) => {
   if (!from || same(from, to)) return null;
@@ -199,9 +221,10 @@ function dropOn(e, s) {
   const from = dragged, mode = modeOf(from, s), r = e.currentTarget, t = mode === 'group' ? r.parentElement : r, after = t.classList.contains('dropAfter');
   clearDrops(); dragged = null;
   if (!mode) return;
-  if (mode === 'into') moveTo(from, s.g);
-  else if (mode === 'group') moveTo(from, s.g + (after ? 1 : 0));
-  else moveTo(from, s.g, (s.type === 'dot' ? s.i : s.i) + (after ? 1 : 0));
+  const froms = isPicked(from) ? picked().filter((x) => x.type === from.type) : [from];
+  if (mode === 'into') moveMany(froms, s.g);
+  else if (mode === 'group') moveMany(froms, s.g + (after ? 1 : 0));
+  else moveMany(froms, s.g, s.i + (after ? 1 : 0));
 }
 // (bound on the table: the rows' own drag events, found by their pick)
 const rowSel = (e) => e.target.closest?.('tr')?.sel;

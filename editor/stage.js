@@ -4,11 +4,11 @@ import { COLOR, FOOT, PALETTES, animal, colorOf, rgb, rigParts } from '../art.js
 import { $, css, el } from './dom.js';
 import { faceEdit } from './face.js';
 import { inspect } from './inspector.js';
-import { hover, listParts } from './lists.js';
+import { hover, isPicked, listParts, togglePick } from './lists.js';
 import { castHit, drawCast, setHue } from './palette.js';
 import { current, minus, parts, plus, same, times, setStep, setAlt } from './parts.js';
 import * as sandbox from './play.js';
-import { G, P, build, changed, drag, editable, hist, kind, nice, place, reach, remember, restPoints, snapshot, status, toWorld, view, setSel, setDrag } from './state.js';
+import { G, P, also, build, changed, drag, editable, hist, kind, nice, place, reach, remember, restPoints, sel, snapshot, status, toWorld, view, setAlso, setSel, setDrag } from './state.js';
 import { frames, kindOf, markFrames, setPlay, timeline } from './timeline.js';
 
 // the stage shows art pixels from (X0, Y0), VW × VH of them (the 26×20 box and room around it), Z screen pixels each
@@ -135,6 +135,7 @@ function drawHandles(ctx) {
     ctx.restore();
   }
   if (on) { ctx.strokeStyle = accent; ctx.lineWidth = 2; on.lines.forEach(stroke); }
+  if (also.length) { ctx.save(); ctx.strokeStyle = accent; ctx.lineWidth = 1.5; for (const p of all) if (p !== on && !p.off && isPicked(p.sel)) p.lines.forEach(stroke); ctx.restore(); }
   for (const p of all) {
     if (p === on || p.off) continue;
     for (const h of p.handles) if (h.anchor && (h.joint || $('allHandles').checked)) dot(h.at, h.joint ? 6 : 4, h.joint ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.6)', h.joint ? '#333' : 'rgba(60,60,60,0.6)');
@@ -143,6 +144,7 @@ function drawHandles(ctx) {
 }
 
 // pick and drag: a handle of the picked part, a joint or another part's handle, or (a click) the part under the pointer
+// (with ⌘ or ⇧: added to what is picked, or taken from it). A part's middle dragged: those picked with it move too
 export const playAt = (e) => { const r = $('stage').getBoundingClientRect(), k = $('stage').width / r.width; return [((e.clientX - r.left) * k) / Z, ((e.clientY - r.top) * k) / Z]; };
 const hand = (c) => { $('stage').style.cursor = c || ''; };
 $('stage').addEventListener('pointerdown', (e) => {
@@ -155,13 +157,15 @@ $('stage').addEventListener('pointerdown', (e) => {
   let hit = on?.handles.find(near), owner = on;
   if (!hit) for (const q of all) { if (q.off) continue; const h = q.handles.find((x) => x.anchor && (x.joint || $('allHandles').checked) && near(x)); if (h) { hit = h; owner = q; break; } }
   if (hit) {
-    if (owner !== on) { setSel(owner.sel); listParts(); inspect(); }
-    remember(); setDrag({ sel: owner.sel, index: owner.handles.indexOf(hit) });
+    if (owner !== on && isPicked(owner.sel)) { setAlso([...also.filter((x) => !same(x, owner.sel)), sel]); setSel(owner.sel, true); listParts(); inspect(); }
+    else if (owner !== on) { setSel(owner.sel); listParts(); inspect(); }
+    remember(); setDrag({ sel: owner.sel, index: owner.handles.indexOf(hit), from: hit.at, with: hit.move ? withIt(all) : [] });
     $('stage').setPointerCapture(e.pointerId);
     return;
   }
   const picked = [...all].reverse().find((q) => !q.off && q.hit?.(p)); // (the one drawn last: on top; not one hidden)
-  setSel(picked ? picked.sel : { type: 'rig' });
+  if (picked && (e.metaKey || e.ctrlKey || e.shiftKey)) togglePick(picked.sel);
+  else setSel(picked ? picked.sel : { type: 'rig' });
   listParts(); inspect(); draw();
 });
 $('stage').addEventListener('pointermove', (e) => {
@@ -171,6 +175,10 @@ $('stage').addEventListener('pointermove', (e) => {
   setStep(e.shiftKey ? 0.5 : 0.1); setAlt(e.altKey);
   const q = parts().find((x) => same(x.sel, drag.sel));
   q?.handles[drag.index]?.set(toArt(e));
+  if (drag.with.length) { // (those picked with it: moved as far as it, each from where it was)
+    const d = minus(parts().find((x) => same(x.sel, drag.sel)).handles[drag.index].at, drag.from);
+    for (const [h, at] of drag.with) h.set(plus(at, d));
+  }
   changed();
 });
 for (const type of ['pointerup', 'pointercancel']) $('stage').addEventListener(type, () => { if (view.mode === 'play') { sandbox.up(); hand(''); } });
@@ -184,4 +192,10 @@ $('stage').addEventListener('pointerup', () => {
   listParts(); inspect(); status();
 });
 
+// the middles of those picked with the one picked (not a shape whose group is picked: it moves with it), where each was
+export function withIt(all) {
+  const groups = also.concat(sel).filter((s) => s.type === 'group').map((s) => s.g);
+  return all.filter((p) => !same(p.sel, sel) && !p.off && also.some((s) => same(s, p.sel)) && !(p.sel.type !== 'group' && groups.includes(p.sel.g) && p.sel.type !== 'dot'))
+    .flatMap((p) => p.handles.filter((h) => h.move).map((h) => [h, h.at]));
+}
 export function setZ(v) { return (Z = v); }

@@ -4,7 +4,7 @@
 import { inspect } from './inspector.js';
 import { listParts } from './lists.js';
 import { geomOf, shiftShape } from './parts.js';
-import { build, commit, hidden, isGroup, refresh, sel, setSel } from './state.js';
+import { also, build, commit, hidden, isGroup, refresh, sel, setAlso, setSel } from './state.js';
 
 export const layers = () => (build.layers ||= []);
 export const bodyIndex = () => layers().findIndex((G) => isGroup(G) && G.join && G.hits); // (the body: the first group joined that hits)
@@ -21,8 +21,56 @@ export function placeOf(s) {
   if (s.type === 'group' || s.type === 'face') return { arr: layers(), at: s.g };
   return null;
 }
+// where a thing is now (by what it is: its pick, after the lists have changed), or null (gone)
+export function selOf(x) {
+  const L = layers(), g = L.indexOf(x);
+  if (g >= 0) return isGroup(x) ? { type: 'group', g } : { type: 'face' };
+  if (build.dots?.includes(x)) return { type: 'dot', i: build.dots.indexOf(x) };
+  for (const [g, G] of L.entries()) {
+    if (!isGroup(G)) continue;
+    if (G.shapes.includes(x)) return { type: 'item', g, i: G.shapes.indexOf(x) };
+    if (G.paint?.includes(x)) return { type: 'paint', g, i: G.paint.indexOf(x) };
+  }
+  return null;
+}
+const MANY = ['item', 'paint', 'dot', 'group']; // (what is picked together)
+export const many = (s) => MANY.includes(s.type);
+const objOf = (s) => { const p = placeOf(s); return p && p.arr[p.at]; };
+// picked again, by what it is: the one shown (else the first left), and the rest with it
+function repick(main, rest, none) {
+  const sels = [main, ...rest].map(selOf).filter(Boolean);
+  if (!sels.length) { setSel(none); return; }
+  setSel(sels[0]); setAlso(sels.slice(1));
+}
+// the pick and those picked with it moved up or down their lists (d: as a block, each in its own), copied (each after
+// itself), gone
+function manyDo(what, d) {
+  const sels = [sel, ...also].filter(many), objs = sels.map(objOf), arrs = new Map();
+  for (const [k, s] of sels.entries()) { const { arr } = placeOf(s); if (!arrs.has(arr)) arrs.set(arr, []); arrs.get(arr).push(objs[k]); }
+  commit(() => {
+    if (what === 'move') {
+      for (const [arr, xs] of arrs) {
+        const at = xs.map((x) => arr.indexOf(x)).sort((a, b) => (d < 0 ? a - b : b - a));
+        let stuck = d < 0 ? -1 : arr.length;
+        for (const i of at) { if (i + d === stuck) { stuck = i; continue; } [arr[i], arr[i + d]] = [arr[i + d], arr[i]]; }
+      }
+      repick(objs[0], objs.slice(1), sel);
+    } else if (what === 'copy') {
+      const copies = objs.map((x) => { const arr = [...arrs].find(([, xs]) => xs.includes(x))[0], c = clone(x); arr.splice(arr.indexOf(x) + 1, 0, c); return c; });
+      repick(copies[0], copies.slice(1), sel);
+    } else {
+      const G = sel.type === 'item' || sel.type === 'paint' ? layers()[sel.g] : null; // (picked after: its group, if left)
+      for (const [arr, xs] of arrs) for (const x of xs) { const i = arr.indexOf(x); if (i >= 0) arr.splice(i, 1); hidden.delete(x); }
+      for (const L of layers()) if (isGroup(L)) prune(L);
+      if (build.dots && !build.dots.length) delete build.dots;
+      setSel(G && layers().includes(G) ? { type: 'group', g: layers().indexOf(G) } : { type: 'rig' });
+    }
+  });
+  refresh();
+}
 // the pick moved up or down its list (d), copied, gone
 export function itemDo(what, d) {
+  if (also.length && many(sel)) { manyDo(what, d); return; }
   const p = placeOf(sel);
   if (!p) return;
   const { arr, at } = p, k = among(sel), to = at + (d || 0);
@@ -40,6 +88,26 @@ export function itemDo(what, d) {
     }
   });
   refresh();
+}
+// picks of one kind put into group g before i, in the order they are drawn (groups: among the groups before g; dots:
+// among the dots before i; i, g: as the lists are before; none: at the end)
+export function moveMany(froms, g, i) {
+  if (froms.length < 2) { moveTo(froms[0], g, i); return; }
+  const type = froms[0].type, whole = type === 'group' || type === 'face';
+  const order = (s) => [s.g ?? 0, s.i ?? 0], objs = [...froms].sort((a, b) => order(a)[0] - order(b)[0] || order(a)[1] - order(b)[1]).map(objOf);
+  const dstOf = () => (whole ? layers() : type === 'dot' ? build.dots : type === 'paint' ? (layers()[g].paint ||= []) : layers()[g].shapes);
+  const dst = whole ? layers() : type === 'dot' ? build.dots : type === 'paint' ? layers()[g].paint || [] : layers()[g].shapes;
+  let before = dst[whole ? g : i]; // (what they go before: the first after it not moved)
+  for (let k = dst.indexOf(before); before !== undefined && objs.includes(before); k++) before = dst[k + 1];
+  const shown = objOf(sel), G = !whole && type !== 'dot' && layers()[g];
+  commit(() => {
+    for (const x of objs) { const s = selOf(x), { arr, at } = placeOf(s); arr.splice(at, 1); }
+    const to = dstOf(), at = before === undefined ? to.length : to.indexOf(before);
+    to.splice(at, 0, ...objs);
+    for (const L of layers()) if (isGroup(L) && L !== G) prune(L);
+    repick(objs.includes(shown) ? shown : objs[0], objs.filter((x) => x !== shown), sel);
+  });
+  listParts(); inspect();
 }
 // a pick put into group g at i (a group, a face: among the groups at g; a dot: among the dots at i; i: as the list is
 // before; none: at its end)
