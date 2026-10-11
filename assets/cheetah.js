@@ -2,7 +2,7 @@
 export default {
   format: 2,
   name: 'cheetah',
-  fur: 'CHEETAH',
+  fur: 'tan',
   joints: { hip: [8, 10.8], chest: [15, 10.8], head: [19.6, 7.6] },
   torso: { r: 3, ends: 3 },
   shapes: [
@@ -13,8 +13,8 @@ export default {
     { name: 'ear', on: 'head', ellipse: [1, -3.2, 1.1, 1.1] },
   ],
   paint: [
-    { name: 'muzzle', color: 'BELLY', on: 'head', ellipse: [2.5, 1.4, 1.4, 1.1] },
-    { name: 'belly', color: 'BELLY', on: 'spine', ellipse: [5, 2.5, 4.5, 0.9] },
+    { name: 'muzzle', color: 'white', on: 'head', ellipse: [2.5, 1.4, 1.4, 1.1] },
+    { name: 'belly', color: 'white', on: 'spine', ellipse: [5, 2.5, 4.5, 0.9] },
   ],
   dots: [
     { name: 'spot', on: 'spine', at: [-1, -2] },
@@ -25,7 +25,7 @@ export default {
     { name: 'spot', on: 'spine', at: [3, 0.1] },
     { name: 'tear line', on: 'head', at: [1, 1] },
     { name: 'tear line', on: 'head', at: [1.4, 1.7] },
-    { name: 'cheek', on: 'head', at: [0, 1.4], color: 'PINK' },
+    { name: 'cheek', on: 'head', at: [0, 1.4], color: 'pink' },
   ],
   legs: {
     hindFar: { on: 'hip', at: [1, 2], thigh: 2.9, shin: 2.9, r: 0.77, far: true, bend: 1 },
@@ -42,7 +42,7 @@ export default {
       length: 8,
       r: 0.8,
       curl: -0.15,
-      marks: [[0.45, 'OUT', 0], [0.7, 'OUT', 0], [1, 'BELLY', 0]],
+      marks: [[0.45, 'outline', 0], [0.7, 'outline', 0], [1, 'white', 0]],
       stiffness: 600,
       damping: 18,
       weight: 40,

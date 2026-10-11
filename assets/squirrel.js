@@ -2,7 +2,7 @@
 export default {
   format: 2,
   name: 'squirrel',
-  fur: 'STRIPE',
+  fur: 'rust',
   joints: { hip: [9, 13], chest: [14, 13], head: [18.5, 9.6] },
   torso: { r: 3.6, ends: 3.5 },
   shapes: [
@@ -11,8 +11,8 @@ export default {
     { name: 'snout', on: 'head', ellipse: [2.8, 1.2, 1.7, 1.4] },
   ],
   paint: [
-    { name: 'belly', color: 'BELLY', on: 'spine', ellipse: [5, 2.2, 4, 1.3] },
-    { name: 'jaw', color: 'BELLY', on: 'head', ellipse: [2.5, 2, 1.6, 0.8] },
+    { name: 'belly', color: 'white', on: 'spine', ellipse: [5, 2.2, 4, 1.3] },
+    { name: 'jaw', color: 'white', on: 'head', ellipse: [2.5, 2, 1.6, 0.8] },
   ],
   legs: {
     hindFar: { on: 'hip', at: [0.5, 2.5], thigh: 1.6, shin: 1.6, r: 0.75, far: true, bend: 1 },

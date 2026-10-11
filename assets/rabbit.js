@@ -2,7 +2,7 @@
 export default {
   format: 2,
   name: 'rabbit',
-  fur: 'FUR',
+  fur: 'white',
   joints: { hip: [7, 13.5], chest: [12, 13.5], head: [15.5, 9] },
   torso: { r: 5, ends: 4.5 },
   shapes: [
@@ -10,7 +10,7 @@ export default {
     { name: 'head', on: 'head', ellipse: [0, 0, 4.5, 4.5] },
     { name: 'muzzle', on: 'head', ellipse: [3.5, 1.8, 2.5, 2.2] },
   ],
-  dots: [{ name: 'blush', on: 'head', at: [2.5, 2], color: 'PINK' }],
+  dots: [{ name: 'blush', on: 'head', at: [2.5, 2], color: 'pink' }],
   legs: {
     hindFar: { on: 'hip', at: [1, 2], thigh: 3.2, shin: 4.6, r: 1.2, bend: 1, far: true },
     frontFar: { on: 'chest', at: [3.3, 0.5], thigh: 2.8, shin: 2.8, r: 1.1, bend: -1, far: true },
@@ -27,14 +27,14 @@ export default {
       length: 5.6,
       r: 1.4,
       end: 2.1,
-      color: 'EAR',
+      color: 'beige',
       front: true,
       stiffness: 240,
       damping: 8,
       weight: 140,
     },
   },
-  face: { eye: [1.5, -1], nose: [4.5, 1], noseColor: 'PINK' },
+  face: { eye: [1.5, -1], nose: [4.5, 1], noseColor: 'pink' },
   front: {
     joints: { hip: [13, 15], chest: [13, 12], head: [13, 9] },
     shapes: [
@@ -45,10 +45,10 @@ export default {
     ],
     top: [{ shapes: [{ ellipse: [11, 18.5, 1.1, 0.9] }, { ellipse: [16, 18.5, 1.1, 0.9] }] }],
     chains: {
-      earL: { on: 'head', at: [-3, -3.4], angle: 2.3, links: 2, length: 7, r: 1.4, end: 2, curl: -0.6, color: 'EAR', front: true },
-      earR: { on: 'head', at: [4, -3.4], angle: -2.3, links: 2, length: 7, r: 1.4, end: 2, curl: 0.6, color: 'EAR', front: true },
+      earL: { on: 'head', at: [-3, -3.4], angle: 2.3, links: 2, length: 7, r: 1.4, end: 2, curl: -0.6, color: 'beige', front: true },
+      earR: { on: 'head', at: [4, -3.4], angle: -2.3, links: 2, length: 7, r: 1.4, end: 2, curl: 0.6, color: 'beige', front: true },
     },
-    face: { eyes: [[-2, -0.5], [2, -0.5]], nose: [0, 1.5], noseColor: 'PINK' },
+    face: { eyes: [[-2, -0.5], [2, -0.5]], nose: [0, 1.5], noseColor: 'pink' },
   },
   moves: {
     run: {

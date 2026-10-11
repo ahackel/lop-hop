@@ -3,7 +3,7 @@
 // offline, the kept files answer. (Answering from the cache first mixed an old game.js with a new index.html after an
 // update.)
 const CACHE = 'lop-hop-6'; // (a new name clears what the last one kept: the engine's recordings, before song.zip)
-const GAME = ['./', 'index.html', 'game.js', 'level.js', 'music.js', 'version.js', 'lang.js', 'lang/en.txt', 'lang/de.txt', 'art.js', 'font.js', 'icons.js', 'asset.js', 'assets/rabbit.js', 'assets/cat.js', 'assets/dog.js', 'assets/fox.js', 'assets/hedgehog.js', 'assets/squirrel.js', 'assets/otter.js', 'assets/skunk.js', 'assets/wolf.js', 'assets/boar.js', 'assets/bear.js', 'assets/cheetah.js', 'assets/rhino.js', 'assets/elephant.js', 'assets/dino.js', 'assets/guineapig.js', 'assets/pig.js', 'assets/yak.js', 'assets/ostrich.js', 'assets/dromedary.js', 'assets/gorilla.js', 'song.zip', 'manifest.webmanifest',
+const GAME = ['./', 'index.html', 'game.js', 'level.js', 'music.js', 'version.js', 'lang.js', 'lang/en.txt', 'lang/de.txt', 'art.js', 'font.js', 'icons.js', 'asset.js', 'assets/palette.js', 'assets/rabbit.js', 'assets/cat.js', 'assets/dog.js', 'assets/fox.js', 'assets/hedgehog.js', 'assets/squirrel.js', 'assets/otter.js', 'assets/skunk.js', 'assets/wolf.js', 'assets/boar.js', 'assets/bear.js', 'assets/cheetah.js', 'assets/rhino.js', 'assets/elephant.js', 'assets/dino.js', 'assets/guineapig.js', 'assets/pig.js', 'assets/yak.js', 'assets/ostrich.js', 'assets/dromedary.js', 'assets/gorilla.js', 'song.zip', 'manifest.webmanifest',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/maskable-512.png', 'icons/apple-touch-icon.png', 'icons/favicon.png'];
 
 self.addEventListener('install', (e) => {

@@ -4,9 +4,12 @@
 // a frame), a gait's settings, a loop to look at; the frames before and after faded (onion skin). After every change the
 // animal is made again from its build (as the game makes it) and drawn by the game's own code; Save writes the build back into its
 // file (POST /save, see serve.mjs and rig-format.js). Three modes: Setup (the build), Animate (its moves), Play (handled
-// as on the home screen, see play.js: its handling's numbers, its chains' physics).
+// as on the home screen, see play.js: its handling's numbers, its chains' physics). And Game: the game's own, for every
+// animal (its palette, assets/palette.js).
 import { ANIMALS, PALETTES, COLOR, FOOT, GROUND, W, H, animal, setRig, rigParts, moveBody, stride, strides, idleFrame, jumpFrame, golden, cactus, hill,
-  JUMP, GRAVITY, setStyle, colorOf, rigOf, HANDLING, FACE_FRAMES, FACE_INKS } from '../art.js';
+  JUMP, GRAVITY, setStyle, colorOf, rigOf, HANDLING, FACE_FRAMES, FACE_INKS, setPalette, rgb, FOOD, rock, log, bush, sunflower, toadstool, pine, stump, boulders,
+  spire, tumbleweed, snowman, ice, star, heart } from '../art.js';
+import paletteFile from '../assets/palette.js';
 import { toBuild, toAsset } from '../asset.js';
 import * as sandbox from './play.js';
 
@@ -14,7 +17,12 @@ const GAME_ANIMALS = { ...ANIMALS }; // (the game's animals: the others are made
 
 const { toWorld, toLocal, sdShape, NAMED } = rigParts;
 const KINDS = []; // (every animal with a file: the game's, and any made here, not in the game yet)
-const COLORS = Object.keys(NAMED);
+// the game's palette (assets/palette.js) as edited: a color by its name (outline: the one role painted with)
+const palette = JSON.parse(JSON.stringify(paletteFile));
+let savedPalette = JSON.stringify(palette);
+const paints = () => ['outline', ...Object.keys(palette.colors)];
+const nice = (c) => (c ? c.replace(/[A-Z]/g, (m) => ` ${m.toLowerCase()}`) : 'none'); // (lightGrey: light grey)
+const paletteDirty = () => JSON.stringify(palette) !== savedPalette;
 const COLOR_KEYS = ['color', 'fur', 'tipColor', 'noseColor', 'socks'];
 const GEOMS = ['ellipse', 'capsule', 'box', 'triangle'];
 const LAYERS = { shapes: 'body', paint: 'paint', top: 'on top' };
@@ -41,8 +49,8 @@ let lastMove = 'idle'; // (the move Animate shows)
 
 // ------------------------------------------------------------------------------------------------- the animal, edited
 const editable = () => !!build.joints;
-const hist = () => (histories[kind] ||= { past: [], future: [] });
-const snapshot = () => JSON.stringify({ build, skin });
+const hist = () => (histories[view.mode === 'game' ? '' : kind] ||= { past: [], future: [] }); // (Game: one of its own)
+const snapshot = () => JSON.stringify(view.mode === 'game' ? palette : { build, skin });
 const dirty = (k) => JSON.stringify(builds[k]) !== saved[k];
 const touched = () => [base, ...(skin ? [kind] : [])].filter(dirty); // (the files the one shown is made from, changed)
 
@@ -61,12 +69,13 @@ function place() {
   P = view.move === 'edit' ? rigParts.posed(kind, 'hurt', 0) : rigParts.posed(kind, view.move, view.frame);
   G = rigParts.growth(kind, view.move === 'edit' ? 'hurt' : view.move); // (the bigger animals: drawn grown, their handles with them)
 }
-function changed() { rebuild(); draw(); status(); }
+function changed() { if (view.mode === 'game') { setPalette(palette); draw(); listParts(); status(); return; } rebuild(); draw(); status(); }
 function refresh() { listParts(); inspect(); timeline(); draw(); }
 function commit(fn) { remember(); fn(); changed(); timeline(); }
 function remember() { const h = hist(); h.past.push(snapshot()); if (h.past.length > 300) h.past.shift(); h.future = []; }
 function restore(json) {
   const was = JSON.parse(json), into = (o, v) => { for (const k of Object.keys(o)) delete o[k]; Object.assign(o, v); };
+  if (view.mode === 'game') { into(palette, was); setPalette(palette); refresh(); status(); return; }
   into(build, was.build);
   if (skin && was.skin) into(skin, was.skin);
   changed(); refresh();
@@ -81,33 +90,48 @@ function choose(k) {
   const url = new URL(location.href); url.searchParams.set('animal', k); window.history.replaceState(null, '', url);
   fillMoves(); rebuild(); sandbox.reset(k); refresh(); status();
 }
-// the mode: Setup (the build: what every move is made from), Animate (a move), Play (see play.js)
+// the mode: Setup (the build: what every move is made from), Animate (a move), Play (see play.js); Game (the game's own)
 function setMode(m) {
   view.mode = m; document.body.className = m;
   for (const b of $('modes').children) b.classList.toggle('on', b.dataset.mode === m);
+  $('gameMode').classList.toggle('on', m === 'game');
   setPlay(false);
-  if (m === 'play') { view.move = 'edit'; sandbox.reset(kind); sel = { type: 'rig' }; place(); refresh(); return; }
+  if (m === 'game') { view.move = 'edit'; cast = castOf(); place(); refresh(); status(); return; }
+  if (m === 'play') { view.move = 'edit'; sandbox.reset(kind); sel = { type: 'rig' }; place(); refresh(); status(); return; }
   show(m === 'setup' ? 'edit' : animated());
+  status();
 }
 const animated = () => (rigParts.move(kind, lastMove) ? lastMove : rigParts.moves(kind)[0]);
 for (const b of $('modes').children) b.onclick = () => setMode(b.dataset.mode);
 
 function status() {
+  if (view.mode === 'game') {
+    const d = paletteDirty(), s = $('status');
+    s.className = d ? 'dirty' : ''; s.textContent = d ? 'unsaved changes in assets/palette.js' : 'assets/palette.js';
+    $('undo').disabled = !hist().past.length; $('redo').disabled = !hist().future.length; $('revert').disabled = $('save').disabled = !d;
+    return;
+  }
   const s = $('status'), mine = touched(), others = KINDS.filter((k) => k !== kind && k !== base && dirty(k)), files = [base, ...(skin ? [kind] : [])].map(fileOf).join(' + ');
   s.className = mine.length || others.length ? 'dirty' : '';
+  if (paletteDirty()) others.push('the palette');
   s.textContent = (mine.length ? `unsaved changes in ${mine.map(fileOf).join(', ')}` : files) + (inGame(kind) ? '' : ' · not in the game yet') + (others.length ? ` · also unsaved: ${others.join(', ')}` : '');
   $('undo').disabled = !hist().past.length; $('redo').disabled = !hist().future.length;
-  $('revert').disabled = $('save').disabled = !mine.length;
+  $('revert').disabled = !mine.length; $('save').disabled = !mine.length && !paletteDirty();
 }
 
-// saved into its files: the base's, the skin's (each only if changed; a new one: its file made)
+// saved into its files: the base's, the skin's (each only if changed; a new one: its file made); the palette, if changed
 async function save() {
   let said = [];
-  for (const k of touched()) {
-    const res = await fetch('/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: k, build: builds[k], of: files[k].of }) }).catch(() => null);
-    if (!res?.ok) { $('status').className = 'dirty'; $('status').textContent = `not saved: ${res ? await res.text() : 'is the dev server running? (npm run dev)'}`; return; }
-    saved[k] = JSON.stringify(builds[k]); said.push(await res.text());
+  const post = async (url, body) => {
+    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).catch(() => null);
+    if (!res?.ok) { $('status').className = 'dirty'; $('status').textContent = `not saved: ${res ? await res.text() : 'is the dev server running? (npm run dev)'}`; return false; }
+    said.push(await res.text()); return true;
+  };
+  for (const k of view.mode === 'game' ? [] : touched()) {
+    if (!await post('/save', { kind: k, build: builds[k], of: files[k].of })) return;
+    saved[k] = JSON.stringify(builds[k]);
   }
+  if (paletteDirty()) { if (!await post('/palette', palette)) return; savedPalette = JSON.stringify(palette); }
   status(); if (said.length) $('status').textContent = said.join(' · ');
 }
 
@@ -187,7 +211,7 @@ function parts() {
   });
   (build.dots || []).forEach((d, i) => {
     const f = frameOf(d.on);
-    out.push({ sel: { type: 'item', list: 'dots', i }, group: 'Dots', label: d.name || 'dot', color: swatch(d.color || 'OUT'), obj: d, lines: [],
+    out.push({ sel: { type: 'item', list: 'dots', i }, group: 'Dots', label: d.name || 'dot', color: swatch(d.color || 'outline'), obj: d, lines: [],
       handles: [{ at: world(f, d.at), anchor: true, set: (p) => { d.at = roundAll(local(f, p)); } }] });
   });
   if (build.spikes) out.push({ sel: { type: 'spikes' }, group: 'Spikes', label: 'where the spikes are', obj: build.spikes, ...shapeBits(build.spikes), hit: null });
@@ -216,7 +240,7 @@ function parts() {
   }
   if (build.face) {
     const f = P.F.head, face = build.face;
-    out.push({ sel: { type: 'face' }, group: 'Face', label: 'face', color: swatch(face.noseColor || 'OUT'), obj: face, lines: [],
+    out.push({ sel: { type: 'face' }, group: 'Face', label: 'face', color: swatch(face.noseColor || 'outline'), obj: face, lines: [],
       handles: ['eye', 'nose', 'mouth'].filter((k) => face[k]).map((k) => ({ at: world(f, face[k]), anchor: k === 'eye', set: (p) => { face[k] = roundAll(local(f, p)); } })) });
   }
   return out;
@@ -259,6 +283,7 @@ function sprite() { return view.move === 'edit' ? animal(kind, 'hurt', 0, { look
 function draw() {
   const c = $('stage'), ctx = c.getContext('2d');
   const box = $('stageBox'); // (as big as fits in what the window leaves it)
+  if (view.mode === 'game') { drawCast(c); return; }
   if (view.mode === 'play') {
     Z = Math.max(2, Math.floor(Math.min(box.clientWidth / sandbox.PW, box.clientHeight / sandbox.PH))) || 8;
     if (c.width !== sandbox.PW * Z || c.height !== sandbox.PH * Z) { c.width = sandbox.PW * Z; c.height = sandbox.PH * Z; c.style.width = `${c.width}px`; c.style.height = `${c.height}px`; }
@@ -316,6 +341,7 @@ function drawHandles(ctx) {
 const playAt = (e) => { const r = $('stage').getBoundingClientRect(), k = $('stage').width / r.width; return [((e.clientX - r.left) * k) / Z, ((e.clientY - r.top) * k) / Z]; };
 const hand = (c) => { $('stage').style.cursor = c || ''; };
 $('stage').addEventListener('pointerdown', (e) => {
+  if (view.mode === 'game') { const h = castHit(e); if (h) { hue = h.color; listParts(); inspect(); draw(); } return; }
   if (view.mode === 'play') { $('stage').setPointerCapture(e.pointerId); hand(sandbox.down(...playAt(e))); return; }
   if (!editing()) return;
   if (view.play) setPlay(false);
@@ -334,6 +360,7 @@ $('stage').addEventListener('pointerdown', (e) => {
   listParts(); inspect(); draw();
 });
 $('stage').addEventListener('pointermove', (e) => {
+  if (view.mode === 'game') { const h = castHit(e); $('stage').title = h ? `${nice(h.color)} · ${h.thing}` : ''; return; }
   if (view.mode === 'play') { const c = sandbox.move(...playAt(e)); if (c !== null) hand(c); return; }
   if (!drag) return;
   step = e.shiftKey ? 0.5 : 0.1;
@@ -361,6 +388,7 @@ function listParts() {
   const bones = $('bones'), shapes = $('shapes'), note = (box, text) => box.append(el('p', { className: 'note', style: 'padding:0 10px', textContent: text }));
   bones.textContent = shapes.textContent = '';
   const bt = $('bonesTitle'), playing = view.mode === 'play';
+  if (view.mode === 'game') { bt.textContent = 'Palette'; bt.title = 'The game’s colors: everything is drawn in them'; listPalette(bones); return; }
   bt.textContent = playing ? 'Play' : 'Bones'; bt.title = playing ? 'What to try on the stage' : 'The skeleton: what moves';
   if (view.mode === 'play') { playHelp(bones); note(shapes, 'Shapes are set in Setup.'); return; }
   if (!editable()) { note(bones, `The ${kind} has no bones.`); return; }
@@ -395,9 +423,9 @@ function listParts() {
   }
 }
 
-const fresh = (list) => (list === 'dots' ? { name: 'dot', on: 'head', at: [0, 0], color: 'OUT' }
+const fresh = (list) => (list === 'dots' ? { name: 'dot', on: 'head', at: [0, 0], color: 'outline' }
   : list === 'top' ? { name: 'shape', color: build.fur, shapes: [{ on: 'head', ellipse: [0, -3, 1, 1] }] }
-    : { name: list === 'paint' ? 'marking' : 'shape', ...(list === 'paint' ? { color: 'BELLY' } : {}), on: 'spine', ellipse: [2, 0, 2, 1.5] });
+    : { name: list === 'paint' ? 'marking' : 'shape', ...(list === 'paint' ? { color: 'white' } : {}), on: 'spine', ellipse: [2, 0, 2, 1.5] });
 function add(list) { commit(() => { (build[list] ||= []).push(fresh(list)); sel = { type: 'item', list, i: build[list].length - 1 }; }); refresh(); }
 
 // moves a list item: up or down (d), copied, gone, or to another layer (body shapes, paint, on top)
@@ -414,7 +442,7 @@ function itemDo(what, arg) {
       const into = (build[arg] ||= []);
       for (const x of flat) {
         if (arg === 'top') { const g = geomOf(x); into.push({ name: x.name, color: x.color || build.fur, shapes: [{ on: x.on, [g]: x[g] }] }); }
-        else { const y = { ...x }; if (arg === 'shapes') delete y.color; else y.color ||= 'BELLY'; into.push(y); }
+        else { const y = { ...x }; if (arg === 'shapes') delete y.color; else y.color ||= 'white'; into.push(y); }
       }
       sel = { type: 'item', list: arg, i: into.length - 1 };
     }
@@ -425,6 +453,7 @@ function itemDo(what, arg) {
 // --------------------------------------------------------------------------------------------------- the inspector
 function inspect() {
   const box = $('inspector'); box.textContent = '';
+  if (view.mode === 'game') { inspectPalette(box); return; }
   if (!editable()) { box.append(el('p', { className: 'note', textContent: `The ${kind} has no bones.` })); return; }
   if (view.mode === 'play') { inspectPlay(box); return; }
   if (view.move !== 'edit') { inspectMove(box); return; }
@@ -461,11 +490,8 @@ function fields(o, box, skip) {
     if (skip.includes(k)) continue;
     const v = o[k];
     let input;
-    if (COLOR_KEYS.includes(k)) {
-      input = el('select', { onchange: () => commit(() => { o[k] = input.value; }) });
-      for (const c of COLORS) input.append(el('option', { value: c, textContent: c.toLowerCase().replace(/_/g, ' '), selected: c === v }));
-      input.style.borderLeft = `14px solid ${swatch(v)}`;
-    } else if (k === 'on') {
+    if (COLOR_KEYS.includes(k)) input = colorPick(v, (c) => { commit(() => { o[k] = c; }); listParts(); inspect(); });
+    else if (k === 'on') {
       input = el('select', { onchange: () => commit(() => { if (input.value) o.on = input.value; else delete o.on; }) });
       for (const c of ['', 'spine', 'hip', 'chest', 'head']) input.append(el('option', { value: c, textContent: c || 'the box', selected: c === (v || '') }));
     } else if (GEOMS.includes(k) && Array.isArray(v)) {
@@ -618,7 +644,7 @@ let strip = [];
 const goTo = (f, s) => { setPlay(false); view.frame = f; if (s) sel = s; place(); listParts(); inspect(); timeline(); draw(); };
 function timeline() {
   const box = $('timeline'); box.textContent = ''; strip = [];
-  if (view.mode === 'play') return;
+  if (view.mode === 'play' || view.mode === 'game') return;
   if (view.move === 'edit') { box.append(el('span', { className: 'note', textContent: 'The build: what every move is made from. Its moves are in Animate.' })); return; }
   const n = frames(view.move), what = kindOf(view.move), can = editable();
   if (what === 'gait') {
@@ -752,7 +778,7 @@ function rootMore(box) {
   box.append(el('div', { className: 'group' }, el('span', { textContent: 'Skins' })));
   const list = skinsOf(base);
   if (!list.length) box.append(el('p', { className: 'note', textContent: 'None yet: a skin is this animal with its colors swapped (the wolf: the fox in grey).' }));
-  for (const k of list) box.append(el('div', { className: 'row', onclick: () => choose(k) }, el('span', { textContent: k }), el('span', { className: 'what', textContent: Object.entries(builds[k].recolor || {}).map(([a, b]) => `${a.toLowerCase()} → ${b.toLowerCase()}`).join(', ') })));
+  for (const k of list) box.append(el('div', { className: 'row', onclick: () => choose(k) }, el('span', { textContent: k }), el('span', { className: 'what', textContent: Object.entries(builds[k].recolor || {}).map(([a, b]) => `${nice(a)} → ${nice(b)}`).join(', ') })));
   box.append(el('div', { className: 'keys' },
     el('button', { textContent: '+ New skin…', onclick: () => { $('skin').value = '+'; $('skin').onchange(); } }),
     el('button', { textContent: '+ New animal from this…', title: 'A new animal: a copy of this one, to change as it likes (in the editor only, till the game is given it)', onclick: () => { $('kind').value = '+'; $('kind').onchange(); } })));
@@ -760,9 +786,8 @@ function rootMore(box) {
 }
 // colors swapped, one for another, everywhere (o.recolor): those the animal has first
 function recolors(box, o) {
-  const has = [...new Set((JSON.stringify(build).match(/"[A-Z_]+"/g) || []).map((x) => x.slice(1, -1)).filter((c) => COLORS.includes(c)))];
-  const order = [...has, ...COLORS.filter((c) => !has.includes(c))];
-  const pick = (value, on) => { const p = el('select', { onchange: () => on(p.value) }); p.style.borderLeft = `14px solid ${swatch(value)}`; for (const c of order) p.append(el('option', { value: c, textContent: c.toLowerCase().replace(/_/g, ' '), selected: c === value })); return p; };
+  const has = [...new Set((JSON.stringify(build).match(/"[a-zA-Z]+"/g) || []).map((x) => x.slice(1, -1)).filter((c) => paints().includes(c)))];
+  const pick = colorPick;
   const map = o.recolor || {}, put = (fn) => { commit(() => { const m = { ...o.recolor }; fn(m); if (Object.keys(m).length) o.recolor = m; else delete o.recolor; }); inspect(); };
   for (const [from, to] of Object.entries(map)) {
     const rename = (f) => put((m) => { const out = {}; for (const [a, b] of Object.entries(m)) out[a === from ? f : a] = b; for (const k of Object.keys(m)) delete m[k]; Object.assign(m, out); });
@@ -973,6 +998,163 @@ function playHelp(box) {
 $('slow').onchange = () => { sandbox.play.slow = $('slow').checked; };
 $('replay').onclick = () => sandbox.reset(kind);
 
+// ------------------------------------------------------------------------------------------- the game: its palette
+// Game: the game's own, for every animal (as yet its palette). The list: its colors (and how they go by night); the
+// stage: everything the game draws, by day above, by night below, the color picked standing out (a click on a pixel:
+// its color); the inspector: the color picked
+let hue = 'white'; // (the color picked, by name; 'night': how the colors go by night)
+const ROLE_ABOUT = {
+  outline: 'Small marks (eyes, a nose) and, without shading, every outline. A dot can be it.', ink: 'The eyes; the words.',
+  background: 'The sky, and what is drawn in it (a cloud, a rock’s light side).', faint: 'The far hills, the ground, a star not won yet.',
+  dim: 'What is not yet: an animal still to unlock, words said quietly.',
+};
+const TONE_NAMES = ['color', 'underside', 'outline', 'far leg']; // (its tones: see TONES in art.js)
+const MOST = 63; // (colors a palette can have: see art.js)
+const isRole = (c) => c in palette.roles;
+const nameAt = (i) => Object.keys(NAMED).find((k) => NAMED[k] === i);
+// everything the game draws, each with its name: every animal standing, the scenery, the food
+let cast = null;
+function castOf() {
+  let seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const out = KINDS.map((k) => ({ name: k, s: animal(k, 'hurt', 0) }));
+  const things = [['cactus', () => cactus(rnd, false)], ['big cactus', () => cactus(rnd, true)], ...['grey', 'sand', 'red', 'snowy'].map((l) => [`${l} rock`, () => rock(rnd, l)]),
+    ['log', () => log(rnd)], ['snowy log', () => log(rnd, true)], ['bush', () => bush(rnd)], ['sunflower', () => sunflower(rnd)], ['toadstool', () => toadstool(rnd)],
+    ['pine', () => pine(rnd)], ['snowy pine', () => pine(rnd, true)], ['stump', () => stump(rnd)], ['boulders', () => boulders(rnd)], ['spire', () => spire(rnd)],
+    ['tumbleweed', () => tumbleweed(rnd)], ['snowman', () => snowman(rnd)], ['ice', () => ice(rnd)]];
+  for (const [name, make] of things) { const t = make(); out.push({ name, s: t.sprite || t }); }
+  for (const k in FOOD) out.push({ name: k, s: FOOD[k] });
+  out.push({ name: 'star', s: star }, { name: 'heart', s: heart });
+  return out;
+}
+let castAt = null; // (what is drawn at each art pixel: its color's index, its thing)
+const fade = (hex, bg) => { const a = rgb(hex), b = rgb(bg); return `rgb(${a.map((v, i) => Math.round(v + (b[i] - v) * 0.78)).join(',')})`; };
+// everything in rows (each so wide), day and night one above the other, or side by side: as big as the stage fits
+function castLayout(width, side, bw, bh) {
+  const rows = [[]]; let x = 0;
+  for (const it of cast) { const w = it.s.w + 3; if (x + w > width && rows[rows.length - 1].length) { rows.push([]); x = 0; } rows[rows.length - 1].push({ ...it, x }); x += w; }
+  const tall = rows.map((r) => Math.max(...r.map((it) => it.s.h)) + 3), half = tall.reduce((a, b) => a + b, 0) + 2;
+  const AW = (width + 4) * (side ? 2 : 1), AH = half * (side ? 1 : 2), z = Math.min(bw / AW, bh / AH);
+  return { rows, tall, half, side, AW, AH, z };
+}
+function drawCast(c) {
+  cast ||= castOf();
+  const box = $('stageBox'), bw = box.clientWidth || 600, bh = box.clientHeight || 300;
+  let L = null;
+  for (let width = 90; width <= 480; width += 10) for (const side of [false, true]) { const l = castLayout(width, side, bw, bh); if (!L || l.z > L.z) L = l; }
+  const { rows, tall, half, side, AW, AH } = L;
+  Z = 1; // (drawn an art pixel a pixel, shown as big as fits: pixelated)
+  if (c.width !== AW || c.height !== AH) { c.width = AW; c.height = AH; }
+  c.style.width = `${Math.floor(AW * L.z)}px`; c.style.height = `${Math.floor(AH * L.z)}px`;
+  const ctx = c.getContext('2d'), pick = hue === 'night' ? 0 : NAMED[hue];
+  castAt = { w: AW, h: AH, px: new Uint8Array(AW * AH), who: [] };
+  ['day', 'night'].forEach((time, n) => {
+    const pal = PALETTES[time], ox = side ? n * AW / 2 : 0, oy = side ? 0 : n * half;
+    ctx.fillStyle = pal.bg; ctx.fillRect(ox * Z, oy * Z, (side ? AW / 2 : AW) * Z, half * Z);
+    let y = oy + 1;
+    rows.forEach((row, r) => {
+      for (const it of row) {
+        const sp = it.s, L = sp.look(), top = y + tall[r] - 1 - sp.h; // (each on the row's floor)
+        for (let j = 0; j < sp.h; j++) for (let i = 0; i < sp.w; i++) {
+          const k = L[j * sp.w + i];
+          if (!k) continue;
+          const X = ox + it.x + 2 + i, Y = top + j, own = k % 64, col = colorOf(pal, k);
+          ctx.fillStyle = pick && own !== pick ? fade(col, pal.bg) : col; ctx.fillRect(X * Z, Y * Z, Z, Z);
+          castAt.px[Y * AW + X] = own; castAt.who[Y * AW + X] = it.name;
+        }
+      }
+      y += tall[r];
+    });
+  });
+}
+const castHit = (e) => { const [x, y] = playAt(e).map(Math.floor), i = castAt && x >= 0 && y >= 0 && x < castAt.w && y < castAt.h ? y * castAt.w + x : -1; return i >= 0 && castAt.px[i] ? { color: nameAt(castAt.px[i]), thing: castAt.who[i] } : null; };
+function listPalette(box) {
+  const row = (name, label, what = '') => {
+    const r = el('div', { className: `row${hue === name ? ' on' : ''}` }, ...['day', 'night'].map((t) => el('span', { className: 'sw', style: `background:${name === 'night' ? PALETTES[t].bg : PALETTES[t][NAMED[name]]}` })),
+      el('span', { textContent: label }), el('span', { className: 'what', textContent: what }));
+    r.onclick = () => { hue = name; listParts(); inspect(); draw(); };
+    return r;
+  };
+  box.append(row('night', 'night', 'the colors by night'), el('div', { className: 'group' }, el('span', { textContent: 'Roles' })));
+  for (const r in palette.roles) box.append(row(r, nice(r)));
+  box.append(el('div', { className: 'group' }, el('span', { textContent: `Colors · ${Object.keys(palette.colors).length}` }),
+    el('button', { textContent: '+ add', title: 'A new color', onclick: () => {
+      const n = prompt('A name for the new color, by how it looks (lightBlue, darkRed)')?.trim(), bad = n && badName(n);
+      if (!n) return; if (bad) { alert(bad); return; }
+      commit(() => { palette.colors[n] = PALETTES.day[NAMED[hue]] || '#8a8a8a'; hue = n; }); refresh();
+    } })));
+  for (const c in palette.colors) box.append(row(c, nice(c)));
+}
+// a new color's name: by how it looks, letters, a small one first (lightBlue); not taken; room for it
+function badName(n) {
+  if (!/^[a-z][a-zA-Z]*$/.test(n)) return 'Letters only, a small one first: lightBlue.';
+  if (n in NAMED) return `There is a ${nice(n)} already.`;
+  if (Object.keys(NAMED).length >= MOST) return `The palette is full (${MOST} colors).`;
+  return null;
+}
+function inspectPalette(box) {
+  if (hue === 'night') {
+    box.append(el('h2', { textContent: 'Night' }), el('p', { className: 'note', textContent: 'By night each color is worked out from its day color, each channel: day × contrast + lift. The dark ones lighter, the light ones darker, so they show against the night sky. The roles have their own.' }));
+    box.append(field('contrast', numIn(palette.night.contrast, (x) => { palette.night.contrast = x; }, { min: 0.5, max: 1.2, step: 0.01 }), 'less: all nearer the middle'));
+    box.append(field('lift', numIn(palette.night.lift, (x) => { palette.night.lift = x; }, { min: -40, max: 80, step: 1, whole: true }), 'more: all lighter'));
+    return;
+  }
+  const role = isRole(hue), i = NAMED[hue];
+  box.append(el('h2', {}, el('span', { className: 'sw', style: `width:12px;height:12px;border-radius:3px;background:${PALETTES.day[i]}` }), el('span', { textContent: nice(hue) }), ...(role ? [el('span', { className: 'note', textContent: 'a role' })] : [])));
+  if (role) box.append(el('p', { className: 'note', textContent: ROLE_ABOUT[hue] || '' }));
+  // a color to set: picked (live while picking: one undo), or written
+  const hexIn = (get, put) => {
+    const pick = el('input', { type: 'color', value: get() }), text = el('input', { type: 'text', value: get(), size: 8 });
+    let live = false;
+    const set = (v) => { if (!live) { remember(); live = true; } put(v); changed(); };
+    pick.oninput = () => { text.value = pick.value; set(pick.value); };
+    pick.onchange = () => { live = false; inspect(); };
+    text.onchange = () => { const v = text.value.trim().toLowerCase(); if (!/^#[0-9a-f]{6}$/.test(v)) { text.style.borderColor = 'red'; return; } set(v); live = false; inspect(); };
+    return el('span', { className: 'nums' }, pick, text);
+  };
+  if (role) for (const t of ['day', 'night']) box.append(field(t, hexIn(() => palette.roles[hue][t], (v) => { palette.roles[hue][t] = v; })));
+  else {
+    box.append(field('day', hexIn(() => palette.colors[hue], (v) => { palette.colors[hue] = v; })));
+    box.append(field('night', el('span', { className: 'nums' }, el('span', { className: 'sw big', style: `background:${PALETTES.night[i]}` }), el('span', { className: 'note', textContent: PALETTES.night[i] })), 'worked out: see night'));
+  }
+  // its tones, as the shaded look works them out
+  const tones = el('div', { className: 'tones' }, el('span'), ...TONE_NAMES.map((t) => el('span', { className: 'note', textContent: t })));
+  for (const t of ['day', 'night']) tones.append(el('span', { className: 'note', textContent: t }), ...TONE_NAMES.map((_, k) => el('span', { className: 'sw big', title: colorOf(PALETTES[t], i + 64 * k), style: `background:${colorOf(PALETTES[t], i + 64 * k)}` })));
+  box.append(el('div', { className: 'group' }, el('span', { textContent: 'Tones' })), tones, el('p', { className: 'note', textContent: 'Worked out by the shaded look: the color times a cool tint, so always darker than it.' }));
+  // where it is
+  const named = KINDS.filter((k) => JSON.stringify(builds[k]).includes(`"${hue}"`)), drawn = (cast ||= castOf()).filter((it) => it.s.look().some((k) => k && k % 64 === i)).map((it) => it.name);
+  box.append(el('div', { className: 'group' }, el('span', { textContent: 'Where' })),
+    field('in files', el('span', { className: 'note', textContent: named.join(', ') || 'none' })), field('drawn in', el('span', { className: 'note', textContent: drawn.join(', ') || 'nothing on the stage' })));
+}
+// a color to set: a button, its swatch and name; clicked, the palette by it to pick from, and a new color to add (into
+// the palette: saved with it, assets/palette.js)
+function colorPick(value, on) {
+  const b = el('button', { type: 'button', className: 'colorPick', title: 'Pick from the palette' }, el('span', { className: 'sw', style: `background:${swatch(value)}` }), el('span', { textContent: nice(value) }));
+  b.onclick = (e) => { e.preventDefault(); if (popup?.anchor === b) unpop(); else popPalette(b, value, on); };
+  return b;
+}
+let popup = null;
+function unpop() { popup?.remove(); popup = null; }
+function popPalette(anchor, value, on) {
+  unpop();
+  const name = el('div', { className: 'popName', textContent: nice(value) }), grid = el('div', { className: 'popGrid' });
+  for (const c of paints()) {
+    const sw = el('button', { type: 'button', className: `popSw${c === value ? ' on' : ''}`, title: nice(c), style: `background:${swatch(c)}` });
+    sw.onmouseenter = () => { name.textContent = nice(c); }; sw.onmouseleave = () => { name.textContent = nice(value); };
+    sw.onclick = () => { unpop(); on(c); };
+    grid.append(sw);
+  }
+  const hex = el('input', { type: 'color', value: /^#/.test(swatch(value)) ? swatch(value) : '#8a8a8a' }), text = el('input', { type: 'text', placeholder: 'its name: lightBlue' }), err = el('div', { className: 'note' });
+  const addIt = () => { const n = text.value.trim(), bad = badName(n); if (bad) { err.textContent = bad; return; } palette.colors[n] = hex.value; setPalette(palette); unpop(); on(n); status(); };
+  text.onkeydown = (e) => { if (e.key === 'Enter') addIt(); };
+  popup = el('div', { className: 'pop' }, grid, name, el('div', { className: 'popNew' }, hex, text, el('button', { type: 'button', textContent: '+ Add', title: 'A new color in the palette', onclick: addIt })), err);
+  popup.anchor = anchor;
+  document.body.append(popup);
+  const r = anchor.getBoundingClientRect(), w = popup.offsetWidth, h = popup.offsetHeight;
+  popup.style.left = `${Math.max(8, Math.min(innerWidth - w - 8, r.left))}px`;
+  popup.style.top = `${r.bottom + 4 + h > innerHeight - 8 ? Math.max(8, r.top - h - 4) : r.bottom + 4}px`;
+}
+document.addEventListener('pointerdown', (e) => { if (popup && !popup.contains(e.target) && !popup.anchor.contains(e.target)) unpop(); });
+
 // ----------------------------------------------------------------------------------------- the preview: the game's scene
 const pv = { phase: 0, alt: 0, vAlt: 0, body: {}, t: 0, scroll: 0, wait: 0.6, cacti: [] };
 { let seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647); for (let i = 0; i < 3; i++) pv.cacti.push({ x: 140 + i * 110, s: cactus(rnd, i === 1) }); }
@@ -1070,14 +1252,16 @@ $('skin').onchange = () => {
   if (n) create(n, { recolor: {} }, base); else fillKinds();
 };
 $('undo').onclick = undo; $('redo').onclick = redo; $('save').onclick = save;
-$('revert').onclick = () => { remember(); restore(JSON.stringify({ build: saved[base] ? JSON.parse(saved[base]) : build, skin: skin && saved[kind] ? JSON.parse(saved[kind]) : skin })); };
+$('gameMode').onclick = () => setMode(view.mode === 'game' ? 'setup' : 'game');
+$('revert').onclick = () => { remember(); if (view.mode === 'game') { restore(savedPalette); return; } restore(JSON.stringify({ build: saved[base] ? JSON.parse(saved[base]) : build, skin: skin && saved[kind] ? JSON.parse(saved[kind]) : skin })); };
 document.addEventListener('keydown', (e) => {
   const typing = /INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName);
   const cmd = e.metaKey || e.ctrlKey;
+  if (popup && e.key === 'Escape') { unpop(); return; }
   if (cmd && e.key.toLowerCase() === 'z' && !typing) { e.preventDefault(); e.shiftKey ? redo() : undo(); }
   else if (cmd && e.key.toLowerCase() === 's') { e.preventDefault(); save(); }
+  else if (view.mode === 'play' || view.mode === 'game') return;
   else if (!typing && (e.key === 'Delete' || e.key === 'Backspace') && sel.type === 'item') { e.preventDefault(); itemDo('delete'); }
-  else if (view.mode === 'play') return;
   else if (!typing && e.key === 'Escape') { sel = { type: view.move === 'edit' ? 'rig' : 'frame' }; listParts(); inspect(); draw(); }
   else if (!typing && e.key === ' ' && view.mode === 'animate') { e.preventDefault(); $('play').click(); }
   else if (!typing && (e.key === 'ArrowLeft' || e.key === 'ArrowRight') && view.move !== 'edit') { // a frame back or on
@@ -1085,7 +1269,7 @@ document.addEventListener('keydown', (e) => {
     const n = frames(view.move); view.frame = (view.frame + (e.key === 'ArrowLeft' ? n - 1 : 1)) % n; place(); listParts(); inspect(); draw();
   }
 });
-window.addEventListener('beforeunload', (e) => { if (KINDS.some((k) => builds[k] && dirty(k))) e.preventDefault(); });
+window.addEventListener('beforeunload', (e) => { if (KINDS.some((k) => builds[k] && dirty(k)) || paletteDirty()) e.preventDefault(); });
 new ResizeObserver(() => kind && draw()).observe($('stageBox')); // (the window, or the timeline under it, changing)
 
 // every file in assets/ (as the dev server lists them; without it, the game's), the game's first; one not in the game
@@ -1100,5 +1284,5 @@ for (const k of [...Object.keys(GAME_ANIMALS), ...listed.filter((k) => !(k in GA
 for (const k of KINDS) if (!ANIMALS[k]) { ANIMALS[k] = { ...ANIMALS[baseOf(k)] || ANIMALS.cat, name: k.toUpperCase() }; setRig(k, rigFor(k)); }
 const asked = new URLSearchParams(location.search).get('animal');
 await choose(KINDS.includes(asked) ? asked : 'cat');
-setMode(['setup', 'animate', 'play'].includes(new URLSearchParams(location.search).get('mode')) ? new URLSearchParams(location.search).get('mode') : 'setup');
+setMode(['setup', 'animate', 'play', 'game'].includes(new URLSearchParams(location.search).get('mode')) ? new URLSearchParams(location.search).get('mode') : 'setup');
 requestAnimationFrame(tick);

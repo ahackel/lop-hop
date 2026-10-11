@@ -2,7 +2,7 @@
 export default {
   format: 2,
   name: 'yak',
-  fur: 'YAK',
+  fur: 'darkBrown',
   joints: { hip: [7.5, 10.6], chest: [14.5, 10.6], head: [19.4, 11] },
   torso: { r: 4.6, ends: 3.8 },
   shapes: [
@@ -16,17 +16,17 @@ export default {
     { name: 'muzzle', on: 'head', ellipse: [2.8, 1.8, 1.9, 1.7] },
   ],
   paint: [
-    { name: 'blaze', color: 'BELLY', on: 'head', capsule: [0.6, -2.4, 2.8, 2.2, 1.6] },
-    { name: 'strands', color: 'BOAR', on: 'spine', capsule: [-1.6, 1.6, -2, 5.6, 0.4] },
-    { name: 'strands', color: 'BOAR', on: 'spine', capsule: [2, 1.8, 1.8, 5.8, 0.4] },
-    { name: 'strands', color: 'BOAR', on: 'spine', capsule: [6.4, 1.8, 6.2, 5.8, 0.4] },
-    { name: 'strands', color: 'BOAR', on: 'spine', capsule: [9.6, 1.6, 9.8, 5.6, 0.4] },
+    { name: 'blaze', color: 'white', on: 'head', capsule: [0.6, -2.4, 2.8, 2.2, 1.6] },
+    { name: 'strands', color: 'darkBrown', on: 'spine', capsule: [-1.6, 1.6, -2, 5.6, 0.4] },
+    { name: 'strands', color: 'darkBrown', on: 'spine', capsule: [2, 1.8, 1.8, 5.8, 0.4] },
+    { name: 'strands', color: 'darkBrown', on: 'spine', capsule: [6.4, 1.8, 6.2, 5.8, 0.4] },
+    { name: 'strands', color: 'darkBrown', on: 'spine', capsule: [9.6, 1.6, 9.8, 5.6, 0.4] },
   ],
   dots: [{ name: 'nostril', on: 'head', at: [4.2, 1.8] }],
   top: [
     {
       name: 'horns',
-      color: 'HORN',
+      color: 'cream',
       shapes: [
         { on: 'head', capsule: [-0.4, -2.8, 2.8, -4, 0.85] },
         { on: 'head', capsule: [2.8, -4, 4, -5.6, 0.7] },

@@ -87,6 +87,11 @@ hurt, knocked out, happy; a mouth, if it has one) are drawn pixel by pixel in Se
 pick which one shows. An animal's skins (the wolf is the fox's: its colors swapped) are picked beside it, a new one
 made there, as is a new animal started from the one shown (in the editor until the game is given it: its place in
 `ANIMALS`); a leg or a pointed ear without one gets its far side made with a click (as the cat's: in every move, to tune).
+Colors come from the game's one palette (`assets/palette.js`: named for how they look, orange, darkGreen; a few with a job,
+outline, ink, the sky's): a color is picked from it in a popup, where a new one can be added. Game, beside the modes, edits
+it: everything the game draws, by day and by night, the color picked standing out (click a pixel to pick its color); a
+color is set by day, worked out by night (by a rule, set there too). Shading needs no colors of its own: each color's
+outline, underside and far legs are worked out from it, always darker.
 Drag the handles on the joints, shapes, legs, tails and ears, pick colors and layers in the list, watch the animal run in
 the game's scene, and save: it writes the animal's build back into its file. Its moves are on a timeline, with the frames
 before and after faded: a jump, hurt or knocked-out pose can be set by hand (drag the joints, paws, head, tail and ears of
@@ -123,7 +128,7 @@ browser out for good (your own; `?nocount=off` counts it again).
 | `font.js` | the pixel font: capitals 3×5 in a cell of 7 rows (a row above and below: Ä Ö Ü's dots, the $'s line, the comma's and Q's tails, brackets and / the whole height; room for accents), `text()` and `textWidth()` |
 | `icons.js` | the buttons' icons (7×7) and the pads' (9×9), as rows of pixels |
 | `lang.js`, `lang/` | what the game writes, in English and German: a file per language, a line each, `id = words`, written as usual (the game writes them in capitals); `npm test` checks every language has every id, the same `{name}` holes, only letters the font has, and lines that fit. A new language: a file with the ids of `en.txt`, its code in `LANGS` (`lang.js`), the file in `sw.js`, and the language in the Xcode project (`knownRegions`, Info.plist `CFBundleLocalizations`: an app reports only the languages it declares) |
-| `asset.js`, `assets/` | an object as an asset: one file of data each (`assets/<animal>.js`, format 2: its bones, the shapes on them, its face, the physics of its chains, how it is handled on the home screen, its moves: gaits' settings and clips' keys), what the editor saves and the game draws from; `asset.js` says what is in one |
+| `asset.js`, `assets/` | an object as an asset: one file of data each (`assets/<animal>.js`, format 2: its bones, the shapes on them, its face, the physics of its chains, how it is handled on the home screen, its moves: gaits' settings and clips' keys), what the editor saves and the game draws from; and the game's palette (`assets/palette.js`); `asset.js` says what is in one |
 | `editor/` | the editor, at /editor (through `npm run dev`, which saves for it: into the animal's file in `assets/`) |
 | `tools/balance.html` | the balance page: the animals' dials and the shared numbers, how hard each animal is (`balance-worker.js` works it out with `course.mjs`), and your runs |
 | `tools/font.html` | every letter of the font (`font.js`), any size (with its pixel grid and the cell's rows), a line to try (in capitals, as the game writes it; letters the font lacks named), and a suggestion: square letters like the title's |

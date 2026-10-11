@@ -2,7 +2,7 @@
 export default {
   format: 2,
   name: 'otter',
-  fur: 'BROWN',
+  fur: 'brown',
   joints: { hip: [6, 14], chest: [15.5, 11.8], head: [20.3, 8.3] },
   torso: { r: 3.8, ends: 0, capsule: true },
   shapes: [
@@ -12,9 +12,9 @@ export default {
     { name: 'ear', on: 'head', ellipse: [-2, -3.3, 1.2, 1.1] },
   ],
   paint: [
-    { name: 'snout', color: 'EAR', on: 'head', ellipse: [2.7, 1.2, 1.8, 1.5] },
-    { name: 'chin', color: 'EAR', on: 'head', ellipse: [1.7, 2.2, 2.5, 1.4] },
-    { name: 'belly', color: 'EAR', on: 'spine', ellipse: [5.4, 3.1, 4.5, 1.2] },
+    { name: 'snout', color: 'beige', on: 'head', ellipse: [2.7, 1.2, 1.8, 1.5] },
+    { name: 'chin', color: 'beige', on: 'head', ellipse: [1.7, 2.2, 2.5, 1.4] },
+    { name: 'belly', color: 'beige', on: 'spine', ellipse: [5.4, 3.1, 4.5, 1.2] },
   ],
   legs: {
     hindFar: { on: 'hip', at: [2.5, 2.6], thigh: 1.4, shin: 1.4, r: 0.9, far: true, bend: 1 },

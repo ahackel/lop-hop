@@ -2,17 +2,17 @@
 export default {
   format: 2,
   name: 'skunk',
-  fur: 'SKUNK',
+  fur: 'charcoal',
   joints: { hip: [8, 11.2], chest: [13, 11.2], head: [18.8, 12.6] },
   torso: { r: 7.2, ends: 4 },
   shapes: [],
-  paint: [{ name: 'stripe', color: 'BELLY', on: 'spine', capsule: [8, -4.7, -1.5, -5.6, 0.9] }],
+  paint: [{ name: 'stripe', color: 'white', on: 'spine', capsule: [8, -4.7, -1.5, -5.6, 0.9] }],
   top: [
     {
       name: 'head',
-      color: 'SKUNK',
+      color: 'charcoal',
       shapes: [{ on: 'head', ellipse: [0, 0, 3.3, 3] }, { on: 'head', ellipse: [3, 1.2, 1.8, 1.2] }, { on: 'head', ellipse: [-1.6, -2.8, 1, 1] }],
-      paint: [{ color: 'BELLY', on: 'head', capsule: [1.8, -1.4, -1.2, -2.8, 0.7] }],
+      paint: [{ color: 'white', on: 'head', capsule: [1.8, -1.4, -1.2, -2.8, 0.7] }],
     },
   ],
   legs: {
@@ -30,7 +30,7 @@ export default {
       length: 7.6,
       r: [2.3, 2.5],
       curl: 0.5,
-      marks: [[0.95, 'BELLY', 1.5]],
+      marks: [[0.95, 'white', 1.5]],
       stiffness: 600,
       damping: 22,
       weight: 50,
@@ -52,7 +52,7 @@ export default {
     duck: {
       joints: { hip: [7.5, 16], chest: [15.5, 16], head: [20, 16] },
       torso: { r: 3, ends: 4.7 },
-      paint: [{ color: 'BELLY', on: 'spine', capsule: [11.5, -2.4, -2, -2.7, 0.9] }],
+      paint: [{ color: 'white', on: 'spine', capsule: [11.5, -2.4, -2, -2.7, 0.9] }],
       chains: { tail: { at: [-3, -1], angle: 1.7, curl: 0.1 } },
       pad: [1.8, 1],
       over: true,
@@ -96,7 +96,7 @@ export default {
           eye: 'ko',
           joints: { hip: [8, 16], chest: [15, 16], head: [19.5, 16] },
           torso: { r: 3, ends: 4.5 },
-          paint: [{ color: 'BELLY', on: 'spine', capsule: [11.5, -2.4, -2, -2.7, 0.9] }],
+          paint: [{ color: 'white', on: 'spine', capsule: [11.5, -2.4, -2, -2.7, 0.9] }],
           chains: { tail: { at: [-3, -1], angle: 1.7, curl: 0.1 } },
           flip: true,
           paws: { hindFar: [11.5, 9.46], frontFar: [18.5, 9.46], hindNear: [7.5, 9.46], frontNear: [15.5, 9.46] },

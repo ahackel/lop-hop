@@ -2,18 +2,18 @@
 export default {
   format: 2,
   name: 'rhino',
-  fur: 'RHINO',
+  fur: 'grey',
   joints: { hip: [7.5, 11.5], chest: [14.5, 11.5], head: [19, 11] },
   torso: { r: 5, ends: 4 },
   shapes: [{ name: 'head', on: 'head', capsule: [-2.5, -1, 3, 1.4, 3] }],
   paint: [
-    { name: 'fold', color: 'RHINO_DARK', on: 'spine', capsule: [2, -4.5, 2, 4.5, 0.5] },
-    { name: 'fold', color: 'RHINO_DARK', on: 'spine', capsule: [7, -3.9, 7, 3.5, 0.5] },
+    { name: 'fold', color: 'darkGrey', on: 'spine', capsule: [2, -4.5, 2, 4.5, 0.5] },
+    { name: 'fold', color: 'darkGrey', on: 'spine', capsule: [7, -3.9, 7, 3.5, 0.5] },
   ],
   top: [
     {
       name: 'horns',
-      color: 'EAR',
+      color: 'beige',
       shapes: [{ on: 'head', triangle: [[2.4, -0.6], [4.4, -6.8], [5.4, 0]] }, { on: 'head', triangle: [[0, -2], [0.8, -4.4], [2, -2]] }],
     },
   ],
@@ -31,9 +31,9 @@ export default {
       links: 2,
       length: 4.4,
       r: 0.45,
-      color: 'OUT',
+      color: 'outline',
       line: true,
-      marks: [[1, 'OUT', 0.8]],
+      marks: [[1, 'outline', 0.8]],
       stiffness: 500,
       damping: 14,
       weight: 60,
@@ -58,14 +58,14 @@ export default {
       joints: { hip: [7.5, 16], chest: [15.5, 16], head: [20.3, 15.6] },
       torso: { r: 3.2, ends: 4.7 },
       paint: [
-        { color: 'RHINO_DARK', on: 'spine', capsule: [2, -2.6, 2, 2.6, 0.5] },
-        { color: 'RHINO_DARK', on: 'spine', capsule: [7, -2.6, 7, 2.6, 0.5] },
+        { color: 'darkGrey', on: 'spine', capsule: [2, -2.6, 2, 2.6, 0.5] },
+        { color: 'darkGrey', on: 'spine', capsule: [7, -2.6, 7, 2.6, 0.5] },
       ],
       shapes: [{ on: 'head', capsule: [-2.8, -0.2, 2.8, 1, 2.3] }],
       ownShapes: true,
       top: [
         {
-          color: 'EAR',
+          color: 'beige',
           shapes: [{ on: 'head', triangle: [[1.7, -0.6], [3.2, -5], [4.4, 0]] }, { on: 'head', triangle: [[-0.4, -1.2], [0.2, -3.2], [1.2, -1.2]] }],
         },
       ],
@@ -113,14 +113,14 @@ export default {
           joints: { hip: [8, 16], chest: [15, 16], head: [19.8, 15.6] },
           torso: { r: 3.2, ends: 4.5 },
           paint: [
-            { color: 'RHINO_DARK', on: 'spine', capsule: [2, -2.6, 2, 2.6, 0.5] },
-            { color: 'RHINO_DARK', on: 'spine', capsule: [7, -2.6, 7, 2.6, 0.5] },
+            { color: 'darkGrey', on: 'spine', capsule: [2, -2.6, 2, 2.6, 0.5] },
+            { color: 'darkGrey', on: 'spine', capsule: [7, -2.6, 7, 2.6, 0.5] },
           ],
           shapes: [{ on: 'head', capsule: [-2.8, -0.2, 2.8, 1, 2.3] }],
           ownShapes: true,
           top: [
             {
-              color: 'EAR',
+              color: 'beige',
               shapes: [
                 { on: 'head', triangle: [[1.7, -0.6], [3.2, -5], [4.4, 0]] },
                 { on: 'head', triangle: [[-0.4, -1.2], [0.2, -3.2], [1.2, -1.2]] },

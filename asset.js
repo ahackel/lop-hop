@@ -1,10 +1,20 @@
 // An object of the game as an asset: one file of data (assets/<name>.js), all there is to it: what the editor (editor/)
-// makes and saves, and the game draws and moves. The first kind: an animal, as a rig (see the rigs in art.js).
+// makes and saves, and the game draws and moves. The first kind: an animal, as a rig (see the rigs in art.js). And the
+// game's own: its palette.
+//
+// the palette (assets/palette.js, format 1): the game's colors, all of them, by name; everything is drawn in them (a
+// color in an asset: its name). The shaded look works out each color's tones (outline, underside, far leg) by rule,
+// always darker (see TONES in art.js): no color is needed for shading, only for markings. At most 63, roles and all
+//   roles        colors with a job, not to paint with (but outline: dots, a nose), each { day, night }: outline, ink
+//                (eyes, words), background (the sky; what is drawn in it looks like the sky), faint, dim
+//   colors       { name: its color by day }, named for the color (orange, darkGreen), never for what wears it
+//   night        the colors by night, each channel: day × contrast + lift (toward the middle: dark ones lighter, light
+//                ones darker, to show against the night sky)
 //
 // format 2, an animal (2D, from the side; x forward, y down, in the 26 × 20 box, its feet on row 19):
 //   format, name; of: the animal it is made from, a skin of it (the wolf: the fox's, its own over it: recolored; the
 //                editor makes one, and edits it with the one it is made from)
-//   fur          its color (a palette name: see NAMED in art.js), as every color is
+//   fur          its color (a palette name: see the palette, above), as every color is
 //   joints       the bones down the spine: hip, chest, head, places in the box. The spine runs from the hip to the chest
 //   torso        r (how thick), ends (how far past the hip and the chest), capsule (round ends): along the spine; r 0: none
 //   shapes       the body: ellipse [x, y, rx, ry], capsule [ax, ay, bx, by, r], box [x0, y0, x1, y1, r] or triangle

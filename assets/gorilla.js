@@ -2,7 +2,7 @@
 export default {
   format: 2,
   name: 'gorilla',
-  fur: 'GORILLA',
+  fur: 'charcoal',
   joints: { hip: [7.5, 11.2], chest: [13.5, 9], head: [18.6, 8.4] },
   torso: { r: 4.2, ends: 2.6 },
   shapes: [
@@ -12,11 +12,11 @@ export default {
     { name: 'jaw', on: 'head', ellipse: [2.6, 2.2, 2.4, 2] },
   ],
   paint: [
-    { name: 'silver', color: 'SILVER', on: 'spine', ellipse: [1.2, -2.4, 4.4, 2.2] },
-    { name: 'face', color: 'GORILLA_FACE', on: 'head', ellipse: [2.8, 1.2, 2.4, 2.8] },
+    { name: 'silver', color: 'blueGrey', on: 'spine', ellipse: [1.2, -2.4, 4.4, 2.2] },
+    { name: 'face', color: 'grey', on: 'head', ellipse: [2.8, 1.2, 2.4, 2.8] },
   ],
   dots: [{ name: 'nostril', on: 'head', at: [4.2, 1.4] }],
-  top: [{ name: 'brow', color: 'GORILLA', shapes: [{ on: 'head', capsule: [0.8, -1.6, 4.2, -1.3, 0.75] }] }],
+  top: [{ name: 'brow', color: 'charcoal', shapes: [{ on: 'head', capsule: [0.8, -1.6, 4.2, -1.3, 0.75] }] }],
   legs: {
     hindFar: { on: 'hip', at: [1, 3.2], thigh: 2, shin: 2.2, r: 1.1, far: true, bend: 1 },
     frontFar: { on: 'chest', at: [1.2, 3.4], thigh: 3.2, shin: 3.2, r: 1.2, foot: [1.2, 0.8], far: true, bend: 1 },
@@ -42,7 +42,7 @@ export default {
       torso: { r: 3.4, ends: 3.6 },
       ownShapes: true,
       shapes: [{ on: 'chest', ellipse: [0, -0.4, 3.6, 2.8] }, { use: 'head' }, { use: 'crest' }, { use: 'jaw' }],
-      paint: [{ color: 'SILVER', on: 'spine', ellipse: [1.6, -1.8, 4, 1.4] }, { use: 'face' }],
+      paint: [{ color: 'blueGrey', on: 'spine', ellipse: [1.6, -1.8, 4, 1.4] }, { use: 'face' }],
       top: [],
       pad: [1.8, 1],
       over: true,
@@ -96,7 +96,7 @@ export default {
           torso: { r: 3.4, ends: 3.4 },
           ownShapes: true,
           shapes: [{ on: 'chest', ellipse: [0, -0.4, 3.6, 2.8] }, { use: 'head' }, { use: 'crest' }, { use: 'jaw' }],
-          paint: [{ color: 'SILVER', on: 'spine', ellipse: [1.6, -1.8, 4, 1.4] }, { use: 'face' }],
+          paint: [{ color: 'blueGrey', on: 'spine', ellipse: [1.6, -1.8, 4, 1.4] }, { use: 'face' }],
           top: [],
           flip: true,
           paws: { hindFar: [10.802, 9.205], frontFar: [16.489, 7.053], hindNear: [6.803, 9.266], frontNear: [12.991, 7.114] },
@@ -164,7 +164,7 @@ export default {
           ease: 'step',
           top: [
             {
-              color: 'GORILLA',
+              color: 'charcoal',
               shapes: [
                 { capsule: [11.4, 7.6, 13.8, 11, 1.1] },
                 { capsule: [13.8, 11, 13.8, 9, 1.1] },
@@ -180,7 +180,7 @@ export default {
           at: 1,
           top: [
             {
-              color: 'GORILLA',
+              color: 'charcoal',
               shapes: [
                 { capsule: [11.4, 7.6, 13.8, 11, 1.1] },
                 { capsule: [13.8, 11, 14.4, 7.6, 1.1] },

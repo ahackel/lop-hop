@@ -2,6 +2,7 @@
 // triangles) and outlined. Each sprite comes with a collision mask. The animals are rigs (assets/*.js; see the rigs
 // below): their tails and ears swing to any angle, and never count in a collision.
 import { toBuild } from './asset.js';
+import palette from './assets/palette.js';
 import rabbit from './assets/rabbit.js';
 import cat from './assets/cat.js';
 import dog from './assets/dog.js';
@@ -30,24 +31,34 @@ export const W = 300, H = 90, GROUND = 78; // the world in art pixels; GROUND: t
 export const rgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
 export const luma = (hex) => { const [r, g, b] = rgb(hex); return 0.3 * r + 0.59 * g + 0.11 * b; };
 
-// palette indices
-const OUT = 1, FUR = 2, EAR = 3, PINK = 4, INK = 5, BERRY = 6, ORANGE = 7, LEAF = 8, FAINT = 9, LIGHT = 10, FOX = 11, BELLY = 12,
-  TAN = 14, BROWN = 15, GINGER = 16, STRIPE = 17, CACTUS = 18, CACTUS_DARK = 19, CACTUS_LIGHT = 20, YELLOW = 21, BARK = 22,
-  WOOD = 23, FISH = 24, LEAF_DARK = 25, GRAPE = 27, WOLF = 28, BOAR = 29, SNOUT = 30, WOLF_DARK = 31, SKUNK = 32, CHEETAH = 33, RHINO = 34, RHINO_DARK = 35, DINO = 36, DINO_LIGHT = 37,
-  ELEPHANT = 38, ELEPHANT_DARK = 39, PIG = 40, PIG_DARK = 41, YAK = 42, HORN = 43, OSTRICH = 44, OSTRICH_SKIN = 45, CAMEL = 46, CAMEL_DARK = 47,
-  GORILLA = 48, SILVER = 49, GORILLA_FACE = 50, BOAR_DARK = 51;
-export const COLOR = { INK, DIM: 13, BERRY, YELLOW, ENERGY: 26, LEAF, FAINT, WHITE: BELLY, ICE: FISH };
+// the palette (assets/palette.js): its colors by index (0: nothing), its roles first; by name (NAMED: what the assets
+// name). At most 63 (a sprite's tones are 64 on for each: see TONES)
+let PAL = palette;
+const NAMED = {}, numbered = () => { for (const k of [...Object.keys(PAL.roles), ...Object.keys(PAL.colors)]) NAMED[k] ||= Object.keys(NAMED).length + 1; };
+numbered();
+const { outline: OUT, ink: INK, background: BG, faint: FAINT, dim: DIM, white: WHITE, beige: BEIGE, pink: PINK, red: RED,
+  orange: ORANGE, rust: RUST, tan: TAN, brown: BROWN, darkBrown: DARK_BROWN, sand: SAND, yellow: YELLOW, lightGreen: LIGHT_GREEN,
+  green: GREEN, darkGreen: DARK_GREEN, deepGreen: DEEP_GREEN, blue: BLUE, purple: PURPLE } = NAMED;
+export const COLOR = { INK, DIM, FAINT, WHITE, RED, YELLOW, GREEN, BLUE, ORANGE, RUST };
 
-export const PALETTES = {
-  day: { bg: '#f7f6f0', 1: '#3a3a3a', 2: '#fdfbf6', 3: '#e3d2c2', 4: '#f19bb2', 5: '#535353', 6: '#d6455f', 7: '#ec6f2b', 8: '#62b04f', 9: '#dedbd0',
-    10: '#f7f6f0', 11: '#d9682b', 12: '#fdfbf6', 13: '#9a9a94', 14: '#dfa45e', 15: '#8a5a3b', 16: '#f2a65a', 17: '#c46f34', 18: '#6eae4c',
-    19: '#3e7a39', 20: '#a6d46c', 21: '#ffcf3a', 22: '#7a5236', 23: '#e2bd86', 24: '#7aa5cf', 25: '#3f8a3a', 26: '#5dbb4c', 27: '#7d4f9e', 28: '#8e919c', 29: '#5e4c40', 30: '#c9a395', 31: '#5a5c66', 32: '#585866', 33: '#e2b25a', 34: '#9a968f', 35: '#77736d', 36: '#8f9090', 37: '#cfcfcc', 38: '#a4a9b4', 39: '#7f8590',
-    40: '#f3b3b9', 41: '#de8f9b', 42: '#57463b', 43: '#ece4d0', 44: '#4f4b55', 45: '#e6aea2', 46: '#d8ad72', 47: '#b88a52', 48: '#55545e', 49: '#abacb5', 50: '#8d8893', 51: '#4a3b31' },
-  night: { bg: '#1d2033', 1: '#141625', 2: '#f4f1ea', 3: '#d3c3b3', 4: '#e88aa3', 5: '#c3c6d8', 6: '#e8607e', 7: '#ee8a2a', 8: '#4f9a48', 9: '#2e3350',
-    10: '#1d2033', 11: '#d9682b', 12: '#f4f1ea', 13: '#6a7090', 14: '#cf975a', 15: '#7a5038', 16: '#e69a52', 17: '#b06232', 18: '#4f9446',
-    19: '#2f6232', 20: '#86bd5e', 21: '#ffd24a', 22: '#6b4a33', 23: '#cfa974', 24: '#6f98c4', 25: '#2f6e35', 26: '#5dbb4c', 27: '#a274c4', 28: '#a3a6b3', 29: '#6e5a4c', 30: '#c39a8c', 31: '#6a6c78', 32: '#6c6c7a', 33: '#d4a650', 34: '#8e8a84', 35: '#6c6862', 36: '#9a9cac', 37: '#c9cad6', 38: '#979dad', 39: '#717787',
-    40: '#e3a0aa', 41: '#c98290', 42: '#655246', 43: '#d8d0bf', 44: '#5e5a66', 45: '#d39a90', 46: '#c49c66', 47: '#a67c4a', 48: '#62616d', 49: '#9e9fad', 50: '#958f9c', 51: '#57473b' },
+// a palette by day and by night: { bg, index: color }; by night, the colors as palette.night has them (the roles: their own)
+export const nightOf = (hex) => '#' + rgb(hex).map((v) => Math.round(Math.max(0, Math.min(255, v * PAL.night.contrast + PAL.night.lift))).toString(16).padStart(2, '0')).join('');
+const paletteBy = (time) => {
+  const pal = { bg: PAL.roles.background[time] };
+  for (const k in PAL.roles) pal[NAMED[k]] = PAL.roles[k][time];
+  for (const k in PAL.colors) pal[NAMED[k]] = time === 'day' ? PAL.colors[k] : nightOf(PAL.colors[k]);
+  return pal;
 };
+export const PALETTES = { day: paletteBy('day'), night: paletteBy('night') };
+// the editor's: the palette as it is being edited (a new color: the next index), drawn again in it from now on (the
+// palettes as they were, changed in place; every sprite's canvases made again: see draw)
+let painted = 0;
+export function setPalette(p) {
+  PAL = p; numbered();
+  for (const time in PALETTES) { const pal = PALETTES[time]; for (const k in pal) delete pal[k]; Object.assign(pal, paletteBy(time)); }
+  painted++; words.clear();
+  for (const cache of [golds, reds, shades]) for (const k in cache) delete cache[k];
+}
 
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 const ellipse = (cx, cy, rx, ry) => (x, y) => ((x + 0.5 - cx) / rx) ** 2 + ((y + 0.5 - cy) / ry) ** 2 <= 1;
@@ -116,9 +127,11 @@ function wordsOf(pal) {
 let STYLE = 'between';
 export const STYLES = ['between', 'outlined'];
 export function setStyle(s) { STYLE = STYLES.includes(s) ? s : 'between'; words.clear(); }
-const TONES = [null, ['#4b5687', 0.24], ['#2b2541', 0.55], ['#6c7398', 0.38]]; // (shade, line, far: toward a color, how far)
+// (shade, line, far: a color times this, each channel: always darker, and cooler; a white as if mixed toward the tint
+// by how much)
+const TONES = [null, ['#4b5687', 0.24], ['#2b2541', 0.55], ['#6c7398', 0.38]].map((t) => t && rgb(t[0]).map((v) => 1 - t[1] * (1 - v / 255)));
 const SHADE = 64, LINE = 128, FAR = 192;
-const toned = (hex, t) => { const a = rgb(hex), b = rgb(TONES[t][0]); return '#' + a.map((v, i) => Math.round(v + (b[i] - v) * TONES[t][1]).toString(16).padStart(2, '0')).join(''); };
+const toned = (hex, t) => '#' + rgb(hex).map((v, i) => Math.round(v * TONES[t][i]).toString(16).padStart(2, '0')).join('');
 // a styled pixel's color (k: as styled has it), in a palette
 export const colorOf = (pal, k) => (k < 64 ? pal[k] : toned(pal[k % 64], k >> 6));
 // a sprite's pixels in the look. The outline's pixels (OUT): next to nothing (the silhouette's), joined to it or in a
@@ -204,7 +217,7 @@ function sprite(g, mask, extra) {
       canvases = {};
     },
     draw(ctx, x, y, pal) {
-      const key = STYLE + pal.bg;
+      const key = STYLE + pal.bg + painted;
       let c = canvases[key];
       if (!c) {
         c = canvases[key] = spare.get(size)?.pop();
@@ -320,7 +333,7 @@ export const FACE_FRAMES = {
     happy: { at: [0, 0], rows: ['x.', '.x'] },
   },
 };
-export const FACE_INKS = { x: 'OUT', w: 'BELLY', p: 'PINK', r: 'BERRY', k: 'INK' };
+export const FACE_INKS = { x: 'outline', w: 'white', p: 'pink', r: 'red', k: 'ink' };
 const faceFrame = (head, part, name) => head.frames?.[part]?.[name] || FACE_FRAMES[part][name];
 // (put: a pixel of the sprite's grid; at: the one the anchor goes on; n: how big a pixel of the frame is there)
 function faceDraw(put, frame, [X, Y], n) {
@@ -350,7 +363,7 @@ function spikes(g, mask, where, phase = 0, speck = 0) {
 const balls = [0, 1, 2, 3].map((f) => {
   const g = new Grid(26, 20), m = g.layer([ellipse(12, 12.5, 6.5, 6.5)], BROWN, OUT);
   spikes(g, m, () => true, f, TAN);
-  g.paint([ellipse(13 + [0, 1, 0, -1][f], 13.5 + [0, 0, 1, 0][f], 2.6, 2.2)], EAR, m);
+  g.paint([ellipse(13 + [0, 1, 0, -1][f], 13.5 + [0, 0, 1, 0][f], 2.6, 2.2)], BEIGE, m);
   return sprite(g, m, { head: [12, 4] });
 });
 
@@ -363,8 +376,6 @@ const balls = [0, 1, 2, 3].map((f) => {
 const FILES = { rabbit, guineapig, cat, dog, pig, fox, hedgehog, squirrel, otter, skunk, wolf, boar, bear, yak, ostrich, cheetah, dromedary, rhino, gorilla, elephant, dino };
 export const rigOf = (asset, of = FILES[asset.of]) => (of ? { ...rigOf(of), ...toBuild(asset) } : { ...toBuild(asset), poses: asset.moves || {} });
 const RIGS = Object.fromEntries(Object.entries(FILES).map(([k, a]) => [k, rigOf(a)]));
-const NAMED = { OUT, FUR, EAR, PINK, INK, BERRY, ORANGE, LEAF, FAINT, LIGHT, FOX, BELLY, TAN, BROWN, GINGER, STRIPE, YELLOW, BARK, WOOD,
-  FISH, LEAF_DARK, GRAPE, WOLF, BOAR, SNOUT, WOLF_DARK, SKUNK, CHEETAH, RHINO, RHINO_DARK, DINO, DINO_LIGHT, ELEPHANT, ELEPHANT_DARK, PIG, PIG_DARK, YAK, HORN, OSTRICH, OSTRICH_SKIN, CAMEL, CAMEL_DARK, GORILLA, SILVER, GORILLA_FACE, BOAR_DARK };
 
 const plus = (a, b) => [a[0] + b[0], a[1] + b[1]], minus = (a, b) => [a[0] - b[0], a[1] - b[1]], times = (a, k) => [a[0] * k, a[1] * k];
 const turn = ([x, y], t) => [x * Math.cos(t) - y * Math.sin(t), x * Math.sin(t) + y * Math.cos(t)]; // (+: clockwise on screen)
@@ -1169,18 +1180,18 @@ export function cactus(rnd, big) {
   } else {
     parts.push([capsule(cx + 2.6, base - h + 4, cx + 2.6, base + 2, 1.8), cx + 2.6, 1.8], [capsule(cx - 1.8, base - h + 1.8, cx - 1.8, base + 2, 2.1), cx - 1.8, 2.1, true]);
   }
-  const mask = g.layer(parts.map((p) => p[0]), CACTUS, OUT);
+  const mask = g.layer(parts.map((p) => p[0]), GREEN, OUT);
   // shading: the left side lit, the right in shadow, a rib down the middle; arms lit on top
   for (const [shape, axis, r, rib] of parts) {
     for (let y = 0; y < g.h; y++) for (let x = 0; x < g.w; x++) {
       if (!shape(x, y)) continue;
       const i = y * g.w + x;
-      if (axis === null) { g.px[i] = !shape(x, y - 1) ? CACTUS_LIGHT : !shape(x, y + 1) ? CACTUS_DARK : CACTUS; continue; }
+      if (axis === null) { g.px[i] = !shape(x, y - 1) ? LIGHT_GREEN : !shape(x, y + 1) ? DARK_GREEN : GREEN; continue; }
       const d = x + 0.5 - axis;
-      g.px[i] = d < -r + 1.1 ? CACTUS_LIGHT : d > r - 1.1 ? CACTUS_DARK : rib && Math.abs(d) < 0.6 ? CACTUS_DARK : CACTUS;
+      g.px[i] = d < -r + 1.1 ? LIGHT_GREEN : d > r - 1.1 ? DARK_GREEN : rib && Math.abs(d) < 0.6 ? DARK_GREEN : GREEN;
     }
   }
-  if (type === 'pear') for (let i = 0; i < mask.length; i++) if (mask[i] && g.px[i] === CACTUS && rnd() < 0.12) g.px[i] = CACTUS_DARK;
+  if (type === 'pear') for (let i = 0; i < mask.length; i++) if (mask[i] && g.px[i] === GREEN && rnd() < 0.12) g.px[i] = DARK_GREEN;
   // spines: little ticks out of the outline, now and then
   const outline = g.px.map((c, i) => c === OUT && !mask[i]);
   for (let y = 0; y < g.h - 2; y++) for (let x = 0; x < g.w; x++) {
@@ -1190,7 +1201,7 @@ export function cactus(rnd, big) {
       if (g.get(x + dx, y + dy) === 0) g.dot(x + dx, y + dy, OUT);
     }
   }
-  if (type === 'pear') for (const [x, y] of [[cx - 2.8, base - h + 0.3], [cx + 3, base - h + 1.5]]) if (rnd() < 0.7) g.layer([ellipse(x, y, 1.2, 1.2)], BERRY, OUT);
+  if (type === 'pear') for (const [x, y] of [[cx - 2.8, base - h + 0.3], [cx + 3, base - h + 1.5]]) if (rnd() < 0.7) g.layer([ellipse(x, y, 1.2, 1.2)], RED, OUT);
   if (flower) {
     const [fx, fy] = flower;
     for (const [dx, dy, c] of [[0, 0, YELLOW], [-1, 0, PINK], [1, 0, PINK], [0, -1, PINK], [-1, 1, PINK], [1, 1, PINK]]) g.dot(fx + dx, fy + dy, c);
@@ -1199,7 +1210,7 @@ export function cactus(rnd, big) {
 }
 
 // a rock, in a land's colours (see ROCKS): grey, the desert's sandstone, the canyon's red, snowed on
-const ROCKS = { grey: [FAINT, LIGHT, INK], sand: [WOOD, BELLY, OUT], red: [STRIPE, GINGER, OUT], snowy: [FAINT, LIGHT, INK] };
+const ROCKS = { grey: [FAINT, BG, INK], sand: [SAND, WHITE, OUT], red: [RUST, TAN, OUT], snowy: [FAINT, BG, INK] };
 export function rock(rnd, look = 'grey') {
   const [fill, light, out] = ROCKS[look], w = 9 + Math.floor(rnd() * 4), g = new Grid(w + 2, 8);
   const mask = g.layer([ellipse(w / 2 + 1, 7, w / 2, 5)], fill, out);
@@ -1211,10 +1222,10 @@ export function rock(rnd, look = 'grey') {
 // a fallen log, its cut end toward the runner (snowy: snowed on)
 export function log(rnd, snowy = false) {
   const w = 14 + Math.floor(rnd() * 6), g = new Grid(w + 2, 9);
-  const mask = g.layer([capsule(3.5, 5, w - 3, 5, 3.4)], BARK, OUT);
+  const mask = g.layer([capsule(3.5, 5, w - 3, 5, 3.4)], BROWN, OUT);
   for (let x = 4; x < w - 5; x += 3 + Math.floor(rnd() * 2)) g.dot(x, 3 + Math.floor(rnd() * 4), BROWN);
-  g.layer([ellipse(3.5, 5, 2.4, 3.4)], WOOD, OUT);
-  g.dot(3, 4, BARK); g.dot(3, 5, BARK);
+  g.layer([ellipse(3.5, 5, 2.4, 3.4)], SAND, OUT);
+  g.dot(3, 4, BROWN); g.dot(3, 5, BROWN);
   if (snowy) snowOn(g, mask, 2);
   return sprite(g, mask);
 }
@@ -1224,7 +1235,7 @@ function snowOn(g, mask, rows) {
   for (let x = 0; x < g.w; x++) {
     let y = 0;
     while (y < g.h && !mask[y * g.w + x]) y++;
-    for (let k = 0, n = rows - (x % 3 === 2 ? 1 : 0); k < n && y + k < g.h; k++) if (mask[(y + k) * g.w + x]) g.px[(y + k) * g.w + x] = BELLY;
+    for (let k = 0, n = rows - (x % 3 === 2 ? 1 : 0); k < n && y + k < g.h; k++) if (mask[(y + k) * g.w + x]) g.px[(y + k) * g.w + x] = WHITE;
   }
 }
 
@@ -1232,53 +1243,53 @@ function snowOn(g, mask, rows) {
 export function bush(rnd) {
   const w = 12 + Math.floor(rnd() * 3), h = 8 + Math.floor(rnd() * 3), g = new Grid(w + 2, h + 3), b = g.h - 1, cx = g.w / 2;
   const mask = g.layer([ellipse(cx - w * 0.22, b - h * 0.42, w * 0.3, h * 0.42), ellipse(cx + w * 0.22, b - h * 0.4, w * 0.3, h * 0.42),
-    ellipse(cx, b - h * 0.58, w * 0.3, h * 0.45), capsule(cx - w * 0.3, b - 1.5, cx + w * 0.3, b - 1.5, 2)], LEAF, OUT);
+    ellipse(cx, b - h * 0.58, w * 0.3, h * 0.45), capsule(cx - w * 0.3, b - 1.5, cx + w * 0.3, b - 1.5, 2)], GREEN, OUT);
   for (let y = 0; y < g.h; y++) for (let x = 0; x < g.w; x++) {
     const i = y * g.w + x;
     if (!mask[i]) continue;
-    if (!mask[i - g.w]) g.px[i] = x < cx ? CACTUS_LIGHT : LEAF; // (lit from the top left)
-    else if (y === b || (x + 0.5 > cx + 1 && (x * 5 + y * 3) % 7 === 0)) g.px[i] = LEAF_DARK;
+    if (!mask[i - g.w]) g.px[i] = x < cx ? LIGHT_GREEN : GREEN; // (lit from the top left)
+    else if (y === b || (x + 0.5 > cx + 1 && (x * 5 + y * 3) % 7 === 0)) g.px[i] = DARK_GREEN;
   }
-  if (rnd() < 0.5) for (let k = 0; k < 3; k++) g.dot(cx - 4 + k * 3 + Math.floor(rnd() * 2), b - h * 0.5 + rnd() * 3, BERRY);
+  if (rnd() < 0.5) for (let k = 0; k < 3; k++) g.dot(cx - 4 + k * 3 + Math.floor(rnd() * 2), b - h * 0.5 + rnd() * 3, RED);
   return sprite(g, mask);
 }
 export function sunflower(rnd) {
   const h = 16 + Math.floor(rnd() * 4), g = new Grid(13, h + 2), b = g.h - 1, cx = 6.5, top = b - h + 4.8;
-  const stem = g.layer([capsule(cx, top, cx, b + 1, 0.9), ellipse(cx - 2.6, b - h * 0.45, 2.4, 1.1), ellipse(cx + 2.6, b - h * 0.28, 2.4, 1.1)], LEAF, OUT);
+  const stem = g.layer([capsule(cx, top, cx, b + 1, 0.9), ellipse(cx - 2.6, b - h * 0.45, 2.4, 1.1), ellipse(cx + 2.6, b - h * 0.28, 2.4, 1.1)], GREEN, OUT);
   const head = g.layer([ellipse(cx, top, 4.3, 4.3)], YELLOW, OUT);
   for (let a = 0; a < 8; a++) g.dot(cx - 0.5 + Math.cos(a * 0.785 + 0.4) * 3.6, top - 0.5 + Math.sin(a * 0.785 + 0.4) * 3.6, ORANGE); // (petals' tips)
   g.layer([ellipse(cx - 0.5, top, 2.1, 2.1)], BROWN);
-  g.dot(cx - 2, top - 2, BARK);
+  g.dot(cx - 2, top - 2, BROWN);
   return sprite(g, union(stem, head));
 }
 
 // the forest's: a toadstool (red, spotted); a young pine (snowy: snowed on); a tree stump, its rings on top
 export function toadstool(rnd) {
   const w = 11 + Math.floor(rnd() * 3), h = 9 + Math.floor(rnd() * 3), g = new Grid(w + 2, h + 2), b = g.h - 1, cx = g.w / 2, capY = b - h + 4.6;
-  const stem = g.layer([capsule(cx, capY, cx, b + 1, 2.2)], BELLY, OUT);
+  const stem = g.layer([capsule(cx, capY, cx, b + 1, 2.2)], WHITE, OUT);
   for (let y = 0; y < g.h; y++) for (let x = 0; x < g.w; x++) if (stem[y * g.w + x] && x + 0.5 > cx + 1) g.px[y * g.w + x] = FAINT;
-  const cap = g.layer([ellipse(cx, capY, w / 2, 3.8)], BERRY, OUT, [0, 0, g.w, Math.ceil(capY + 0.6)]);
-  for (const [dx, dy] of [[-2.5, -1.5], [1, -2.6], [3, -0.6], [-0.5, 0]]) if (rnd() < 0.8) g.dot(cx + dx, capY + dy, BELLY);
+  const cap = g.layer([ellipse(cx, capY, w / 2, 3.8)], RED, OUT, [0, 0, g.w, Math.ceil(capY + 0.6)]);
+  for (const [dx, dy] of [[-2.5, -1.5], [1, -2.6], [3, -0.6], [-0.5, 0]]) if (rnd() < 0.8) g.dot(cx + dx, capY + dy, WHITE);
   return sprite(g, union(stem, cap));
 }
 export function pine(rnd, snowy = false) {
   const h = 16 + Math.floor(rnd() * 4), g = new Grid(15, h + 2), b = g.h - 1, cx = g.w / 2, top = b - h + 0.8, step = (h - 4) / 3.2;
-  const trunk = g.layer([capsule(cx, b - 4, cx, b + 1, 1.3)], BARK, OUT);
-  const crown = g.layer([0, 1, 2].map((k) => { const y0 = top + k * step, y1 = y0 + (h - 4) / 2.2, half = 3 + k * 1.7; return triangle(cx, y0, cx - half, y1, cx + half, y1); }), LEAF_DARK, OUT);
+  const trunk = g.layer([capsule(cx, b - 4, cx, b + 1, 1.3)], BROWN, OUT);
+  const crown = g.layer([0, 1, 2].map((k) => { const y0 = top + k * step, y1 = y0 + (h - 4) / 2.2, half = 3 + k * 1.7; return triangle(cx, y0, cx - half, y1, cx + half, y1); }), DARK_GREEN, OUT);
   for (let y = 0; y < g.h; y++) for (let x = 0; x < g.w; x++) {
     const i = y * g.w + x;
-    if (crown[i] && !crown[i - 1] && x + 0.5 < cx) g.px[i] = LEAF; // (its left edges lit)
+    if (crown[i] && !crown[i - 1] && x + 0.5 < cx) g.px[i] = GREEN; // (its left edges lit)
   }
   if (snowy) { // snow on each tier's shoulders
-    for (let y = 1; y < g.h; y++) for (let x = 0; x < g.w; x++) { const i = y * g.w + x; if (crown[i] && !crown[i - g.w] && rnd() < 0.85) g.px[i] = BELLY; }
+    for (let y = 1; y < g.h; y++) for (let x = 0; x < g.w; x++) { const i = y * g.w + x; if (crown[i] && !crown[i - g.w] && rnd() < 0.85) g.px[i] = WHITE; }
   }
   return sprite(g, union(trunk, crown));
 }
 export function stump(rnd) {
   const w = 11 + Math.floor(rnd() * 3), h = 8 + Math.floor(rnd() * 3), g = new Grid(w + 4, h + 2), b = g.h - 1, cx = g.w / 2, topY = b - h + 2.6;
-  const body = g.layer([(x, y) => Math.abs(x + 0.5 - cx) <= w / 2 - 0.5 && y + 0.5 >= topY, ellipse(cx, b + 0.5, w / 2 + 1.2, 1.6)], BARK, OUT);
+  const body = g.layer([(x, y) => Math.abs(x + 0.5 - cx) <= w / 2 - 0.5 && y + 0.5 >= topY, ellipse(cx, b + 0.5, w / 2 + 1.2, 1.6)], BROWN, OUT);
   for (let x = Math.round(cx - w / 2 + 2); x < cx + w / 2 - 1; x += 3) for (let y = Math.ceil(topY + 2); y < b; y++) if ((x + y) % 4) g.dot(x, y, BROWN);
-  const top = g.layer([ellipse(cx, topY, w / 2 - 0.5, 1.7)], WOOD, OUT);
+  const top = g.layer([ellipse(cx, topY, w / 2 - 0.5, 1.7)], SAND, OUT);
   g.dot(cx - 0.5, topY - 0.5, BROWN); g.dot(cx + 1.5, topY - 0.5, TAN); g.dot(cx - 2.5, topY - 0.5, TAN);
   return sprite(g, union(body, top));
 }
@@ -1290,7 +1301,7 @@ export function boulders(rnd) {
   if (rnd() < 0.6) shapes.push(ellipse(cx + (off > 0 ? -6 : 6), b - 1.5, 2.6, 2));
   const mask = g.layer(shapes, FAINT, INK);
   for (let y = 0; y < g.h; y++) for (let x = 0; x < g.w; x++) { const i = y * g.w + x; if (mask[i] && !mask[i + 1] && !mask[i + g.w + 1] && y < b) g.px[i] = COLOR.DIM; } // (shadowed on the right)
-  for (const [x, y] of [[cx - 4, b - 7], [cx - 3, b - 8], [cx + off - 2, b - 13], [cx + off - 1, b - 14]]) g.dot(x, y, LIGHT);
+  for (const [x, y] of [[cx - 4, b - 7], [cx - 3, b - 8], [cx + off - 2, b - 13], [cx + off - 1, b - 14]]) g.dot(x, y, BG);
   g.dot(cx + 3, b - 4, INK); g.dot(cx + 4, b - 3, INK); // (a crack)
   return sprite(g, mask);
 }
@@ -1298,12 +1309,12 @@ export function boulders(rnd) {
 // the canyon's: a spire of red rock, banded; a tumbleweed (rolling in from the desert too)
 export function spire(rnd) {
   const h = 16 + Math.floor(rnd() * 4), g = new Grid(14, h + 2), b = g.h - 1, cx = 7, o = rnd() * 6;
-  const mask = g.layer([(x, y) => { const t = (b + 1 - (y + 0.5)) / h; return t <= 1 && Math.abs(x + 0.5 - cx) <= 5 - 2.4 * t + Math.sin(y * 1.3 + o) * 0.5; }], STRIPE, OUT);
+  const mask = g.layer([(x, y) => { const t = (b + 1 - (y + 0.5)) / h; return t <= 1 && Math.abs(x + 0.5 - cx) <= 5 - 2.4 * t + Math.sin(y * 1.3 + o) * 0.5; }], RUST, OUT);
   for (let y = 0; y < g.h; y++) for (let x = 0; x < g.w; x++) {
     const i = y * g.w + x;
     if (!mask[i]) continue;
     if (!mask[i + 1]) g.px[i] = BROWN; // (its right side in shadow)
-    else if ((y + Math.floor(o)) % 4 === 0 || !mask[i - g.w]) g.px[i] = GINGER; // (bands, and the top)
+    else if ((y + Math.floor(o)) % 4 === 0 || !mask[i - g.w]) g.px[i] = TAN; // (bands, and the top)
   }
   return sprite(g, mask);
 }
@@ -1321,11 +1332,11 @@ export function tumbleweed(rnd) {
 // the snow's: a snowman (a hat now and then, a carrot nose turned to the runner, stick arms); a block of ice, snowed on
 export function snowman(rnd) {
   const hat = rnd() < 0.5, g = new Grid(15, hat ? 20 : 19), b = g.h - 1, cx = 7.5, balls = [[b - 3.6, 4.6], [b - 10.2, 3.4], [b - 15, 2.6]];
-  g.layer([capsule(cx - 3, balls[1][0], cx - 6.5, balls[1][0] - 3, 0.5), capsule(cx + 3, balls[1][0], cx + 6.5, balls[1][0] - 2.5, 0.5)], BARK);
-  const mask = g.layer(balls.map(([y, r]) => ellipse(cx, y, r, r)), BELLY, OUT);
+  g.layer([capsule(cx - 3, balls[1][0], cx - 6.5, balls[1][0] - 3, 0.5), capsule(cx + 3, balls[1][0], cx + 6.5, balls[1][0] - 2.5, 0.5)], BROWN);
+  const mask = g.layer(balls.map(([y, r]) => ellipse(cx, y, r, r)), WHITE, OUT);
   for (let y = 0; y < g.h; y++) for (let x = 0; x < g.w; x++) {
     const i = y * g.w + x, [by, r] = balls.find(([cy, cr]) => Math.abs(y + 0.5 - cy) <= cr) || balls[0];
-    if (mask[i] && x + 0.5 - cx + (y + 0.5 - by) > r * 0.95) g.px[i] = FISH; // (shaded blue, lower right)
+    if (mask[i] && x + 0.5 - cx + (y + 0.5 - by) > r * 0.95) g.px[i] = BLUE; // (shaded blue, lower right)
   }
   const [hy] = balls[2];
   g.dot(cx - 2, hy - 1, INK); g.dot(cx, hy - 1, INK); g.dot(cx - 3, hy, ORANGE); g.dot(cx - 4, hy, ORANGE);
@@ -1335,18 +1346,18 @@ export function snowman(rnd) {
 }
 export function ice(rnd) {
   const w = 10 + Math.floor(rnd() * 3), h = 8 + Math.floor(rnd() * 3), g = new Grid(w + 2, h + 2), b = g.h - 1;
-  const mask = g.layer([(x, y) => x >= 1 && x <= w && y >= b - h + 1], FISH, OUT);
-  for (let k = 0; k < 3; k++) g.dot(3 + k, b - 3 - k, BELLY); // (a glint)
-  g.dot(w - 1, b - 1, BELLY);
+  const mask = g.layer([(x, y) => x >= 1 && x <= w && y >= b - h + 1], BLUE, OUT);
+  for (let k = 0; k < 3; k++) g.dot(3 + k, b - 3 - k, WHITE); // (a glint)
+  g.dot(w - 1, b - 1, WHITE);
   snowOn(g, mask, 2);
   return sprite(g, mask);
 }
 
 // a leafy branch hanging from the trees above, down to DUCK_UNDER: its leaves in a land's colours (LEAVES: leaf, shade,
 // berries?, the stem's colour, spines?): the desert's a cactus hanging down, green and spiny
-const LEAVES = { green: [LEAF, LEAF_DARK, true], cactus: [CACTUS, CACTUS_DARK, false, CACTUS_DARK, true], needles: [LEAF_DARK, CACTUS_DARK, false], autumn: [GINGER, STRIPE, true], snowy: [BELLY, FAINT, false] };
+const LEAVES = { green: [GREEN, DARK_GREEN, true], cactus: [GREEN, DARK_GREEN, false, DARK_GREEN, true], needles: [DARK_GREEN, DEEP_GREEN, false], autumn: [TAN, RUST, true], snowy: [WHITE, FAINT, false] };
 export const TRUNK = 160; // (a branch's trunk goes on this far above the world's top: up into the sky a tall screen adds)
-export function branch(rnd, [leaf, dark, berries, wood = BARK, spiny = false] = LEAVES.green) {
+export function branch(rnd, [leaf, dark, berries, wood = BROWN, spiny = false] = LEAVES.green) {
   const T = TRUNK, g = new Grid(26, T + DUCK_UNDER + 1), b = g.h - 1, x0 = 6 + rnd() * 6;
   const stem = [capsule(x0, 0, x0, T - 2, 1.5), capsule(x0, T - 2, x0 + 3, b - 12, 1.5), capsule(x0 + 3, b - 12, 13, b - 5, 1.2)];
   const leaves = [ellipse(13, b - 3.2, 6.5, 3.6), ellipse(7.5, b - 5, 4.2, 3.2), ellipse(19, b - 5.5, 4.2, 3.2), ellipse(12.5, b - 7.5, 4.5, 3),
@@ -1356,9 +1367,9 @@ export function branch(rnd, [leaf, dark, berries, wood = BARK, spiny = false] = 
     const i = y * g.w + x;
     if (g.px[i] === leaf && (!mask[i + g.w] || y === g.h - 1 || (x * 7 + y * 3) % 11 === 0)) g.px[i] = dark;
   }
-  for (let k = 0; k < 3; k++) if (rnd() < 0.5 && berries) g.layer([ellipse(7 + k * 5 + rnd() * 2, b - 2 + rnd() * 1.5, 1.2, 1.2)], BERRY, OUT);
+  for (let k = 0; k < 3; k++) if (rnd() < 0.5 && berries) g.layer([ellipse(7 + k * 5 + rnd() * 2, b - 2 + rnd() * 1.5, 1.2, 1.2)], RED, OUT);
   if (spiny) { // spines: little ticks out of the outline, now and then, sideways and up (none below: it ends on DUCK_UNDER)
-    for (let i = g.w; i < g.px.length; i++) if (g.px[i] === leaf && !mask[i - g.w]) g.px[i] = CACTUS_LIGHT; // (lit from above)
+    for (let i = g.w; i < g.px.length; i++) if (g.px[i] === leaf && !mask[i - g.w]) g.px[i] = LIGHT_GREEN; // (lit from above)
     const outline = g.px.map((c, i) => c === OUT && !mask[i]);
     for (let y = T - 10; y < g.h; y++) for (let x = 0; x < g.w; x++) {
       if (!outline[y * g.w + x] || rnd() > 0.3) continue;
@@ -1374,7 +1385,7 @@ const crows = [0, 1].map((f) => {
   const g = new Grid(17, 11);
   const mask = g.layer([ellipse(9, 6.5, 5, 2.4), ellipse(3.8, 5.3, 2.2, 2), capsule(13, 6.5, 16, 5.5, 1.1), capsule(1.5, 5.6, 0.2, 6, 0.6),
     f ? capsule(9, 7, 11, 9.3, 1.4) : capsule(9, 6, 11, 1, 1.4)], INK);
-  g.dot(3, 4, LIGHT);
+  g.dot(3, 4, BG);
   return sprite(g, mask);
 });
 export const crow = (f) => crows[f];
@@ -1415,104 +1426,104 @@ export function face(kind) {
 // ------------------------------------------------------------------------------------------------------------- food
 function bone() {
   const g = new Grid(12, 7);
-  g.layer([capsule(3, 3.5, 9, 3.5, 1.2), ellipse(2.2, 2.4, 1.6, 1.6), ellipse(2.2, 4.6, 1.6, 1.6), ellipse(9.8, 2.4, 1.6, 1.6), ellipse(9.8, 4.6, 1.6, 1.6)], BELLY, OUT);
+  g.layer([capsule(3, 3.5, 9, 3.5, 1.2), ellipse(2.2, 2.4, 1.6, 1.6), ellipse(2.2, 4.6, 1.6, 1.6), ellipse(9.8, 2.4, 1.6, 1.6), ellipse(9.8, 4.6, 1.6, 1.6)], WHITE, OUT);
   return sprite(g, new Uint8Array(g.w * g.h));
 }
 function fish() {
   const g = new Grid(12, 8);
-  g.layer([ellipse(6.5, 4, 3.8, 2.4), triangle(0.5, 1.2, 0.5, 6.8, 3.4, 4)], FISH, OUT);
-  g.dot(8, 3, OUT); g.dot(6, 4, LIGHT); g.dot(4, 3, LIGHT);
+  g.layer([ellipse(6.5, 4, 3.8, 2.4), triangle(0.5, 1.2, 0.5, 6.8, 3.4, 4)], BLUE, OUT);
+  g.dot(8, 3, OUT); g.dot(6, 4, BG); g.dot(4, 3, BG);
   return sprite(g, new Uint8Array(g.w * g.h));
 }
 function carrot() {
   const g = new Grid(9, 12);
-  g.layer([capsule(4.5, 3.5, 2.6, 0.8, 0.6), capsule(4.5, 3.5, 4.5, 0.4, 0.6), capsule(4.5, 3.5, 6.4, 0.9, 0.6)], LEAF);
+  g.layer([capsule(4.5, 3.5, 2.6, 0.8, 0.6), capsule(4.5, 3.5, 4.5, 0.4, 0.6), capsule(4.5, 3.5, 6.4, 0.9, 0.6)], GREEN);
   const m = g.layer([ellipse(4.5, 4.8, 2.4, 1.5), triangle(2.1, 4.8, 6.9, 4.8, 4.6, 11.2)], ORANGE, OUT);
-  g.paint([capsule(3.5, 6.5, 4.4, 6.5, 0.4), capsule(4.6, 8.5, 5.2, 8.5, 0.4)], STRIPE, m); // its rings
-  g.dot(3, 5, LIGHT);
+  g.paint([capsule(3.5, 6.5, 4.4, 6.5, 0.4), capsule(4.6, 8.5, 5.2, 8.5, 0.4)], RUST, m); // its rings
+  g.dot(3, 5, BG);
   return sprite(g, new Uint8Array(g.w * g.h));
 }
 // grapes, for the fox (the sour ones of the fable, within reach now)
 function grapes() {
   const g = new Grid(10, 11);
-  g.layer([capsule(5, 0.5, 5.5, 2.5, 0.6)], LEAF);
-  for (const [x, y] of [[2.5, 4], [5, 3.8], [7.5, 4], [3.8, 6.3], [6.2, 6.3], [5, 8.6]]) { g.layer([ellipse(x, y, 1.5, 1.5)], GRAPE, OUT); g.dot(x - 1, y - 1, LIGHT); }
+  g.layer([capsule(5, 0.5, 5.5, 2.5, 0.6)], GREEN);
+  for (const [x, y] of [[2.5, 4], [5, 3.8], [7.5, 4], [3.8, 6.3], [6.2, 6.3], [5, 8.6]]) { g.layer([ellipse(x, y, 1.5, 1.5)], PURPLE, OUT); g.dot(x - 1, y - 1, BG); }
   return sprite(g, new Uint8Array(g.w * g.h));
 }
 // the later animals' food: an apple, an acorn, a shell, a beetle, a sausage, a mushroom
 const food = (w, h, draw) => { const g = new Grid(w, h); draw(g); return sprite(g, new Uint8Array(w * h)); };
 const apple = food(8, 9, (g) => {
-  g.layer([capsule(4, 0.6, 4.2, 2.2, 0.5)], BARK); g.layer([ellipse(5.8, 1.3, 1.3, 0.7)], LEAF);
-  g.layer([ellipse(4, 5.4, 3, 3)], BERRY, OUT); g.dot(3, 4, LIGHT);
+  g.layer([capsule(4, 0.6, 4.2, 2.2, 0.5)], BROWN); g.layer([ellipse(5.8, 1.3, 1.3, 0.7)], GREEN);
+  g.layer([ellipse(4, 5.4, 3, 3)], RED, OUT); g.dot(3, 4, BG);
 });
 // (no food is yellow or golden: that is the golden food's, for a super power)
 const acorn = food(8, 9, (g) => {
-  g.layer([ellipse(4, 5.8, 2.4, 2.6)], STRIPE, OUT); g.layer([ellipse(4, 3.3, 3.2, 1.7)], BARK, OUT); g.dot(4, 0, BARK); g.dot(3, 5, LIGHT);
+  g.layer([ellipse(4, 5.8, 2.4, 2.6)], RUST, OUT); g.layer([ellipse(4, 3.3, 3.2, 1.7)], BROWN, OUT); g.dot(4, 0, BROWN); g.dot(3, 5, BG);
 });
 const shell = food(10, 8, (g) => {
-  const m = g.layer([ellipse(5, 4.4, 4.2, 3.4), ellipse(5, 7, 1.6, 0.9)], BELLY, OUT);
+  const m = g.layer([ellipse(5, 4.4, 4.2, 3.4), ellipse(5, 7, 1.6, 0.9)], WHITE, OUT);
   g.paint([capsule(5, 7, 2, 2, 0.4), capsule(5, 7, 5, 1.5, 0.4), capsule(5, 7, 8, 2, 0.4)], PINK, m);
 });
 const beetle = food(9, 7, (g) => {
   for (const [x1, y1, x2, y2] of [[2, 4, 0.5, 6], [4.5, 4.5, 4.5, 6.5], [7, 4, 8.5, 6], [3, 2, 1.5, 0.5], [6, 2, 7.5, 0.5]]) g.layer([capsule(x1, y1, x2, y2, 0.4)], OUT);
-  g.layer([ellipse(4.5, 3.5, 3, 2.3)], LEAF_DARK, OUT); g.dot(4, 2, LIGHT); g.dot(4, 3, OUT); g.dot(4, 4, OUT);
+  g.layer([ellipse(4.5, 3.5, 3, 2.3)], DARK_GREEN, OUT); g.dot(4, 2, BG); g.dot(4, 3, OUT); g.dot(4, 4, OUT);
 });
 const sausage = food(12, 7, (g) => {
-  g.layer([capsule(2.5, 4, 9.5, 3, 1.8)], FOX, OUT); g.dot(4, 2, LIGHT); g.dot(5, 2, LIGHT); g.dot(0, 5, OUT); g.dot(11, 2, OUT);
+  g.layer([capsule(2.5, 4, 9.5, 3, 1.8)], ORANGE, OUT); g.dot(4, 2, BG); g.dot(5, 2, BG); g.dot(0, 5, OUT); g.dot(11, 2, OUT);
 });
 const mushroom = food(9, 9, (g) => {
-  g.layer([capsule(4.5, 5, 4.5, 7.6, 1.2)], BELLY, OUT);
-  const m = g.layer([(x, y) => y < 4.5 && ellipse(4.5, 4.4, 4, 3.6)(x, y)], BERRY, OUT);
-  g.paint([ellipse(3, 2.5, 0.7, 0.7), ellipse(6, 2, 0.7, 0.7), ellipse(5, 3.6, 0.5, 0.5)], BELLY, m);
+  g.layer([capsule(4.5, 5, 4.5, 7.6, 1.2)], WHITE, OUT);
+  const m = g.layer([(x, y) => y < 4.5 && ellipse(4.5, 4.4, 4, 3.6)(x, y)], RED, OUT);
+  g.paint([ellipse(3, 2.5, 0.7, 0.7), ellipse(6, 2, 0.7, 0.7), ellipse(5, 3.6, 0.5, 0.5)], WHITE, m);
 });
 const berries = food(10, 8, (g) => {
-  g.layer([ellipse(6.8, 1.3, 1.5, 0.8)], LEAF);
-  for (const [x, y] of [[3, 3.5], [6, 3.6], [4.5, 5.8], [7.6, 6]]) { g.layer([ellipse(x, y, 1.6, 1.6)], FISH, OUT); g.dot(x - 1, y - 1, LIGHT); }
+  g.layer([ellipse(6.8, 1.3, 1.5, 0.8)], GREEN);
+  for (const [x, y] of [[3, 3.5], [6, 3.6], [4.5, 5.8], [7.6, 6]]) { g.layer([ellipse(x, y, 1.6, 1.6)], BLUE, OUT); g.dot(x - 1, y - 1, BG); }
 });
 const leaf = food(10, 7, (g) => {
-  const m = g.layer([ellipse(5.5, 3.5, 4.2, 2.4)], LEAF, OUT); g.paint([capsule(1.5, 3.5, 9, 3.5, 0.45)], LEAF_DARK, m); g.layer([capsule(0, 4.5, 1.5, 3.5, 0.4)], LEAF_DARK);
+  const m = g.layer([ellipse(5.5, 3.5, 4.2, 2.4)], GREEN, OUT); g.paint([capsule(1.5, 3.5, 9, 3.5, 0.45)], DARK_GREEN, m); g.layer([capsule(0, 4.5, 1.5, 3.5, 0.4)], DARK_GREEN);
 });
 const drumstick = food(11, 8, (g) => {
-  g.layer([capsule(1.5, 6, 4, 4, 0.7), ellipse(1.2, 6.8, 1, 1)], BELLY, OUT);
-  g.layer([ellipse(6.8, 3.5, 3.6, 2.8)], FOX, OUT); g.dot(6, 2, LIGHT);
+  g.layer([capsule(1.5, 6, 4, 4, 0.7), ellipse(1.2, 6.8, 1, 1)], WHITE, OUT);
+  g.layer([ellipse(6.8, 3.5, 3.6, 2.8)], ORANGE, OUT); g.dot(6, 2, BG);
 });
 // the dino's: a big roasted leg, its bone sticking out with a knobbed end (the biggest food, for the biggest animal)
 const roast = food(16, 12, (g) => {
-  g.layer([capsule(3.2, 9.2, 8, 5.5, 0.8), ellipse(2.4, 8.2, 1.2, 1.2), ellipse(4, 10.3, 1.2, 1.2)], BELLY, OUT);
-  g.layer([ellipse(10.5, 4.6, 4.6, 3.6)], BROWN, OUT); g.layer([ellipse(10.2, 3.5, 2.6, 1.5)], TAN); g.dot(9, 2, LIGHT);
+  g.layer([capsule(3.2, 9.2, 8, 5.5, 0.8), ellipse(2.4, 8.2, 1.2, 1.2), ellipse(4, 10.3, 1.2, 1.2)], WHITE, OUT);
+  g.layer([ellipse(10.5, 4.6, 4.6, 3.6)], BROWN, OUT); g.layer([ellipse(10.2, 3.5, 2.6, 1.5)], TAN); g.dot(9, 2, BG);
 });
 // the elephant's: a peanut in its shell, pinched in the middle, its pits in a darker brown
 const peanut = food(11, 7, (g) => {
   const m = g.layer([ellipse(3.2, 3.6, 2.6, 2.4), ellipse(7.6, 3.4, 2.7, 2.5), capsule(3.5, 3.6, 7.3, 3.4, 1.7)], TAN, OUT);
   g.paint([ellipse(2.6, 3, 0.5, 0.5), ellipse(4, 4.6, 0.5, 0.5), ellipse(7, 2.6, 0.5, 0.5), ellipse(8.4, 4.2, 0.5, 0.5), ellipse(6.2, 4.4, 0.5, 0.5)], BROWN, m);
-  g.dot(7, 1, LIGHT);
+  g.dot(7, 1, BG);
 });
 // the newer animals': a cucumber (the guinea pig's), a truffle (the pig's), a bundle of hay (the yak's), a slice of melon
 // (the ostrich's), a date (the dromedary's), a fig (the gorilla's)
 const cucumber = food(12, 6, (g) => {
-  const m = g.layer([capsule(2.4, 3.2, 9.6, 2.6, 2)], LEAF_DARK, OUT);
-  g.paint([capsule(3, 2.2, 8, 1.8, 0.4)], LEAF, m); g.dot(4, 4, CACTUS_LIGHT); g.dot(7, 3, CACTUS_LIGHT); g.dot(10, 2, LEAF);
+  const m = g.layer([capsule(2.4, 3.2, 9.6, 2.6, 2)], DARK_GREEN, OUT);
+  g.paint([capsule(3, 2.2, 8, 1.8, 0.4)], GREEN, m); g.dot(4, 4, LIGHT_GREEN); g.dot(7, 3, LIGHT_GREEN); g.dot(10, 2, GREEN);
 });
 // (a truffle: a dark knobbly lump, dug up)
 const truffle = food(9, 8, (g) => {
-  const m = g.layer([ellipse(4.5, 4.4, 3.4, 2.9), ellipse(3, 2.8, 1.6, 1.4), ellipse(6.4, 3.2, 1.5, 1.3)], BARK, OUT);
+  const m = g.layer([ellipse(4.5, 4.4, 3.4, 2.9), ellipse(3, 2.8, 1.6, 1.4), ellipse(6.4, 3.2, 1.5, 1.3)], BROWN, OUT);
   g.paint([ellipse(3.4, 4.6, 0.6, 0.6), ellipse(5.8, 5.4, 0.6, 0.6), ellipse(5, 3.2, 0.5, 0.5)], BROWN, m); g.dot(3, 2, TAN);
 });
 const hay = food(11, 9, (g) => {
-  const m = g.layer([capsule(2.5, 1.6, 2.5, 7.2, 1.4), capsule(5.5, 1.2, 5.5, 7.6, 1.4), capsule(8.5, 1.6, 8.5, 7.2, 1.4)], WOOD, OUT);
-  g.paint([capsule(1, 4.4, 10, 4.4, 0.6)], STRIPE, m); g.dot(4, 2, LIGHT);
+  const m = g.layer([capsule(2.5, 1.6, 2.5, 7.2, 1.4), capsule(5.5, 1.2, 5.5, 7.6, 1.4), capsule(8.5, 1.6, 8.5, 7.2, 1.4)], SAND, OUT);
+  g.paint([capsule(1, 4.4, 10, 4.4, 0.6)], RUST, m); g.dot(4, 2, BG);
 });
 const melon = food(12, 8, (g) => { // (flat side up, the rind below)
-  const m = g.layer([(x, y) => y >= 1 && ellipse(6, 1, 5.4, 6)(x, y)], LEAF_DARK, OUT);
-  g.paint([ellipse(6, 1, 4.6, 5)], LEAF, m); g.paint([ellipse(6, 1, 4.2, 4.4)], BERRY, m);
+  const m = g.layer([(x, y) => y >= 1 && ellipse(6, 1, 5.4, 6)(x, y)], DARK_GREEN, OUT);
+  g.paint([ellipse(6, 1, 4.6, 5)], GREEN, m); g.paint([ellipse(6, 1, 4.2, 4.4)], RED, m);
   g.dot(4, 2, OUT); g.dot(8, 2, OUT); g.dot(6, 3, OUT);
 });
 const date = food(9, 7, (g) => {
-  g.layer([ellipse(4.5, 3.6, 3.6, 2.3)], BROWN, OUT); g.dot(3, 2, STRIPE); g.dot(4, 2, STRIPE); g.dot(8, 2, BARK);
+  g.layer([ellipse(4.5, 3.6, 3.6, 2.3)], BROWN, OUT); g.dot(3, 2, RUST); g.dot(4, 2, RUST); g.dot(8, 2, DARK_BROWN);
 });
 const fig = food(9, 9, (g) => {
-  g.layer([capsule(4.5, 0.6, 4.5, 2, 0.5)], LEAF_DARK);
-  g.layer([ellipse(4.5, 5.6, 3.2, 3), capsule(4.5, 5, 4.5, 2.4, 1.2)], GRAPE, OUT); g.dot(3, 4, LIGHT); g.dot(4, 7, PINK);
+  g.layer([capsule(4.5, 0.6, 4.5, 2, 0.5)], DARK_GREEN);
+  g.layer([ellipse(4.5, 5.6, 3.2, 3), capsule(4.5, 5, 4.5, 2.4, 1.2)], PURPLE, OUT); g.dot(3, 4, BG); g.dot(4, 7, PINK);
 });
 export const FOOD = { carrot: carrot(), bone: bone(), fish: fish(), grapes: grapes(), apple, acorn, shell, beetle, sausage, mushroom, berries, drumstick, leaf, peanut, roast,
   cucumber, truffle, hay, melon, date, fig };
@@ -1550,7 +1561,7 @@ export const fullMoon = fromRows([
   'owwwwwwwo',
   '.owwwwwo.',
   '..ooooo..',
-], { o: OUT, w: BELLY, c: EAR });
+], { o: OUT, w: WHITE, c: BEIGE });
 
 // the golden look of a super power (golden food, the animal flashing): every color but the outlines turned to gold
 const golds = {};
@@ -1592,7 +1603,7 @@ export const heart = fromRows([
   'rrrrr',
   '.rrr.',
   '..r..',
-], { r: BERRY });
+], { r: RED });
 
 // do two sprites overlap, pixel for pixel (by their masks)?
 export function hits(a, ax, ay, b, bx, by) {

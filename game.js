@@ -365,7 +365,7 @@ function smash(o, quiet = false) {
   o.smashed = true; o.vx = 90 + rnd() * 60; o.vy = -140 - rnd() * 60;
   bonus += worth;
   floats.push({ text: `+${worth}`, x: o.x, y: Math.max(8, o.y) - 4, life: 0.6 });
-  for (let i = 0; i < 6; i++) parts.push({ x: o.x + o.sprite.w / 2, y: Math.max(o.y, GROUND - 12), vx: (rnd() - 0.2) * 120, vy: -40 - rnd() * 80, life: 0.4, color: kind === 'elephant' ? COLOR.ICE : COLOR.YELLOW });
+  for (let i = 0; i < 6; i++) parts.push({ x: o.x + o.sprite.w / 2, y: Math.max(o.y, GROUND - 12), vx: (rnd() - 0.2) * 120, vy: -40 - rnd() * 80, life: 0.4, color: kind === 'elephant' ? COLOR.BLUE : COLOR.YELLOW });
   if (!quiet) call('sting', 'smash');
 }
 
@@ -779,7 +779,7 @@ function padAt(e) {
 // or (no icon) empty; a cheat's (?cheats): orange, its words white
 function drawButton(x, y, icon, on, pal, { w = BTN, h = BTN, text: words, cheat = false } = {}) {
   if (cheat) {
-    ctx.fillStyle = pal[on ? 11 : 7];
+    ctx.fillStyle = pal[on ? COLOR.RUST : COLOR.ORANGE];
     ctx.fillRect(x + 1, y, w - 2, h); ctx.fillRect(x, y + 1, w, h - 2);
     return text(ctx, words, x + w / 2, y + (h - 5) / 2, pal[COLOR.WHITE], 'center'); // (as they are: not the player's language)
   }
@@ -982,7 +982,7 @@ function doneName(save) {
 function drawName(pal) {
   const ink = pal[COLOR.INK], { w, h, y } = NAME_BOX, v = cleanName(nameField.value), long = textWidth('W'.repeat(NAME_LEN)), x = Math.round(W / 2 - long / 2), end = v ? textWidth(v) + 1 : 0;
   drawButton(W / 2 - w / 2, y, null, false, pal, { w, h }); // (a frame)
-  text(ctx, t('scores.new'), W / 2, y + 5, pal[7], 'center');
+  text(ctx, t('scores.new'), W / 2, y + 5, pal[COLOR.ORANGE], 'center');
   text(ctx, v, x, y + 14, ink);
   ctx.fillStyle = pal[COLOR.DIM]; ctx.fillRect(x, y + 20, long, 1);
   if (v) { ctx.fillStyle = ink; ctx.fillRect(x, y + 20, end - 1, 1); } // (under what is typed: in ink)
@@ -995,7 +995,7 @@ function drawBoard(pal) {
   if (board.gate) return drawGate(pal);
   if (board.shop) return drawShop(pal);
   (board.credits ? drawCredits : drawScores)(pal);
-  if (gained && state === 'ko' && !board.credits) help(t('end.unlocked', { name: nameOf(gained) }), pal, pal[7]); // (after a run: see hud)
+  if (gained && state === 'ko' && !board.credits) help(t('end.unlocked', { name: nameOf(gained) }), pal, pal[COLOR.ORANGE]); // (after a run: see hud)
   if (!sit) return;
   const tn = turning('sit', kind, sit.on ? sit.dir : 1), sst = stride(kind, sit.phase);
   if (tn) return drawTurn(kind, tn, Math.round(sit.x), GROUND - FOOT - (sit.on ? sst.lift : 0), pal, blinking()); // (turning round)
@@ -1032,7 +1032,7 @@ function drawScores(pal) {
   atTop(() => text(ctx, t('scores.title'), SCORES_X + 60, 2 + (BTN - 5) / 2, ink, 'center')); // (in the buttons' row, as BACK's words)
   for (let i = 0; i < TOP; i++) {
     const [x, y] = rowAt(i), e = scores[i], mark = e && e === board.entry;
-    if (mark) { ctx.fillStyle = pal[7]; ctx.fillRect(x - 2, y - 1, 124, 7); }
+    if (mark) { ctx.fillStyle = pal[COLOR.ORANGE]; ctx.fillRect(x - 2, y - 1, 124, 7); }
     const c = mark ? pal.bg : e ? ink : dim;
     text(ctx, `${i + 1}.`, x + 11, y, c, 'right');
     if (e) face(e.kind)?.draw(ctx, x + 13, y - 1, pal);
@@ -1050,8 +1050,8 @@ function drawCredits(pal) {
   text(ctx, t('credits.title'), W / 2, 4, ink, 'center');
   CREDITS.forEach(([what, who], i) => { text(ctx, what && t(what), W / 2 - 4, 16 + i * ROW, dim, 'right'); text(ctx, t(who), W / 2 + 4, 16 + i * ROW, ink); });
   if (board.runs) text(ctx, t(board.runs > 1 ? 'credits.runs_kept' : 'credits.run_kept', { n: board.runs }), W / 2 - 3, 44, dim, 'right'); // (and SHARE: see buttons)
-  if (board.said) help(board.said, pal, pal[7]);
-  text(ctx, t('credits.thanks'), W / 2, 16 + (CREDITS.length + 1) * ROW + 1, pal[7], 'center');
+  if (board.said) help(board.said, pal, pal[COLOR.ORANGE]);
+  text(ctx, t('credits.thanks'), W / 2, 16 + (CREDITS.length + 1) * ROW + 1, pal[COLOR.ORANGE], 'center');
   text(ctx, `VERSION ${APP_VERSION || BUILT}`, W / 2, 58, dim, 'center'); // (which build this is: the app's version, or when the web's was made)
 }
 // An animal pack's shop (the iOS app's, see SHOP), behind a parental gate: a sum for a grown-up, its numbers in words,
@@ -1115,7 +1115,7 @@ async function shopDo(what) { // (what: 'buy' or 'restore')
 }
 function drawGate(pal) {
   const g = board.gate, ink = pal[COLOR.INK];
-  text(ctx, t('gate.title'), W / 2, 8, pal[7], 'center');
+  text(ctx, t('gate.title'), W / 2, 8, pal[COLOR.ORANGE], 'center');
   text(ctx, t('gate.question', { a: t(NUMBERS[g.a - 4]), b: t(NUMBERS[g.b - 4]) }), W / 2, 20, ink, 'center');
   for (let i = 0; i < 2; i++) { // the answer: two digits
     const x = W / 2 - 10 + i * 11;
@@ -1129,8 +1129,8 @@ function drawShop(pal) {
   text(ctx, t('shop.title'), W / 2, 4, ink, 'center');
   text(ctx, t('shop.more', { n: PACKS[board.shop].length }), W / 2, 13, dim, 'center');
   text(ctx, t('shop.once'), W / 2, 21, dim, 'center');
-  if (owned.has(board.shop)) text(ctx, t('shop.owned'), W / 2, 34, pal[7], 'center');
-  if (board.said) help(board.said, pal, pal[7]);
+  if (owned.has(board.shop)) text(ctx, t('shop.owned'), W / 2, 34, pal[COLOR.ORANGE], 'center');
+  if (board.said) help(board.said, pal, pal[COLOR.ORANGE]);
   for (const [k, x, st] of parade()) if (x >= viewL - 40 && x <= viewR) animal(k, 'run', st.frame, { body: paraders[k] }).draw(ctx, x, GROUND - FOOT - st.lift, pal);
 }
 // the shop's pack's animals running by, the first ahead, round and round: [kind, x, its stride] each; their ears,
@@ -1326,7 +1326,7 @@ function update(dt) {
   if (state !== 'run') return;
 
   // tired: sweat drops off its head (blue), blown back
-  if (energy < LOW && rnd() < dt * (energy < VERY_LOW ? 6 : 2.5)) { const [hx, hy] = headAt(); parts.push({ x: hx - 1, y: hy - 3, vx: -20 - rnd() * 30, vy: -50 - rnd() * 30, life: 0.45, color: COLOR.ICE, h: 2 }); }
+  if (energy < LOW && rnd() < dt * (energy < VERY_LOW ? 6 : 2.5)) { const [hx, hy] = headAt(); parts.push({ x: hx - 1, y: hy - 3, vx: -20 - rnd() * 30, vy: -50 - rnd() * 30, life: 0.45, color: COLOR.BLUE, h: 2 }); }
   // a super power wears off (a warning first: see ENDING)
   if (power) {
     power = Math.max(0, power - dt);
@@ -1355,7 +1355,7 @@ function update(dt) {
     }
     if (kind === 'wolf') for (const o of obstacles) if (!o.smashed && o.x > RUN_X + 12 && o.x < RUN_X + 80) smash(o, true); // howl
     if (kind === 'elephant') { // splash: water sprayed from the trunk, washing away what is just ahead
-      if (rnd() < dt * 70) parts.push({ x: RUN_X + 29, y: animalY() + 6, vx: 110 + rnd() * 80, vy: -40 - rnd() * 40, life: 0.5, color: COLOR.ICE }); // (from the trunk's tip)
+      if (rnd() < dt * 70) parts.push({ x: RUN_X + 29, y: animalY() + 6, vx: 110 + rnd() * 80, vy: -40 - rnd() * 40, life: 0.5, color: COLOR.BLUE }); // (from the trunk's tip)
       for (const o of obstacles) if (!o.smashed && o.x > RUN_X + 14 && o.x < RUN_X + 64) smash(o, true);
     }
     if (kind === 'rhino' && (quake -= dt) <= 0) { // quake: a stomp every so often, everything on the screen flies off
@@ -1364,7 +1364,7 @@ function update(dt) {
       call('sting', 'smash');
     }
     if (kind === 'skunk') { // stink: a green cloud behind it, crows flap off
-      if (rnd() < dt * 40) parts.push({ x: RUN_X + 2, y: animalY() + 6 + rnd() * 8, vx: -30 - rnd() * 40, vy: -10 - rnd() * 20, life: 0.6, color: COLOR.LEAF });
+      if (rnd() < dt * 40) parts.push({ x: RUN_X + 2, y: animalY() + 6 + rnd() * 8, vx: -30 - rnd() * 40, vy: -10 - rnd() * 20, life: 0.6, color: COLOR.GREEN });
       for (const o of obstacles) if (o.kind === 'crow') o.y -= 50 * dt;
     }
     if (powered().shakes && chase?.seen && !chase.leaving) shaken(); // (it comes, is seen, and turns away)
@@ -1396,7 +1396,7 @@ function update(dt) {
     call('sting', 'reward');
     floats.push({ text: streak > 1 ? `+${worth} X${streak}` : '+25', x: f.x, y: f.y - 6, life: 0.8 });
     if (!treat) floats.push({ sprite: heart, x: f.x + (streak > 1 ? 34 : 14), y: f.y - 6, life: 0.8 });
-    for (let i = 0; i < 6; i++) parts.push({ x: f.x + 3, y: f.y + 3, vx: (rnd() - 0.5) * 90, vy: -rnd() * 80, life: 0.5, color: treat ? COLOR.WHITE : COLOR.LEAF }); // (never red, from an animal: it could look like blood; a treat: sparkling white)
+    for (let i = 0; i < 6; i++) parts.push({ x: f.x + 3, y: f.y + 3, vx: (rnd() - 0.5) * 90, vy: -rnd() * 80, life: 0.5, color: treat ? COLOR.WHITE : COLOR.GREEN }); // (never red, from an animal: it could look like blood; a treat: sparkling white)
     return false;
   });
 
@@ -1838,7 +1838,7 @@ function bar(pal, icon, y, full, color) {
 // the energy: a heart and a bar that turns red (and blinks) when it runs low
 function energyBar(pal) {
   const low = energy < LOW;
-  if (!(low && state === 'run' && Math.floor(blinkT * 4) % 2)) bar(pal, heart, 5, energy / 100, low ? COLOR.BERRY : COLOR.ENERGY);
+  if (!(low && state === 'run' && Math.floor(blinkT * 4) % 2)) bar(pal, heart, 5, energy / 100, low ? COLOR.RED : COLOR.GREEN);
   const landed = bag - tossed.length; // (those still flying not yet counted)
   if (landed > 0) { const [x, y] = bagAt(), meal = FOOD[T().food]; meal.draw(ctx, x, y - Math.floor((meal.h - 5) / 2), pal); text(ctx, String(landed), x + meal.w + 2, y, pal[COLOR.INK]); }
 }
@@ -1980,7 +1980,7 @@ function scene(pal) {
   for (const f of food) {
     const x = onGround(f.x), y = f.y + bob(f.x * 0.1);
     meal.draw(ctx, x, y, pal);
-    if (hungry && (blinkT * 2.5 + f.x * 0.013) % 1 < 0.3) { ctx.fillStyle = pal[7]; ctx.fillRect(x + meal.w, y - 3, 1, 3); ctx.fillRect(x + meal.w - 1, y - 2, 3, 1); }
+    if (hungry && (blinkT * 2.5 + f.x * 0.013) % 1 < 0.3) { ctx.fillStyle = pal[COLOR.ORANGE]; ctx.fillRect(x + meal.w, y - 3, 1, 3); ctx.fillRect(x + meal.w - 1, y - 2, 3, 1); }
   }
   if (gold) { // golden, with a glint going round it
     const x = onGround(gold.x), y = gold.y + bob();
@@ -2076,13 +2076,13 @@ function hud(pal) {
   } else if (state === 'ko' && naming) atTop(() => drawName(pal));
   else if (state === 'ko') {
     if (won) text(ctx, koWhy, W / 2, 20, pal[COLOR.INK], 'center', 2, LOGO); else text(ctx, koWhy, W / 2, 24, pal[COLOR.INK], 'center');
-    if (gained && koT > 0.3 && (koT > 2 || Math.floor(koT * 4) % 2)) text(ctx, t('end.unlocked', { name: nameOf(gained) }), W / 2, 33, pal[7], 'center'); // (unlocked in this run: again, blinking at first, so it is not missed)
+    if (gained && koT > 0.3 && (koT > 2 || Math.floor(koT * 4) % 2)) text(ctx, t('end.unlocked', { name: nameOf(gained) }), W / 2, 33, pal[COLOR.ORANGE], 'center'); // (unlocked in this run: again, blinking at first, so it is not missed)
     if (won && bag && koT > 0.6) { // the treats brought home
       const meal = FOOD[T().food], s = `+${bag}`, w = meal.w + 2 + textWidth(s), x = Math.round(W / 2 - w / 2), y = gained ? 42 : 33;
       meal.draw(ctx, x, y - Math.floor((meal.h - 5) / 2), pal); text(ctx, s, x + meal.w + 2, y, pal[COLOR.INK]);
     }
-    if (settled() && fresh) help(t(TOUCH ? 'end.name_tap' : 'end.name_keys'), pal, pal[7]);
-    else if (settled() && !fresh && gained) help(t(TOUCH ? 'end.yours_tap' : 'end.yours_keys', { the: theOf(gained) }), pal, pal[7]);
+    if (settled() && fresh) help(t(TOUCH ? 'end.name_tap' : 'end.name_keys'), pal, pal[COLOR.ORANGE]);
+    else if (settled() && !fresh && gained) help(t(TOUCH ? 'end.yours_tap' : 'end.yours_keys', { the: theOf(gained) }), pal, pal[COLOR.ORANGE]);
     else if (settled() && !fresh) help(t(TOUCH ? 'end.again_tap' : 'end.again_keys'), pal);
   } else if (state === 'paused') {
     text(ctx, t(TOUCH ? 'run.paused_tap' : 'run.paused_keys'), W / 2, 30, pal[COLOR.INK], 'center');

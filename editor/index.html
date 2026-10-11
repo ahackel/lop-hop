@@ -38,7 +38,11 @@
   .modes button + button { border-left: 1px solid var(--line); }
   .modes button.on { background: var(--accent-soft); color: var(--ink); font-weight: 600; }
   /* what belongs to one mode or another (body's class: the mode) */
-  body.setup :is(.animate, .play):not(.setup), body.animate :is(.setup, .play):not(.animate), body.play :is(.setup, .animate):not(.play) { display: none; }
+  body.setup :is(.animate, .play, .game):not(.setup), body.animate :is(.setup, .play, .game):not(.animate), body.play :is(.setup, .animate, .game):not(.play),
+  body.game :is(.setup, .animate, .play):not(.game) { display: none; }
+  body.game :is(#kind, .skinPick) { display: none; } /* (the game's own: no animal) */
+  body.game #stage { cursor: pointer; }
+  #gameMode.on { background: var(--accent-soft); font-weight: 600; }
   body.play #stage { cursor: grab; }
   .group.own span:first-child, .field.own > span:first-child { color: var(--accent); }
   #status.dirty { color: var(--accent); }
@@ -116,6 +120,20 @@
   .faceGrid { display: block; width: 198px; height: 198px; margin: 6px 0; border-radius: 4px; cursor: crosshair; touch-action: none; image-rendering: pixelated; }
   button.ink { width: 24px; height: 24px; padding: 0; }
   button.ink.on { box-shadow: 0 0 0 2px var(--sel); }
+  /* a color: a button (its swatch, its name); the palette by it to pick from */
+  button.colorPick { display: inline-flex; gap: 6px; align-items: center; padding: 3px 8px; justify-self: start; }
+  button.colorPick .sw { width: 12px; height: 12px; border-radius: 3px; border: 1px solid rgba(0,0,0,.25); }
+  .pop { position: fixed; z-index: 10; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.18); width: 236px; }
+  .popGrid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; }
+  .popSw { width: 24px; height: 24px; padding: 0; border-radius: 4px; border: 1px solid rgba(0,0,0,.2); }
+  .popSw:hover { border-color: var(--ink); }
+  .popSw.on { box-shadow: 0 0 0 2px var(--sel); }
+  .popName { color: var(--dim); margin: 6px 0; min-height: 1.4em; }
+  .popNew { display: flex; gap: 4px; align-items: center; border-top: 1px solid var(--line); padding-top: 8px; }
+  .popNew input[type=text] { flex: 1; min-width: 0; }
+  input[type=color] { width: 32px; height: 24px; padding: 0 2px; border: 1px solid var(--line); border-radius: 5px; background: var(--panel); }
+  .sw.big { display: inline-block; width: 22px; height: 22px; border-radius: 4px; border: 1px solid rgba(0,0,0,.2); }
+  .tones { display: grid; grid-template-columns: 40px repeat(4, 1fr); gap: 4px; align-items: center; justify-items: start; font-size: 11px; }
   #previewCard { flex: none; }
   #previewCard > :not(.title) { margin: 8px; }
   #preview { display: block; height: min(15vh, 170px); width: auto; max-width: 100%; margin: 0 auto; image-rendering: pixelated; border-radius: 4px; }
@@ -123,6 +141,7 @@
     html, body { height: auto; } body { overflow: auto; }
     main, main.rightFolded { grid-template-columns: 1fr; }
     #inspectorCard.collapsed > .title { writing-mode: horizontal-tb; height: auto; padding: 7px 10px 6px; }
+    #inspectorCard > .title::before { transform: none; } #inspectorCard.collapsed > .title::before { transform: rotate(-90deg); }
     .panel, #inspector { max-height: 50vh; }
     #stageBox { height: 62vw; flex: none; }
   }
@@ -138,6 +157,7 @@
     <button data-mode="animate" title="Its moves: keys over frames, or a gait's settings">Animate</button>
     <button data-mode="play" title="Handle it as the home screen does: pick it up, drop it, pet it, feed it">Play</button>
   </span>
+  <button id="gameMode" title="The game’s own, for every animal: its palette">Game</button>
   <button id="undo" title="Undo (⌘Z)">Undo</button>
   <button id="redo" title="Redo (⇧⌘Z)">Redo</button>
   <button id="revert" title="Back to the file as it was loaded">Revert</button>
@@ -148,7 +168,7 @@
 <main>
   <aside id="left">
     <div class="card panel" id="bonesCard"><div class="title" id="bonesTitle" title="The skeleton: what moves">Bones</div><div class="scroll" id="bones"></div></div>
-    <div class="card panel" id="shapesCard"><div class="title" title="On the bones, back to front">Shapes</div><div class="scroll" id="shapes"></div></div>
+    <div class="card panel setup animate play" id="shapesCard"><div class="title" title="On the bones, back to front">Shapes</div><div class="scroll" id="shapes"></div></div>
   </aside>
   <section id="center">
   <div class="card" id="stageWrap">
@@ -160,6 +180,7 @@
       <label class="setup animate"><input id="allHandles" type="checkbox" checked> All handles</label>
       <label class="play" title="Everything at a quarter speed"><input id="slow" type="checkbox"> Slow motion</label>
       <button class="play" id="replay" title="The animal back in its place, as it was">Reset</button>
+      <span class="game">Everything the game draws: by day, by night. Click a pixel to pick its color.</span>
     </div>
     <div id="timeline"></div>
   </div>

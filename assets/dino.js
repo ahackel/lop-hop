@@ -2,7 +2,7 @@
 export default {
   format: 2,
   name: 'dino',
-  fur: 'DINO',
+  fur: 'grey',
   joints: { hip: [10, 12], chest: [14, 12], head: [17.5, 3.5] },
   torso: { r: 0 },
   shapes: [
@@ -14,12 +14,12 @@ export default {
     { name: 'skull', on: 'head', box: [-3.5, -2.5, 5.5, 1.3, 1.5] },
     { name: 'jaw', on: 'head', capsule: [-2.2, 1, 3.4, 3.8, 0.95], smooth: 0.4 },
   ],
-  paint: [{ name: 'belly', color: 'DINO_LIGHT', on: 'spine', ellipse: [3, 2, 2.2, 3] }],
+  paint: [{ name: 'belly', color: 'lightGrey', on: 'spine', ellipse: [3, 2, 2.2, 3] }],
   dots: [
     { name: 'nostril', on: 'head', at: [4.6, -1.4] },
-    { name: 'tooth', on: 'head', at: [1.5, 1.9], color: 'BELLY' },
-    { name: 'tooth', on: 'head', at: [3.8, 2], color: 'BELLY' },
-    { name: 'claw', on: 'chest', at: [4.1, -0.2], color: 'BELLY' },
+    { name: 'tooth', on: 'head', at: [1.5, 1.9], color: 'white' },
+    { name: 'tooth', on: 'head', at: [3.8, 2], color: 'white' },
+    { name: 'claw', on: 'chest', at: [4.1, -0.2], color: 'white' },
   ],
   legs: {
     hindFar: { on: 'hip', at: [2.5, 2.5], thigh: 2.2, shin: 2.2, r: 1.1, foot: [1.6, 0.8], far: true, bend: -1 },
@@ -36,7 +36,7 @@ export default {
       torso: { r: 2.4, ends: 5.2 },
       ownShapes: true,
       shapes: [{ use: 'skull' }, { use: 'jaw' }],
-      paint: [{ color: 'DINO_LIGHT', on: 'spine', ellipse: [3.5, 1.4, 5, 1] }],
+      paint: [{ color: 'lightGrey', on: 'spine', ellipse: [3.5, 1.4, 5, 1] }],
       chains: { tail: { at: [-4.5, -0.5], angle: 1.5 } },
       pad: [1.8, 1],
       over: true,
@@ -60,7 +60,7 @@ export default {
           torso: { r: 2.4, ends: 5 },
           ownShapes: true,
           shapes: [{ use: 'skull' }, { use: 'jaw' }],
-          paint: [{ color: 'DINO_LIGHT', on: 'spine', ellipse: [3.5, 1.4, 5, 1] }],
+          paint: [{ color: 'lightGrey', on: 'spine', ellipse: [3.5, 1.4, 5, 1] }],
           chains: { tail: { at: [-4.5, -0.5], angle: 1.5 } },
           flip: true,
           paws: { hindFar: [14, 9.92], hindNear: [9, 9.92] },
