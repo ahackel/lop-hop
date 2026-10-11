@@ -24,7 +24,7 @@ export const ALONG = { // (each kind's own settings along a bone)
 };
 export function boneDefaults(s) {
   const k = alongOf(s);
-  return { bone: '', along: k, ...ALONG[k], ...(ALONG[k].base && { base: ALONG[k].base.map((q) => [...q]) }), ...(k === 'capsule' && build.legs?.[s.bone] && { foot: null }), color: undefined, smooth: 1, marks: [], grows: false };
+  return { bone: '', along: k, ...ALONG[k], ...(ALONG[k].base && { base: ALONG[k].base.map((q) => [...q]) }), ...(k === 'capsule' && { foot: null }), color: undefined, smooth: 1, marks: [], grows: false }; // (every capsule the same: a flat foot at its end on any)
 }
 // an object as the inspector shows it: what it has, and what it does not have yet as it is drawn without it (setting one
 // sets it)

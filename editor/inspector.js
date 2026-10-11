@@ -31,7 +31,7 @@ export function inspect() {
   if (t === 'joint') { box.append(field('place', nums(o, sel.name))); return; }
   if (t === 'group') { groupFields(o, box); return; }
   if (t === 'item' && o.bone) { fields(withDefaults(o, boneDefaults(o)), box, ['name', 'bone', 'along']); return; } // (a shape on a bone: all it can be)
-  if (t === 'item') { fields(withDefaults(o, { color: undefined }), box, ['name', 'on']); return; }
+  if (t === 'item') { fields(withDefaults(o, { color: undefined, smooth: 1 }), box, ['name', 'on']); return; }
   const skip = t === 'rig' ? ['joints', 'layers', 'dots', 'legs', 'chains', 'face', 'moves', 'handling', 'recolor'] : t === 'paint' || t === 'dot' ? ['name'] : t === 'leg' || t === 'chain' ? ['on'] : []; // (a bone's joint: dragged onto another in the list)
   fields(o, box, t === 'face' ? ['frames'] : skip);
   if (t === 'face') faceFrames(box);
@@ -147,7 +147,12 @@ function fields(o, box, skip, flat = false) {
       input = el('span', { className: 'keys' }, colorPick(v, (c) => { commit(() => { o[k] = c; }); listParts(); inspect(); }));
       if (v && sel.type === 'item' && (k === 'color' || k === 'tipColor')) input.append(iconBtn('x', '', { title: 'None', onclick: () => { commit(() => { delete o[k]; }); listParts(); inspect(); } }));
     }
-    else if (k === 'foot') { // (a flat foot: its size; none: a round paw)
+    else if (k === 'r' && o.bone && alongOf(o) === 'capsule') { // (a capsule: as thick at its root and at its end, or tapering; the same: one number)
+      const pair = () => (Array.isArray(o.r) ? o.r : [o.r ?? 1, o.r ?? 1]);
+      input = stack(['a', 'b'].map((lbl, j) => numIn(pair()[j], (x) => { const q = pair().slice(); q[j] = x; o.r = q[0] === q[1] ? q[0] : q; }, { min: 0, label: lbl })));
+      put(k, field('r', input, 'How thick: at its root (a) and at its end (b)'));
+      continue;
+    } else if (k === 'foot') { // (a flat foot: its size; none: a round paw)
       input = v ? el('div', { className: 'keys' }, nums(o, k, null, ['rx', 'ry']), iconBtn('x', '', { title: 'No flat foot: a round paw', onclick: () => { commit(() => { delete o.foot; }); inspect(); } }))
         : el('input', { type: 'checkbox', title: 'A flat foot', onchange: () => { commit(() => { o.foot = [1.3, 0.6]; }); inspect(); } });
     } else if (k === 'bone') {
