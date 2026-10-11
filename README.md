@@ -82,7 +82,9 @@ from the home screen).
 The animals are edited in the editor: with `npm run dev` running, open http://localhost:8323/editor. It has three
 modes: Setup (the build), Animate (the moves) and Play, where the animal is handled as on the home screen, by the game's
 own code (picked up, carried, dropped, petted, fed), with a slider for each number of how it is handled and of its ears'
-and tails' physics (`handling` in its file; `?mode=play` opens it there). Drag the handles on the joints, shapes, legs, tails and ears, pick colors and layers in the list, watch the animal run in
+and tails' physics (`handling` in its file; `?mode=play` opens it there). The face's frames (its eye open, blinking,
+hurt, knocked out, happy; a mouth, if it has one) are drawn pixel by pixel in Setup (pick the face), and a clip's keys
+pick which one shows. Drag the handles on the joints, shapes, legs, tails and ears, pick colors and layers in the list, watch the animal run in
 the game's scene, and save: it writes the animal's build back into its file. Its moves are on a timeline, with the frames
 before and after faded: a jump, hurt or knocked-out pose can be set by hand (drag the joints, paws, head, tail and ears of
 each keyframe), a run or a crawl tuned by its gait's settings. In the game, an animal eases from one move into the next

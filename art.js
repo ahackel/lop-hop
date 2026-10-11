@@ -296,16 +296,39 @@ export function jumpFrame(kind, rise) {
 
 // an animal in a move's frame: blinking or not; body: its moving parts (its chains), as moveBody left them (none: at
 // rest); scale: drawn bigger (the giant dino, see drawRig)
-export function animal(kind, pose, frame = 0, { blink = false, body = null, scale = 1 } = {}) {
-  return pose === 'ball' ? balls[frame % 4] : rigFrame(kind, pose, frame, blink, body, scale);
+export function animal(kind, pose, frame = 0, { blink = false, body = null, scale = 1, look = null } = {}) {
+  return pose === 'ball' ? balls[frame % 4] : rigFrame(kind, pose, frame, blink, body, scale, look);
 }
 
 
-function eyes(g, pose, [x, y], blink) {
-  if (pose === 'ko') for (const [dx, dy] of [[-1, -1], [1, -1], [0, 0], [-1, 1], [1, 1]]) g.dot(x + dx, y + dy, OUT);
-  else if (pose === 'hurt') { g.dot(x - 1, y - 1, OUT); g.dot(x, y, OUT); g.dot(x - 1, y + 1, OUT); } // >
-  else if (pose === 'happy') { g.dot(x - 1, y + 1, OUT); g.dot(x, y, OUT); g.dot(x + 1, y + 1, OUT); } // ^ (shut, smiling: being petted)
-  else { g.dot(x, y + 1, OUT); if (!blink) g.dot(x, y, OUT); }
+// the face's frames: small pixel pictures for its eye and its mouth, each by name, drawn with its anchor (at: a column
+// and row of it) on the face's point (the eye's, the mouth's). Rows of characters: '.' nothing, the rest an ink (see
+// FACE_INKS). Which frame a pose shows: its eye and mouth (a clip's keys set them: hurt, ko; petted and eating: happy),
+// else open (blinking: blink) and shut. An animal's file can draw its own, or more (face.frames: see asset.js); what it
+// doesn't have is as here. A mouth is drawn only where the face has one (face.mouth)
+export const FACE_FRAMES = {
+  eye: {
+    open: { at: [0, 0], rows: ['x', 'x'] },
+    blink: { at: [0, 0], rows: ['.', 'x'] },
+    hurt: { at: [1, 1], rows: ['x.', '.x', 'x.'] }, // >
+    ko: { at: [1, 1], rows: ['x.x', '.x.', 'x.x'] },
+    happy: { at: [1, 0], rows: ['.x.', 'x.x'] }, // ^ (shut, smiling: being petted)
+  },
+  mouth: {
+    shut: { at: [0, 0], rows: ['x'] },
+    open: { at: [0, 0], rows: ['x', 'x'] },
+    happy: { at: [0, 0], rows: ['x.', '.x'] },
+  },
+};
+export const FACE_INKS = { x: 'OUT', w: 'BELLY', p: 'PINK', r: 'BERRY', k: 'INK' };
+const faceFrame = (head, part, name) => head.frames?.[part]?.[name] || FACE_FRAMES[part][name];
+// (put: a pixel of the sprite's grid; at: the one the anchor goes on; n: how big a pixel of the frame is there)
+function faceDraw(put, frame, [X, Y], n) {
+  if (!frame) return;
+  const [ax, ay] = frame.at;
+  frame.rows.forEach((row, r) => {
+    for (let c = 0; c < row.length; c++) if (row[c] !== '.') for (let a = 0; a < n; a++) for (let b = 0; b < n; b++) put(X + (c - ax) * n + a, Y + (r - ay) * n + b, NAMED[FACE_INKS[row[c]]] || OUT);
+  });
 }
 
 // ------------------------------------------------------------------------------------------------- the hedgehog's ball
@@ -525,7 +548,7 @@ function posedAs(rig, p) {
 function mixPose(rig, a, b, u) {
   const m = u < 0.5 ? a : b, lerp = (x, y) => x + (y - x) * u, part = (x, y) => (x && y ? mix(x, y, u) : u < 0.5 ? x : y);
   const ja = { ...rig.joints, ...a.joints }, jb = { ...rig.joints, ...b.joints }, ta = { ...rig.torso, ...a.torso }, tb = { ...rig.torso, ...b.torso };
-  const out = { ...m, joints: {}, paws: {}, chains: {}, headAngle: lerp(a.headAngle || 0, b.headAngle || 0), torso: { ...ta, ...tb, r: lerp(ta.r || 0, tb.r || 0), ends: lerp(ta.ends ?? tb.ends ?? 0, tb.ends ?? ta.ends ?? 0) } };
+  const out = { ...m, eye: b.eye, mouth: b.mouth, joints: {}, paws: {}, chains: {}, headAngle: lerp(a.headAngle || 0, b.headAngle || 0), torso: { ...ta, ...tb, r: lerp(ta.r || 0, tb.r || 0), ends: lerp(ta.ends ?? tb.ends ?? 0, tb.ends ?? ta.ends ?? 0) } };
   for (const k in ja) out.joints[k] = mix(ja[k], jb[k], u);
   for (const k in rig.legs) out.paws[k] = part(a.paws?.[k], b.paws?.[k]);
   for (const k in rig.chains) {
@@ -659,7 +682,7 @@ function* fitDuck(kind) {
   let n = SIZE[kind] || 0;
   for (; n > 0; n--) {
     let low = true;
-    for (let f = 0; low && f < framesOf(kind, 'duck'); f++) { low = FOOT - top(rigFrame(kind, 'duck', f, false, null, 1, n)) + 1 <= GROUND - DUCK_UNDER - 1; yield; }
+    for (let f = 0; low && f < framesOf(kind, 'duck'); f++) { low = FOOT - top(rigFrame(kind, 'duck', f, false, null, 1, null, n)) + 1 <= GROUND - DUCK_UNDER - 1; yield; }
     if (low) break;
   }
   ducks[kind] = n;
@@ -694,14 +717,14 @@ function growth(n, scale = 1) {
   const k = (20 + n) / 20;
   return [k, [Math.round(13 * scale * (1 - k)), Math.round((FOOT - 0.5) * scale * (1 - k))]];
 }
-function rigFrame(kind, pose, frame, blink, body, scale = 1, n = grown(kind, pose)) {
+function rigFrame(kind, pose, frame, blink, body, scale = 1, look = null, n = grown(kind, pose)) { // (look: its face's frames, other than the pose's: { eye, mouth })
   const rig = RIGS[kind], [P, eased] = bodyPosed(rig, kind, pose, frame, body);
   const chains = chainsAt(rig, P, body?.kind === kind && body.chains && body.at ? body : null);
-  const key = `${kind} ${pose} ${frame} ${eased} ${blink} ${scale} ${n} ${JSON.stringify(chains)}`;
+  const key = `${kind} ${pose} ${frame} ${eased} ${blink} ${scale} ${n} ${JSON.stringify(chains)}${look ? JSON.stringify(look) : ''}`;
   let s = rigFrames.get(key);
   if (s) { rigFrames.delete(key); rigFrames.set(key, s); return s; } // (the most recent last)
   const [k, d] = growth(n, scale);
-  s = drawRig(rig, P, pose, blink, chains, scale * k, d, Math.round((FOOT + 1) * scale), n > 0 && pose !== 'jump');
+  s = drawRig(rig, look ? { ...P, p: { ...P.p, ...look } } : P, blink, chains, scale * k, d, Math.round((FOOT + 1) * scale), n > 0 && pose !== 'jump');
   rigFrames.set(key, s);
   if (rigFrames.size > 400) { const old = rigFrames.keys().next().value; rigFrames.get(old).free(); rigFrames.delete(old); }
   return s;
@@ -712,7 +735,7 @@ function rigFrame(kind, pose, frame, blink, body, scale = 1, n = grown(kind, pos
 // belly (over: lying low), things on top (top: horns, fangs, a head over a round body, outlined), chains in front (front:
 // lop ears), single pixels (dots), the face. The collision mask: the far legs and the body. (recolor: one palette name
 // for another, everywhere: the wolf is a grey fox)
-function drawRig(rig, P, pose, blink, chains, S = 1, [dx, dy] = [0, 0], floor = Math.round((FOOT + 1) * S), settle = false) {
+function drawRig(rig, P, blink, chains, S = 1, [dx, dy] = [0, 0], floor = Math.round((FOOT + 1) * S), settle = false) {
   const { p, F, torso } = P, k = rig.smooth ?? 1, fur = NAMED[rig.fur];
   // a shape with its frame (its turn worked out once), its box in the box's coordinates, and how much nearer than its
   // distance that box may be (an ellipse's distance is short of the true one off its long axis): see near
@@ -846,8 +869,15 @@ function drawRig(rig, P, pose, blink, chains, S = 1, [dx, dy] = [0, 0], floor = 
   for (const [[x, y], c] of dots) face.dot(x, y, c);
   if (rig.recolor) { const to = {}; for (const a in rig.recolor) to[NAMED[a]] = NAMED[rig.recolor[a]]; for (let i = 0; i < g.px.length; i++) g.px[i] = to[g.px[i]] ?? g.px[i]; }
   const head = rig.face, both = (head.eyes || [head.eye]).map((q) => toWorld(F.head, q)), eye = mix(both[0], both[both.length - 1], 0.5); // (eyes: two, seen from the front)
-  for (const q of both) eyes(face, pose, q, blink);
+  // its eyes' and mouth's frames: each pixel of one a pixel of the sprite (n by n, drawn bigger), from where its anchor goes
+  const pin = ([x, y]) => [Math.round(Math.round(x) * S - ox), Math.round(Math.round(y) * S - oy)];
+  const put = (X, Y, c) => { if (X >= 0 && Y >= 0 && X < g.w && Y < g.h) { g.px[Y * g.w + X] = c; marks[Y * g.w + X] = 1; } };
+  const look = p.eye || 'open', eyeFrame = faceFrame(head, 'eye', blink && look === 'open' ? 'blink' : look);
+  for (const q of both) faceDraw(put, eyeFrame, pin(q), n);
   if (head.nose) { const nose = toWorld(F.head, head.nose); face.dot(nose[0], nose[1], NAMED[head.noseColor] || OUT); }
+  const mouth = head.mouth && toWorld(F.head, head.mouth);
+  if (mouth) faceDraw(put, faceFrame(head, 'mouth', p.mouth || 'shut'), pin(mouth), n);
+  const faceAt = { eye: pin(both[0]), ...(mouth && { mouth: pin(mouth) }) }; // (where its frames go, in the sprite: for the editor)
   front.filter((t) => t.overEye).forEach(chain); // (over the eye too: the pig's lop ear)
   // (dx, dy: moved, grown from where its feet touch the ground: see rigFrame. settle: grown, a row short of the ground
   // only by rounding, it is set down on it)
@@ -858,7 +888,7 @@ function drawRig(rig, P, pose, blink, chains, S = 1, [dx, dy] = [0, 0], floor = 
     const cut = new Grid(g.w, g.h - 1); cut.px.set(g.px.subarray(0, cut.px.length));
     mask = mask.slice(0, cut.px.length); far = far && far.slice(0, cut.px.length); g = cut;
   }
-  return sprite(g, mask, { far, marks: marks.subarray(0, g.px.length), ox: ox + dx, oy: oy + dy + down, head: [(eye[0] - 1) * S + dx, (eye[1] - 6) * S + dy + down] });
+  return sprite(g, mask, { far, marks: marks.subarray(0, g.px.length), faceAt, ox: ox + dx, oy: oy + dy + down, head: [(eye[0] - 1) * S + dx, (eye[1] - 6) * S + dy + down] });
 }
 
 // ------------------------------------------------------------------------------------------------------ held up
@@ -947,7 +977,7 @@ export function hung(h, { blink = false, body = null } = {}) {
   const [k, d] = growth(SIZE[h.kind] || 0), key = `${h.kind} hung ${blink} ${JSON.stringify([pose.joints, pose.headAngle, pose.paws, chains])}`;
   let s = rigFrames.get(key);
   if (!s) {
-    s = drawRig(rig, P, 'hung', blink, chains, k, d, 1e6);
+    s = drawRig(rig, P, blink, chains, k, d, 1e6);
     rigFrames.set(key, s);
     if (rigFrames.size > 400) { const old = rigFrames.keys().next().value; rigFrames.get(old).free(); rigFrames.delete(old); }
   }
@@ -984,9 +1014,9 @@ export function petted(kind, frame, joy, t, lean = 0) {
   }
   const piv = [13, FOOT], a = lean * E.lean, rot = (q) => plus(piv, turn(minus(q, piv), a)); // (about its feet)
   const P = posedAs(rig, { ...base, joints: { hip: rot(J.hip), chest: rot(J.chest), head: rot([J.head[0], J.head[1] + E.duck * j]) },
-    headAngle: (base.headAngle || 0) + E.nuzzle * j + a, chains, turn: { pivot: piv, angle: a } });
+    headAngle: (base.headAngle || 0) + E.nuzzle * j + a, chains, turn: { pivot: piv, angle: a }, ...(j >= E.happy && { eye: 'happy' }) });
   const rest = chainsAt(rig, P), n = SIZE[kind] || 0, [k, d] = growth(n);
-  s = drawRig(rig, P, j >= E.happy ? 'happy' : 'idle', false, rest, k, d, FOOT + 1, n > 0);
+  s = drawRig(rig, P, false, rest, k, d, FOOT + 1, n > 0);
   rigFrames.set(key, s);
   if (rigFrames.size > 400) { const old = rigFrames.keys().next().value; rigFrames.get(old).free(); rigFrames.delete(old); }
   return s;
@@ -1070,7 +1100,7 @@ export function reaching(kind, tx, ty, eating = false, amount = 1, look = 1, bod
   const chains = chainsAt(rig, P, body?.kind === kind && body.chains && body.at ? body : null), full = `${key} ${eating} ${JSON.stringify(chains)}`;
   let s = rigFrames.get(full);
   if (s) { rigFrames.delete(full); rigFrames.set(full, s); return s; }
-  s = drawRig(rig, P, eating ? 'happy' : 'idle', false, chains, k, d, FOOT + 1, n > 0);
+  s = drawRig(rig, eating ? { ...P, p: { ...P.p, eye: 'happy' } } : P, false, chains, k, d, FOOT + 1, n > 0);
   if (chains.trunk) { const tip = chains.trunk[chains.trunk.length - 1]; s.mouth = [tip[0] * k + d[0], tip[1] * k + d[1]]; }
   rigFrames.set(full, s);
   if (rigFrames.size > 400) { const old = rigFrames.keys().next().value; rigFrames.get(old).free(); rigFrames.delete(old); }
@@ -1090,15 +1120,16 @@ export function front(kind, { blink = false, scale = 1 } = {}) {
   const key = `${kind} front ${blink} ${scale}`;
   let s = rigFrames.get(key);
   if (s) { rigFrames.delete(key); rigFrames.set(key, s); return s; }
-  const rig = { legs: {}, chains: {}, torso: { r: 0 }, fur: RIGS[kind].fur, ...RIGS[kind].front }, P = posedAs(rig, {}), n = SIZE[kind] || 0, [k, d] = growth(n, scale);
-  s = drawRig(rig, P, 'idle', blink, chainsAt(rig, P), scale * k, d, Math.round((FOOT + 1) * scale), n > 0);
+  const F = RIGS[kind].front, rig = { legs: {}, chains: {}, torso: { r: 0 }, fur: RIGS[kind].fur, ...F, face: { frames: RIGS[kind].face?.frames, ...F.face } }; // (its face's frames: the animal's, or its own)
+  const P = posedAs(rig, {}), n = SIZE[kind] || 0, [k, d] = growth(n, scale);
+  s = drawRig(rig, P, blink, chainsAt(rig, P), scale * k, d, Math.round((FOOT + 1) * scale), n > 0);
   rigFrames.set(key, s);
   if (rigFrames.size > 400) { const old = rigFrames.keys().next().value; rigFrames.get(old).free(); rigFrames.delete(old); }
   return s;
 }
 
 export function setRig(kind, rig) { RIGS[kind] = rig; rigFrames.clear(); worked.clear(); tracksOf.clear(); hitboxes.clear(); delete ducks[kind]; delete depths[kind]; }
-export const rigParts = { posed: (kind, move, frame) => posed(RIGS[kind], move, frame), pose: (kind, move, frame) => poseOf(RIGS[kind], move, frame), move: (kind, name) => RIGS[kind].poses[name], moves: (kind) => Object.keys(RIGS[kind].poses), clip: (m, frame) => clipPose(m, frame), chainRest: (kind, P, name) => chainRest(RIGS[kind], P, name), growth: (kind, pose) => growth(grown(kind, pose)), toWorld, toLocal, sdShape, NAMED };
+export const rigParts = { posed: (kind, move, frame) => posed(RIGS[kind], move, frame), pose: (kind, move, frame) => poseOf(RIGS[kind], move, frame), move: (kind, name) => RIGS[kind].poses[name], moves: (kind) => Object.keys(RIGS[kind].poses), clip: (m, frame) => clipPose(m, frame), chainRest: (kind, P, name) => chainRest(RIGS[kind], P, name), growth: (kind, pose) => growth(grown(kind, pose)), toWorld, toLocal, sdShape, NAMED, faceFrame };
 
 // the birds that circle a knocked-out head: two frames
 const birds = [0, 1].map((f) => {
@@ -1370,7 +1401,7 @@ const FACE_H = 7; // (a high score's row)
 const FACE_S = 0.6, EYE_AT = [5, 4], FACE_AT = {}, faces = {};
 export function face(kind) {
   if (faces[kind] || !ANIMALS[kind]) return faces[kind];
-  const s = rigFrame(kind, 'run', 0, false, null, FACE_S, 0), [dx, dy] = FACE_AT[kind] || [0, 0]; // (s.head: the eye, less [1, 6], drawn bigger by FACE_S)
+  const s = rigFrame(kind, 'run', 0, false, null, FACE_S, null, 0), [dx, dy] = FACE_AT[kind] || [0, 0]; // (s.head: the eye, less [1, 6], drawn bigger by FACE_S)
   const x0 = Math.round(s.head[0] + FACE_S - (s.ox || 0)) - EYE_AT[0] + dx, y0 = Math.round(s.head[1] + 6 * FACE_S - (s.oy || 0)) - EYE_AT[1] + dy;
   const g = new Grid(FACE_W, FACE_H), round = ellipse(FACE_W / 2, FACE_H / 2, FACE_W / 2 + 0.3, FACE_H / 2 + 0.3);
   const src = (x, y) => (x0 + x >= 0 && y0 + y >= 0 && x0 + x < s.w && y0 + y < s.h ? s.px[(y0 + y) * s.w + x0 + x] : 0); // (the animal, in the face's place)

@@ -22,7 +22,11 @@
 //                starts), overEye (in front, over the eyes too: the pig's lop ear), line (a thin line, not outlined: a
 //                rhino's tail)) or a pointed ear (ear: its base [[x, y] × 2] on the head, tip). stiffness pulls each link to
 //                its rest, damping stops it ringing, weight pulls it down
-//   face         eye, nose (in the head's frame), noseColor
+//   face         eye, nose, mouth (none: no mouth drawn), points in the head's frame; noseColor; frames: its own pictures
+//                for its eye and its mouth, or more of them, by name: { eye: { open: { at: [column, row] (the pixel put
+//                on the eye's point), rows: ['x', 'x'] (. nothing, x the dark line, w white, p pink, r red, k ink) } },
+//                mouth: {…} }; what it doesn't have is as FACE_FRAMES in art.js has it (eye: open, blink, hurt, ko, happy;
+//                mouth: shut, open, happy)
 //   recolor      { name: name }: colors swapped everywhere (the wolf: a grey fox)
 //   front        seen from the front, shown a moment as it turns round (see front in art.js): a build of its own, sitting,
 //                facing out of the screen: joints, shapes, top, dots, chains (ears hanging either side), face with eyes
@@ -39,7 +43,8 @@
 //                  it sets }] }. Each thing a key sets goes from it to the next key that sets it by its ease (step,
 //                  linear, smooth, sine; linear if none); a loop's last on round to its first; null: not set
 //                a pose: joints, paws { leg: [x, y] }, headAngle, torso, chains { name: angle, at, curl, tip }, roots
-//                  { leg: [x, y] }, flip (on its back), pad, over; shapes (ownShapes: only its own), paint, top, dots. A
+//                  { leg: [x, y] }, flip (on its back), pad, over; eye, mouth (its face's frames by name: open and shut if
+//                  none; blinking, open is blink); shapes (ownShapes: only its own), paint, top, dots. A
 //                  shape of the build's own by its name: { use: name, move: [dx, dy], what of it is other }
 
 const OWN = ['format', 'name', 'of']; // (the file's, not the rig's)

@@ -97,13 +97,14 @@ export default {
     },
     hurt: {
       frames: 1,
-      keys: [{ at: 0, paws: { hindFar: [9.273, 18.4], frontFar: [15.773, 18.4], hindNear: [7.776, 18.4], frontNear: [13.276, 18.4] } }],
+      keys: [{ at: 0, eye: 'hurt', paws: { hindFar: [9.273, 18.4], frontFar: [15.773, 18.4], hindNear: [7.776, 18.4], frontNear: [13.276, 18.4] } }],
     },
     ko: {
       frames: 1,
       keys: [
         {
           at: 0,
+          eye: 'ko',
           joints: { hip: [8, 15.6], chest: [14.5, 15.4], head: [19.4, 14.2] },
           torso: { r: 3.4, ends: 4.5 },
           top: [{ color: 'ELEPHANT_DARK', shapes: [{ on: 'head', triangle: [[-5.6, -2.6], [-1.4, -3], [-3.2, 3.2]] }] }, { use: 'tusk' }],

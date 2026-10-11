@@ -85,12 +85,16 @@ export default {
         },
       ],
     },
-    hurt: { frames: 1, keys: [{ at: 0, paws: { hindFar: [10.5, 18.4], frontFar: [17.5, 18.4], hindNear: [9, 18.4], frontNear: [15.5, 18.4] } }] },
+    hurt: {
+      frames: 1,
+      keys: [{ at: 0, eye: 'hurt', paws: { hindFar: [10.5, 18.4], frontFar: [17.5, 18.4], hindNear: [9, 18.4], frontNear: [15.5, 18.4] } }],
+    },
     ko: {
       frames: 1,
       keys: [
         {
           at: 0,
+          eye: 'ko',
           joints: { hip: [8, 16.3], chest: [15, 16.3], head: [19.5, 15.3] },
           torso: { r: 2.9, ends: 4 },
           chains: { tail: { at: [-2.5, -0.8], angle: 1.5 }, earA: { tip: [-3.893, -5.11] }, earB: { tip: [-0.522, -5.797] } },

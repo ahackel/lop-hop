@@ -92,6 +92,15 @@
   .dope .key.step::after { transform: translate(-50%, -50%); }
   .keys { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 4px; }
   .frameNo { color: var(--dim); min-width: 150px; }
+  /* the face's frames: each small, the grid to draw one on, the inks */
+  .faceStrip { display: flex; gap: 4px; flex-wrap: wrap; margin: 6px 0; }
+  .faceStrip button { padding: 2px; display: flex; flex-direction: column; align-items: center; font-size: 10px; color: var(--dim); }
+  .faceStrip button.on { border-color: var(--sel); box-shadow: 0 0 0 1px var(--sel); color: var(--ink); }
+  .faceStrip button.own span { color: var(--accent); }
+  .faceStrip canvas { width: 28px; height: 28px; image-rendering: pixelated; background: var(--stage); border-radius: 3px; }
+  .faceGrid { display: block; width: 198px; height: 198px; margin: 6px 0; border-radius: 4px; cursor: crosshair; touch-action: none; image-rendering: pixelated; }
+  button.ink { width: 24px; height: 24px; padding: 0; }
+  button.ink.on { box-shadow: 0 0 0 2px var(--sel); }
   #previewCard { padding: 8px; flex: none; }
   #preview { display: block; height: min(15vh, 170px); width: auto; max-width: 100%; margin: 0 auto; image-rendering: pixelated; border-radius: 4px; }
   @media (max-width: 1000px), (max-height: 560px) { /* too small to fit: the page scrolls */
