@@ -557,6 +557,7 @@ function listParts() {
     }
     r.onclick = () => { if (same(p.sel, sel)) return; sel = p.sel; listParts(); inspect(); draw(); };
     r.sel = p.sel; // (Tab goes down the rows: see the keys)
+    if (p.sel.type === 'item' && view.move === 'edit') draggable(r, p.sel);
     return r;
   };
   // the bones
@@ -588,6 +589,44 @@ function listParts() {
   }
 }
 
+// a shape dragged to another place in its list (the order they are drawn in: the list's, back to front), or in its group
+let dragged = null;
+const together = (a, b) => a.list === b.list && (a.j === undefined) === (b.j === undefined) && (a.j === undefined || a.i === b.i);
+function draggable(r, s) {
+  r.draggable = true;
+  const clear = () => { for (const x of $('shapes').querySelectorAll('.dropBefore, .dropAfter, .dragging')) x.classList.remove('dropBefore', 'dropAfter', 'dragging'); };
+  r.ondragstart = (e) => { dragged = s; r.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', s.list); };
+  r.ondragend = () => { dragged = null; clear(); };
+  r.ondragover = (e) => {
+    if (!dragged || !together(dragged, s)) return;
+    e.preventDefault(); e.dataTransfer.dropEffect = 'move';
+    const box = r.getBoundingClientRect(), after = e.clientY > box.top + box.height / 2;
+    for (const x of $('shapes').querySelectorAll('.dropBefore, .dropAfter')) if (x !== r) x.classList.remove('dropBefore', 'dropAfter');
+    r.classList.toggle('dropAfter', after); r.classList.toggle('dropBefore', !after);
+  };
+  r.ondragleave = () => r.classList.remove('dropBefore', 'dropAfter');
+  r.ondrop = (e) => {
+    e.preventDefault();
+    const from = dragged, after = r.classList.contains('dropAfter');
+    clear(); dragged = null;
+    if (from && together(from, s)) reorder(from, s, after);
+  };
+}
+function reorder(from, to, after) {
+  const child = from.j !== undefined, arr = child ? build.top[from.i].shapes : build[from.list], a = child ? from.j : from.i;
+  let b = (child ? to.j : to.i) + (after ? 1 : 0);
+  if (b > a) b--;
+  if (a === b) return;
+  const order = arr.map((_, k) => k);
+  order.splice(b, 0, order.splice(a, 1)[0]);
+  if (child) { // (what is hidden goes with them)
+    const pre = `item:top:${from.i}:`, was = [...hidden].filter((k) => k.startsWith(pre));
+    for (const k of was) hidden.delete(k);
+    for (const k of was) hidden.add(pre + order.indexOf(+k.slice(pre.length)));
+  } else rehide(from.list, (x) => order.indexOf(x));
+  commit(() => { arr.splice(b, 0, arr.splice(a, 1)[0]); sel = child ? { ...from, j: b } : { ...from, i: b }; });
+  listParts(); inspect();
+}
 // a shape renamed (its row double-clicked, or Enter): in place, in its row; a pose that uses it by name (use) still does
 function renaming(r, p) {
   const label = r.children[p.color ? 1 : 0], input = el('input', { type: 'text', value: p.obj.name || '', placeholder: p.label, className: 'rename' });

@@ -83,6 +83,10 @@
   .row .sw { width: 12px; height: 12px; border-radius: 3px; border: 1px solid rgba(0,0,0,.25); flex: none; }
   .row .what { color: var(--dim); margin-left: auto; font-size: 11px; }
   .row input.rename { flex: 1; min-width: 0; padding: 0 4px; }
+  /* a shape dragged to another place in its list: where it goes, a line */
+  .row.dragging { opacity: 0.4; }
+  .row.dropBefore { box-shadow: inset 0 2px 0 var(--sel); }
+  .row.dropAfter { box-shadow: inset 0 -2px 0 var(--sel); }
   /* a row's eye: shown or hidden on the stage (the editor's only) */
   .row .eye { border: 0; background: none; padding: 0 2px; display: flex; color: var(--dim); opacity: 0.35; }
   .row:hover .eye, .row .eye.off { opacity: 1; }
@@ -207,7 +211,7 @@
 <main>
   <aside id="left">
     <div class="card panel" id="bonesCard"><div class="title" id="bonesTitle" title="The skeleton: what moves">Bones</div><div class="scroll" id="bones"></div></div>
-    <div class="card panel setup animate play" id="shapesCard"><div class="title" title="On the bones, back to front">Shapes</div><div class="scroll" id="shapes"></div></div>
+    <div class="card panel setup animate play" id="shapesCard"><div class="title" title="On the bones, back to front: drag a shape up or down its list to draw it earlier or later">Shapes</div><div class="scroll" id="shapes"></div></div>
   </aside>
   <section id="center">
   <div class="card" id="stageWrap">
