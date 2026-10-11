@@ -1,6 +1,6 @@
 // The parts of the build (see editor.js): what picks each, its handles (where, and what dragging one does), its outline
 import { rigParts } from '../art.js';
-import { GEOMS, P, build, editable, hidden, isGroup, kind, reach, restPoints, sdShape, sel, swatch, toLocal, toWorld, view } from './state.js';
+import { GEOMS, P, build, editable, hidden, isGroup, kind, sdShape, sel, swatch, toLocal, toWorld, view } from './state.js';
 import { frames, kindOf, setKey } from './timeline.js';
 
 // every part of the build: what picks it (sel), its name in the list, its color, the object the inspector edits, its
@@ -14,16 +14,17 @@ const roundAll = (p) => p.map((v) => +round(v).toFixed(3));
 export const plus = (a, b) => [a[0] + b[0], a[1] + b[1]], minus = (a, b) => [a[0] - b[0], a[1] - b[1]], times = (a, k) => [a[0] * k, a[1] * k];
 
 export function geomOf(s) { return GEOMS.find((g) => Array.isArray(s[g])); }
-// a shape on a bone (bone: see asset.js): the kind of bone it follows; its settings, each as art.js draws it if not set
-// (so every one shows in the inspector)
+// a shape on a bone (bone, along: see asset.js): the kind of bone it is on; what it is drawn as along it (none: as its
+// bone had it); its settings, each as art.js draws it if not set (so every one shows in the inspector)
 export const boneKind = (s) => (s.bone === 'spine' ? 'spine' : build.legs?.[s.bone] ? 'leg' : build.chains?.[s.bone]?.ear ? 'ear' : build.chains?.[s.bone] ? 'tail' : null);
+export const alongOf = (s) => s.along || (s.bone === 'spine' ? (s.round ? 'capsule' : 'ellipse') : build.chains?.[s.bone]?.ear ? 'triangle' : 'capsule');
 export const spineShape = () => (build.layers || []).filter(isGroup).flatMap((G) => G.shapes).find((s) => s.bone === 'spine'); // (the torso: a move's torso changes it)
+export const ALONG = { // (each kind's own settings along a bone)
+  ellipse: { r: 1, ends: 0 }, capsule: { r: 1, ends: 0, end: 0 }, box: { r: 1, ends: 0, round: 0 }, triangle: { base: [[-1.2, 0.5], [1.2, -0.5]], tipColor: undefined, tipSize: 2 },
+};
 export function boneDefaults(s) {
-  const kind = boneKind(s);
-  if (kind === 'spine') return { bone: '', r: 3, ends: 0, round: false, smooth: 1 };
-  if (kind === 'leg') return { bone: '', r: 1, foot: null, smooth: 1 };
-  if (kind === 'ear') return { bone: '', tipColor: undefined, tipSize: 2, smooth: 1 };
-  return { bone: '', r: 1, end: 0, color: undefined, marks: [], grows: false };
+  const k = alongOf(s);
+  return { bone: '', along: k, ...ALONG[k], ...(k === 'capsule' && build.legs?.[s.bone] && { foot: null }), color: undefined, smooth: 1, marks: [], grows: false };
 }
 // an object as the inspector shows it: what it has, and what it does not have yet as it is drawn without it (setting one
 // sets it)
@@ -36,44 +37,28 @@ export function withDefaults(o, defaults) {
     getOwnPropertyDescriptor: (t, k) => ({ value: k in t ? t[k] : defaults[k], enumerable: true, configurable: true, writable: true }),
   });
 }
-// a shape on a bone as the stage shows it: its outline and what picks it (as the pose has the bone), its handles (how
-// thick it is; an ear's base)
+// a shape on a bone as the stage shows it: its outline and what picks it (as the pose has the bone, see onBone in
+// art.js), its handles (how thick it is, how far past its ends; a triangle's base)
 function boneBits(s) {
-  const kind = boneKind(s), F = P.F, handles = [], parts = [], n = s.bone;
-  const cap = (a, b, r) => parts.push({ capsule: [a[0], a[1], b[0], b[1], Math.max(r, 0.05)] });
-  const thick = (at, dir, r, put) => { const nrm = [-dir[1], dir[0]]; handles.push({ at: plus(at, times(nrm, r)), size: true, set: (p) => put(Math.max(0.1, +round(Math.hypot(...minus(p, at))).toFixed(3))) }); };
-  if (kind === 'spine') {
-    const t = P.torso, f = F.spine, len = Math.hypot(P.J.chest[0] - P.J.hip[0], P.J.chest[1] - P.J.hip[1]), r = Math.max(t.r || 0, 0.05), e = t.ends || 0;
-    parts.push(t.capsule ? { on: 'spine', capsule: [-e, 0, len + e, 0, r] } : { on: 'spine', ellipse: [len / 2, 0, len / 2 + e, r] });
+  const o = rigParts.onBone(kind, P, s, s === spineShape());
+  if (!o) return { handles: [], lines: [], hit: () => false };
+  const handles = [], k = alongOf(s), { pts, rf, at } = o.line, a = pts[0], b = pts[pts.length - 1], n = pts.length;
+  const dirOf = (p, q) => { const d = minus(q, p), l = Math.hypot(...d) || 1; return [d[0] / l, d[1] / l]; };
+  const thick = (q, dir, r, put) => { const nrm = [-dir[1], dir[0]]; handles.push({ at: plus(q, times(nrm, r)), size: true, set: (p) => put(Math.max(0.1, +round(Math.hypot(...minus(p, q))).toFixed(3))) }); };
+  const rr = (i) => (Array.isArray(s.r) ? s.r[i ? 1 : 0] : s.r ?? 1);
+  if (k === 'triangle') (s.base || []).forEach((d, i) => handles.push({ at: world(rf, plus(at, d)), set: (p) => { s.base[i] = roundAll(minus(local(rf, p), at)); } }));
+  else if (k === 'capsule') {
+    if (Array.isArray(s.r)) { thick(a, dirOf(a, pts[1]), rr(0), (v) => { s.r = [v, s.r[1]]; }); thick(b, dirOf(pts[n - 2], b), rr(1), (v) => { s.r = [s.r[0], v]; }); }
+    else { const q = mix(pts[n - 2], b, 0.5); thick(q, dirOf(pts[n - 2], b), s === spineShape() ? P.torso.r : rr(0), (v) => { s.r = v; }); }
+  } else { // (an ellipse, a box: from its root to its end, in its frame)
+    const f = o.parts[0].f, len = Math.hypot(...minus(b, a)), r = Math.max(0.05, Math.abs(o.parts[0].s.ellipse?.[3] ?? o.parts[0].s.box[3])), e = s === spineShape() ? P.torso.ends || 0 : s.ends || 0;
     handles.push({ at: world(f, [len / 2, -r]), size: true, set: (p) => { s.r = Math.max(0, +round(Math.abs(local(f, p)[1])).toFixed(3)); } });
     handles.push({ at: world(f, [len + e, 0]), size: true, set: (p) => { s.ends = Math.max(0, +round(local(f, p)[0] - len).toFixed(3)); } });
-    const bits = parts.map((q) => shapeBits(q));
-    return { handles, lines: bits.flatMap((b) => b.lines), hit: (p) => bits.some((b) => b.hit(p)) };
   }
-  if (kind === 'leg') {
-    const L = build.legs[n], root = P.p.roots?.[n] || world(F[L.on], L.at), paw = P.p.paws?.[n];
-    if (paw) {
-      const [knee, end] = reach(root, paw, L.thigh, L.shin, L.bend), r = s.r ?? 1;
-      cap(root, knee, r); cap(knee, end, r);
-      if (s.foot) parts.push({ ellipse: [end[0] + s.foot[0] - 0.8, end[1] + 0.3, s.foot[0], s.foot[1]] });
-      const d = minus(end, knee), l = Math.hypot(...d) || 1;
-      thick(knee, [d[0] / l, d[1] / l], r, (v) => { s.r = v; });
-    }
-  } else if (kind === 'tail') {
-    const c = rigParts.chainRest(kind_(), P, n), pts = restPoints(c), rr = (i) => (Array.isArray(s.r) ? s.r[0] + ((s.r[1] - s.r[0]) * i) / Math.max(1, pts.length - 2) : s.r ?? 1);
-    for (let i = 1; i < pts.length; i++) cap(pts[i - 1], pts[i], rr(i - 1));
-    if (s.end) { const q = pts[pts.length - 1]; parts.push({ ellipse: [q[0], q[1], s.end, s.end] }); }
-    thick(pts[0], c.dir, rr(0), (v) => { if (Array.isArray(s.r)) s.r = [v, s.r[1]]; else s.r = v; });
-  } else if (kind === 'ear') {
-    const c = build.chains[n], f = F[c.on], rest = rigParts.chainRest(kind_(), P, n), tip = plus(rest.root, times(rest.dir, rest.length));
-    const base = (s.base || [[0, 0], [0, 0]]).map((d) => world(f, plus(c.at, d)));
-    parts.push({ triangle: [base[0], tip, base[1]] });
-    (s.base || []).forEach((d, i) => handles.push({ at: base[i], set: (p) => { s.base[i] = roundAll(minus(local(f, p), c.at)); } }));
-  }
-  const bits = parts.map((q) => shapeBits(q, null));
-  return { handles, lines: bits.flatMap((b) => b.lines), hit: (p) => bits.some((b) => b.hit(p)) };
+  const bits = o.parts.map((q) => shapeBits(q.s, q.f || null));
+  return { handles, lines: bits.flatMap((x) => x.lines), hit: (p) => bits.some((x) => x.hit(p)) };
 }
-const kind_ = () => kind; // (the animal shown: boneBits has a kind of its own)
+const mix = (p, q, t) => plus(p, times(minus(q, p), t));
 const bitsOf = (s) => (s.bone ? boneBits(s) : shapeBits(s));
 // a group's frame for one of its shapes: its pivot (at) in the shape's joint's frame, turned by its angle (as drawRig)
 // (a shape on a bone: its bone's, see boneBits)
@@ -179,7 +164,7 @@ export function parts() {
       gp.lines.push([pivot, turnAt]);
     }
     out.push(gp);
-    G.shapes.forEach((s, i) => out.push({ sel: { type: 'item', g, i }, layer: g, label: s.name || geomOf(s) || s.bone, color: swatch(s.color || G.color || build.fur), obj: s, depth: 1, off: off || hidden.has(s), ...kids[i] }));
+    G.shapes.forEach((s, i) => out.push({ sel: { type: 'item', g, i }, layer: g, label: s.name || geomOf(s) || alongOf(s), color: swatch(s.color || G.color || build.fur), obj: s, depth: 1, off: off || hidden.has(s), ...kids[i] }));
     (G.paint || []).forEach((s, i) => out.push({ sel: { type: 'paint', g, i }, layer: g, label: s.name || geomOf(s), color: swatch(s.color), obj: s, depth: 2, off: off || hidden.has(s), ...shapeBits(s, groupFrame(G, s)) }));
     if (G.spikes) out.push({ sel: { type: 'spikes', g }, layer: g, label: 'spikes', obj: G.spikes, depth: 1, off: off || hidden.has(G.spikes), ...shapeBits(G.spikes), hit: null });
   });

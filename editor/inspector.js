@@ -2,10 +2,10 @@
 import { $, el, iconBtn } from './dom.js';
 import { faceFrames } from './face.js';
 import { inspectPlay } from './handling.js';
-import { SWITCHES, addPaint, addShape, bodyIndex, itemDo, layers, moveTo, rename, setSpikes, switchOn, toggle } from './layers.js';
+import { SWITCHES, addPaint, addShape, bodyIndex, itemDo, layers, rename, setSpikes, switchOn, toggle } from './layers.js';
 import { listParts } from './lists.js';
 import { colorPick, inspectPalette } from './palette.js';
-import { boneDefaults, current, middleOf, parts, repivot, withDefaults } from './parts.js';
+import { ALONG, alongOf, boneDefaults, current, geomOf, middleOf, parts, repivot, withDefaults } from './parts.js';
 import { COLOR_KEYS, GEOMS, base, build, builds, changed, choose, commit, editable, isGroup, kind, nice, paints, refresh, remember, sel, skin, skinsOf, status, view, setSel } from './state.js';
 import { inspectMove, timeline } from './timeline.js';
 
@@ -23,45 +23,72 @@ export function inspect() {
     for (const [ic, what, arg, tip] of [['up', 'move', -1, 'Drawn earlier ( [ )'], ['down', 'move', 1, 'Drawn later ( ] )'], ['copy', 'copy', 0, 'Copy (⌘D)'], ['trash', 'delete', 0, 'Delete (⌫)']]) acts.append(iconBtn(ic, '', { title: tip, onclick: () => itemDo(what, arg) }));
     title.append(acts);
     const name = el('input', { type: 'text', value: o.name || '', placeholder: p.label, onchange: () => rename(sel, o, name.value) }), head = [field('name', name, 'Its name (Enter, or double-click its row): a move uses it by it')];
-    if (t === 'item' || t === 'paint') { // (its group: another one, picked here or dragged to in the list)
-      const into = el('select', { onchange: () => moveTo(sel, +into.value) });
-      layers().forEach((G, g) => { if (isGroup(G)) into.append(el('option', { value: g, textContent: G.name || `group ${g + 1}`, selected: g === sel.g })); });
-      head.push(field('group', into, t === 'item' ? 'The group it is drawn in (see the list: how each is drawn)' : 'The group it marks: only where that is'));
-    }
-    if (t === 'item') head.push(field('on', attach(o), 'What it is on: a joint (in its frame; the box: none), or a bone (drawn along it, as the pose has it)'));
+    if (t === 'item') head.push(field('bone', attach(o), 'The bone it is on: a joint (in its frame; the box: none), or a bone it is drawn along (as the pose has it)'));
+    if (t === 'item' || t === 'paint') head.push(field('shape', shapeKind(o), o.bone ? 'What it is drawn as along its bone' : 'What it is: fitted to where it was'));
     box.append(section(t === 'group' ? 'Group' : 'Shape', head));
   }
   if (t === 'joint') { box.append(field('place', nums(o, sel.name))); return; }
   if (t === 'group') { groupFields(o, box); return; }
-  if (t === 'item' && o.bone) { fields(withDefaults(o, boneDefaults(o)), box, ['name', 'bone']); return; } // (a shape on a bone: all it can be)
+  if (t === 'item' && o.bone) { fields(withDefaults(o, boneDefaults(o)), box, ['name', 'bone', 'along']); return; } // (a shape on a bone: all it can be)
   if (t === 'item') { fields(withDefaults(o, { color: undefined }), box, ['name', 'on']); return; }
-  const skip = t === 'rig' ? ['joints', 'layers', 'dots', 'legs', 'chains', 'face', 'moves', 'handling', 'recolor'] : t === 'paint' || t === 'dot' ? ['name'] : [];
+  const skip = t === 'rig' ? ['joints', 'layers', 'dots', 'legs', 'chains', 'face', 'moves', 'handling', 'recolor'] : t === 'paint' || t === 'dot' ? ['name'] : t === 'leg' || t === 'chain' ? ['on'] : []; // (a bone's joint: dragged onto another in the list)
   fields(o, box, t === 'face' ? ['frames'] : skip);
   if (t === 'face') faceFrames(box);
   if (t === 'rig') rootMore(box);
   if (t === 'leg' || t === 'chain') farSide(box);
 }
-// what a shape is on: a joint (in its frame; the box: none) or a bone (drawn along it: its shape the bone's, as it is
-// when it was on one, see boneDefaults; off one again: an ellipse)
-const BONE_KEYS = ['bone', 'r', 'ends', 'round', 'foot', 'end', 'marks', 'grows', 'base', 'tipColor', 'tipSize'];
-const boneOf = (b) => (b === 'spine' ? 'spine' : build.legs?.[b] ? 'leg' : build.chains?.[b]?.ear ? 'ear' : 'tail');
+// the bone a shape is on: a joint (in its frame; the box: none) or a bone it is drawn along (what it is kept: an ellipse
+// along it, from an ellipse; off one again: one where the joint is)
+const ON_BONE = ['bone', 'along', 'r', 'ends', 'round', 'foot', 'end', 'marks', 'grows', 'base', 'tipColor', 'tipSize'];
+const AT_JOINT = { ellipse: [0, 0, 2, 1.5], capsule: [-1.5, 0, 1.5, 0, 1], box: [-2, -1.5, 2, 1.5, 0.5], triangle: [[-1.5, 1], [0, -1.5], [1.5, 1]] };
+const clone = (v) => JSON.parse(JSON.stringify(v));
 function attach(o) {
   const now = o.bone ? `bone:${o.bone}` : `on:${o.on || ''}`, opt = (v, label) => el('option', { value: v, textContent: label, selected: v === now });
   const input = el('select', { onchange: () => { const [how, n] = input.value.split(':'); commit(() => reattach(o, how, n)); listParts(); inspect(); } });
   input.append(el('optgroup', { label: 'a joint' }, opt('on:', 'the box'), ...['spine', 'hip', 'chest', 'head'].map((j) => opt(`on:${j}`, j))),
-    el('optgroup', { label: 'a bone (drawn along it)' }, opt('bone:spine', 'spine (the torso)'), ...[...Object.keys(build.legs || {}), ...Object.keys(build.chains || {})].map((n) => opt(`bone:${n}`, n))));
+    el('optgroup', { label: 'drawn along a bone' }, opt('bone:spine', 'spine'), ...[...Object.keys(build.legs || {}), ...Object.keys(build.chains || {})].map((n) => opt(`bone:${n}`, n))));
   return input;
 }
 function reattach(o, how, n) {
   if (how === 'on') {
-    if (o.bone) { for (const k of BONE_KEYS) delete o[k]; o.ellipse = [0, 0, 2, 1.5]; }
+    if (o.bone) { const k = alongOf(o); for (const x of ON_BONE) delete o[x]; o[k] = clone(AT_JOINT[k]); }
     if (n) o.on = n; else delete o.on;
-    return;
+  } else {
+    if (!o.bone) {
+      const g = geomOf(o) || 'ellipse', v = o[g];
+      for (const x of GEOMS) delete o[x];
+      delete o.on;
+      o.along = g;
+      if (g === 'triangle') o.base = clone(ALONG.triangle.base);
+      else o.r = +Math.max(0.3, g === 'ellipse' ? v[3] : g === 'capsule' ? v[4] : (v[3] - v[1]) / 2).toFixed(2);
+    }
+    o.bone = n;
   }
-  if (!o.bone) { for (const g of GEOMS) delete o[g]; delete o.on; } else if (boneOf(o.bone) !== boneOf(n)) for (const k of BONE_KEYS) delete o[k];
-  o.bone = n;
-  const k = boneOf(n);
-  if (k === 'spine') { o.r ??= 3; o.ends ??= 2; } else if (k === 'ear') o.base ??= [[-1.2, 0.5], [1.2, -0.5]]; else o.r ??= 1;
+  tidy(o);
+}
+// what a shape is: an ellipse, a capsule, a box or a triangle (on a joint: fitted to where it was; along a bone: its
+// settings kept where the kinds share them)
+function shapeKind(o) {
+  const now = o.bone ? alongOf(o) : geomOf(o), input = el('select', { onchange: () => { commit(() => reshape(o, input.value)); listParts(); inspect(); } });
+  for (const g of GEOMS) input.append(el('option', { value: g, textContent: g, selected: g === now }));
+  return input;
+}
+function reshape(o, to) {
+  if (o.bone) {
+    const was = alongOf(o);
+    for (const k of [...Object.keys(ALONG[was]), 'foot', 'round']) if (!(k in ALONG[to]) || k === 'round') delete o[k];
+    o.along = to;
+    if (to === 'triangle') o.base ??= clone(ALONG.triangle.base);
+  } else { const g = geomOf(o); if (g !== to) { o[to] = convert(o[g], g, to); delete o[g]; } }
+  tidy(o);
+}
+// (its settings in the order the files have them: its name, what it is on, what it is; then the rest)
+const ORDER = ['name', 'bone', 'along', 'on', ...GEOMS];
+function tidy(o) {
+  const all = { ...o };
+  for (const k in o) delete o[k];
+  for (const k of ORDER) if (k in all) o[k] = all[k];
+  for (const k in all) if (!(k in o)) o[k] = all[k];
 }
 // a group: how it is drawn (its switches), its color; on no bone, its joint (all its shapes'), its pivot and turn; its
 // shapes, paint and spikes added here, each picked in the list or on the stage
@@ -72,7 +99,7 @@ function groupFields(G, box) {
     const on = el('select', { onchange: () => { commit(() => { for (const s of G.shapes) { if (on.value) s.on = on.value; else delete s.on; } }); listParts(); } });
     for (const c of ['', 'spine', 'hip', 'chest', 'head']) on.append(el('option', { value: c, textContent: c || 'the box', selected: c === (G.shapes[0]?.on || '') }));
     const at = G.at || [0, 0];
-    box.append(section('Place', [field('on', on, 'The joint all its shapes are on'),
+    box.append(section('Place', [field('bone', on, 'The joint all its shapes are on'),
       field('pivot', stack(at.map((v, j) => numIn(v, (x) => { const q = (G.at || [0, 0]).slice(); q[j] = x; G.at = q; }, { label: 'xy'[j] }))), 'Drag the pivot: the group moves. ⌥-drag: the pivot alone.'),
       field('angle', numIn(G.angle || 0, (x) => { if (x) G.angle = x; else delete G.angle; }, { min: -3.14, max: 3.14, step: 0.01 }), 'Its shapes turned about the pivot'),
       el('div', { className: 'keys' }, iconBtn('pivot', 'Pivot to the middle', { title: 'The pivot in the middle of its shapes; they stay where they are', onclick: () => { commit(() => repivot(G, middleOf(G))); inspect(); } }))]));
@@ -131,7 +158,7 @@ function fields(o, box, skip, flat = false) {
     } else if (GEOMS.includes(k) && Array.isArray(v)) {
       const type = el('select', { onchange: () => commit(() => { const g = type.value; delete o[k]; o[g] = convert(v, k, g); }) });
       for (const g of GEOMS) type.append(el('option', { value: g, textContent: g, selected: g === k }));
-      put(k, field('type', type), k === 'triangle' ? el('div', { className: 'numsWide' }, ...v.map((_, i) => nums(v, i, null, [`x${i + 1}`, `y${i + 1}`]))) : el('div', { className: 'numsWide' }, nums(o, k, k)));
+      put(k, ...(sel.type === 'item' || sel.type === 'paint' ? [] : [field('shape', type)]), k === 'triangle' ? el('div', { className: 'numsWide' }, ...v.map((_, i) => nums(v, i, null, [`x${i + 1}`, `y${i + 1}`]))) : el('div', { className: 'numsWide' }, nums(o, k, k)));
       continue;
     } else if (typeof v === 'number') input = num(o, k);
     else if (typeof v === 'boolean') input = el('input', { type: 'checkbox', checked: v, onchange: () => commit(() => { o[k] = input.checked; }) });
@@ -141,7 +168,7 @@ function fields(o, box, skip, flat = false) {
     else if (v && typeof v === 'object' && !Array.isArray(v) && Object.values(v).every((x) => typeof x === 'number' || typeof x === 'boolean')) {
       const inner = el('div'); fields(v, inner, [], true); put(k, el('div', { className: 'group', textContent: k }), inner); continue;
     } else input = json(o, k);
-    put(k, field(k, input));
+    put(k, field(k === 'on' ? 'bone' : k, input));
   }
   if (!flat) for (const t of SECTIONS) if (into[t]) box.append(section(t, into[t]));
 }

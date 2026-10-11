@@ -35,6 +35,18 @@ const ICONS = {
   clipped: '<rect x="3" y="3" width="18" height="18" rx="6" stroke-dasharray="3 3"/><circle cx="12" cy="12" r="4" fill="currentColor"/>',
   far: '<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/>',
   line: '<path d="M4 19c6 0 7-13 16-14"/>',
+  // what a row in the lists is: a shape's kind, a group, the face, a dot, spikes; a bone (the animal, a clip's frame)
+  ellipse: '<ellipse cx="12" cy="12" rx="9" ry="6"/>',
+  capsule: '<rect x="3" y="8" width="18" height="8" rx="4"/>',
+  box: '<rect x="4" y="6" width="16" height="12" rx="2"/>',
+  triangle: '<path d="M12 4.5 21 19.5H3z"/>',
+  group: '<path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5"/>',
+  face: '<circle cx="12" cy="12" r="9"/><path d="M9 10h.01M15 10h.01"/><path d="M8.5 15a4.5 4.5 0 0 0 7 0"/>',
+  dot: '<rect x="8.5" y="8.5" width="7" height="7" fill="currentColor"/>',
+  spikes: '<path d="m3 19 3-9 3 9 3-9 3 9 3-9 3 9"/>',
+  root: '<circle cx="12" cy="15.5" r="4"/><circle cx="5.5" cy="10" r="1.8"/><circle cx="9.5" cy="5.5" r="1.8"/><circle cx="14.5" cy="5.5" r="1.8"/><circle cx="18.5" cy="10" r="1.8"/>',
+  bone: '<path d="M17 10c.7-.7 1.69 0 2.5 0a2.5 2.5 0 1 0 0-5 .5.5 0 0 1-.5-.5 2.5 2.5 0 1 0-5 0c0 .81.7 1.8 0 2.5l-7 7c-.7.7-1.69 0-2.5 0a2.5 2.5 0 0 0 0 5c.28 0 .5.22.5.5a2.5 2.5 0 1 0 5 0c0-.81-.7-1.8 0-2.5z"/>',
+  frame: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 5v14M17 5v14"/>',
   overEye: '<path d="M3 17s3.4-5 9-5 9 5 9 5"/><circle cx="12" cy="16" r="2"/><path d="M5 5h14"/>',
 };
 export const icon = (name) => unsafeHTML(svg(name)); // (in a template)

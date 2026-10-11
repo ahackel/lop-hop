@@ -9,19 +9,19 @@ export default {
       name: 'far legs',
       far: true,
       hits: true,
-      shapes: [{ name: 'hindFar', bone: 'hindFar', r: 0.8 }, { name: 'frontFar', bone: 'frontFar', r: 0.8 }],
+      shapes: [{ name: 'hindFar', bone: 'hindFar', along: 'capsule', r: 0.8 }, { name: 'frontFar', bone: 'frontFar', along: 'capsule', r: 0.8 }],
     },
     {
       name: 'body',
       join: true,
       hits: true,
       shapes: [
-        { name: 'torso', bone: 'spine', r: 7.2, ends: 5.5 },
+        { name: 'torso', bone: 'spine', along: 'ellipse', r: 7.2, ends: 5.5 },
         { name: 'belly', on: 'spine', ellipse: [4, 4.2, 6, 2.5] },
         { name: 'face', on: 'head', ellipse: [0, 0, 3.4, 3] },
         { name: 'snout', on: 'head', capsule: [1.5, 1.4, 5.1, 1.8, 1.1] },
-        { name: 'hindNear', bone: 'hindNear', r: 0.9, smooth: 0.5 },
-        { name: 'frontNear', bone: 'frontNear', r: 0.9, smooth: 0.5 },
+        { name: 'hindNear', bone: 'hindNear', along: 'capsule', r: 0.9, smooth: 0.5 },
+        { name: 'frontNear', bone: 'frontNear', along: 'capsule', r: 0.9, smooth: 0.5 },
       ],
       paint: [
         { name: 'face', color: 'beige', on: 'head', ellipse: [0, 0, 3.4, 3] },

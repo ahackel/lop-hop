@@ -5,21 +5,21 @@ export default {
   fur: 'charcoal',
   joints: { hip: [8, 11.2], chest: [13, 11.2], head: [18.8, 12.6] },
   layers: [
-    { name: 'tail', shapes: [{ name: 'tail', bone: 'tail', r: [2.3, 2.5], marks: [[0.95, 'white', 1.5]] }] },
+    { name: 'tail', shapes: [{ name: 'tail', bone: 'tail', along: 'capsule', r: [2.3, 2.5], marks: [[0.95, 'white', 1.5]] }] },
     {
       name: 'far legs',
       far: true,
       hits: true,
-      shapes: [{ name: 'hindFar', bone: 'hindFar', r: 0.8 }, { name: 'frontFar', bone: 'frontFar', r: 0.8 }],
+      shapes: [{ name: 'hindFar', bone: 'hindFar', along: 'capsule', r: 0.8 }, { name: 'frontFar', bone: 'frontFar', along: 'capsule', r: 0.8 }],
     },
     {
       name: 'body',
       join: true,
       hits: true,
       shapes: [
-        { name: 'torso', bone: 'spine', r: 7.2, ends: 4 },
-        { name: 'hindNear', bone: 'hindNear', r: 0.9, smooth: 0.5 },
-        { name: 'frontNear', bone: 'frontNear', r: 0.9, smooth: 0.5 },
+        { name: 'torso', bone: 'spine', along: 'ellipse', r: 7.2, ends: 4 },
+        { name: 'hindNear', bone: 'hindNear', along: 'capsule', r: 0.9, smooth: 0.5 },
+        { name: 'frontNear', bone: 'frontNear', along: 'capsule', r: 0.9, smooth: 0.5 },
       ],
       paint: [{ name: 'stripe', color: 'white', on: 'spine', capsule: [8, -4.7, -1.5, -5.6, 0.9] }],
     },

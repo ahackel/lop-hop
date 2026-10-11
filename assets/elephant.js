@@ -5,28 +5,35 @@ export default {
   fur: 'blueGrey',
   joints: { hip: [7, 10.5], chest: [13.5, 10], head: [18.3, 7.4] },
   layers: [
-    { name: 'tail', outline: false, shapes: [{ name: 'tail', bone: 'tail', r: 0.45, color: 'outline', marks: [[1, 'outline', 0.8]] }] },
+    {
+      name: 'tail',
+      outline: false,
+      shapes: [{ name: 'tail', bone: 'tail', along: 'capsule', r: 0.45, color: 'outline', marks: [[1, 'outline', 0.8]] }],
+    },
     {
       name: 'far legs',
       far: true,
       hits: true,
-      shapes: [{ name: 'hindFar', bone: 'hindFar', r: 1.45, foot: [1.6, 0.7] }, { name: 'frontFar', bone: 'frontFar', r: 1.45, foot: [1.6, 0.7] }],
+      shapes: [
+        { name: 'hindFar', bone: 'hindFar', along: 'capsule', r: 1.45, foot: [1.6, 0.7] },
+        { name: 'frontFar', bone: 'frontFar', along: 'capsule', r: 1.45, foot: [1.6, 0.7] },
+      ],
     },
     {
       name: 'body',
       join: true,
       hits: true,
       shapes: [
-        { name: 'torso', bone: 'spine', r: 5, ends: 3.6 },
+        { name: 'torso', bone: 'spine', along: 'ellipse', r: 5, ends: 3.6 },
         { name: 'head', on: 'head', ellipse: [0.6, 0.5, 4.3, 4.5] },
         { name: 'brow', on: 'head', ellipse: [-0.4, -1.9, 3.5, 2.7] },
-        { name: 'hindNear', bone: 'hindNear', r: 1.6, foot: [1.7, 0.7], smooth: 0.5 },
-        { name: 'frontNear', bone: 'frontNear', r: 1.6, foot: [1.7, 0.7], smooth: 0.5 },
+        { name: 'hindNear', bone: 'hindNear', along: 'capsule', r: 1.6, foot: [1.7, 0.7], smooth: 0.5 },
+        { name: 'frontNear', bone: 'frontNear', along: 'capsule', r: 1.6, foot: [1.7, 0.7], smooth: 0.5 },
       ],
     },
     { name: 'ear', color: 'slate', shapes: [{ on: 'head', triangle: [[-5.6, -2], [-1.4, -2.4], [-3.2, 3.8]] }] },
     { name: 'tusk', color: 'white', shapes: [{ on: 'head', capsule: [2.8, 3, 5, 4, 0.55] }] },
-    { name: 'trunk', shapes: [{ name: 'trunk', bone: 'trunk', r: [1.35, 0.7], grows: true }] },
+    { name: 'trunk', shapes: [{ name: 'trunk', bone: 'trunk', along: 'capsule', r: [1.35, 0.7], grows: true }] },
     'face',
   ],
   legs: {

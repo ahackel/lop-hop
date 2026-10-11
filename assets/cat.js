@@ -5,25 +5,25 @@ export default {
   fur: 'tan',
   joints: { hip: [7, 12], chest: [14, 12], head: [19.5, 8.5] },
   layers: [
-    { name: 'tail', shapes: [{ name: 'tail', bone: 'tail', r: 1.1 }] },
+    { name: 'tail', shapes: [{ name: 'tail', bone: 'tail', along: 'capsule', r: 1.1 }] },
     {
       name: 'far legs',
       far: true,
       hits: true,
-      shapes: [{ name: 'hindFar', bone: 'hindFar', r: 0.9 }, { name: 'frontFar', bone: 'frontFar', r: 0.9 }],
+      shapes: [{ name: 'hindFar', bone: 'hindFar', along: 'capsule', r: 0.9 }, { name: 'frontFar', bone: 'frontFar', along: 'capsule', r: 0.9 }],
     },
     {
       name: 'body',
       join: true,
       hits: true,
       shapes: [
-        { name: 'torso', bone: 'spine', r: 3.8, ends: 3.5 },
+        { name: 'torso', bone: 'spine', along: 'ellipse', r: 3.8, ends: 3.5 },
         { name: 'head', on: 'head', ellipse: [0, 0, 4, 3.7] },
         { name: 'muzzle', on: 'head', ellipse: [2.8, 1.5, 2, 1.6] },
-        { name: 'earA', bone: 'earA', base: [[-1.55, 0.6], [1.55, -0.6]], smooth: 0.4 },
-        { name: 'earB', bone: 'earB', base: [[-1.5, -0.9], [1.5, 0.9]], smooth: 0.4 },
-        { name: 'hindNear', bone: 'hindNear', r: 1, smooth: 0.5 },
-        { name: 'frontNear', bone: 'frontNear', r: 1, smooth: 0.5 },
+        { name: 'earA', bone: 'earA', along: 'triangle', base: [[-1.55, 0.6], [1.55, -0.6]], smooth: 0.4 },
+        { name: 'earB', bone: 'earB', along: 'triangle', base: [[-1.5, -0.9], [1.5, 0.9]], smooth: 0.4 },
+        { name: 'hindNear', bone: 'hindNear', along: 'capsule', r: 1, smooth: 0.5 },
+        { name: 'frontNear', bone: 'frontNear', along: 'capsule', r: 1, smooth: 0.5 },
       ],
       paint: [
         { name: 'stripe', color: 'rust', on: 'spine', capsule: [-0.5, -4, -1, -1.7, 0.6] },

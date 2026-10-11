@@ -9,18 +9,18 @@ export default {
       name: 'far legs',
       far: true,
       hits: true,
-      shapes: [{ name: 'hindFar', bone: 'hindFar', r: 0.8 }, { name: 'frontFar', bone: 'frontFar', r: 0.8 }],
+      shapes: [{ name: 'hindFar', bone: 'hindFar', along: 'capsule', r: 0.8 }, { name: 'frontFar', bone: 'frontFar', along: 'capsule', r: 0.8 }],
     },
     {
       name: 'body',
       join: true,
       hits: true,
       shapes: [
-        { name: 'torso', bone: 'spine', r: 6.5, ends: 4.4 },
+        { name: 'torso', bone: 'spine', along: 'ellipse', r: 6.5, ends: 4.4 },
         { name: 'head', on: 'head', ellipse: [0, 0, 4.6, 4.4] },
         { name: 'muzzle', on: 'head', ellipse: [3.2, 1.4, 2.4, 2.2] },
-        { name: 'hindNear', bone: 'hindNear', r: 0.9, smooth: 0.5 },
-        { name: 'frontNear', bone: 'frontNear', r: 0.9, smooth: 0.5 },
+        { name: 'hindNear', bone: 'hindNear', along: 'capsule', r: 0.9, smooth: 0.5 },
+        { name: 'frontNear', bone: 'frontNear', along: 'capsule', r: 0.9, smooth: 0.5 },
       ],
       paint: [
         { name: 'rump', color: 'tan', on: 'spine', ellipse: [-3.5, 0, 4.5, 6] },

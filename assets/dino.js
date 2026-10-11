@@ -5,14 +5,14 @@ export default {
   fur: 'grey',
   joints: { hip: [10, 12], chest: [14, 12], head: [17.5, 3.5] },
   layers: [
-    { name: 'tail', shapes: [{ name: 'tail', bone: 'tail', r: [2.4, 0.5] }] },
-    { name: 'far legs', far: true, hits: true, shapes: [{ name: 'hindFar', bone: 'hindFar', r: 1.1, foot: [1.6, 0.8] }] },
+    { name: 'tail', shapes: [{ name: 'tail', bone: 'tail', along: 'capsule', r: [2.4, 0.5] }] },
+    { name: 'far legs', far: true, hits: true, shapes: [{ name: 'hindFar', bone: 'hindFar', along: 'capsule', r: 1.1, foot: [1.6, 0.8] }] },
     {
       name: 'body',
       join: true,
       hits: true,
       shapes: [
-        { name: 'torso', bone: 'spine', r: 0 },
+        { name: 'torso', bone: 'spine', along: 'ellipse', r: 0 },
         { name: 'body', on: 'spine', capsule: [-0.5, 0.8, 3.5, -2.8, 3.6] },
         { name: 'belly', on: 'spine', ellipse: [2.2, 1.6, 3.3, 2.9] },
         { name: 'neck', on: 'chest', capsule: [0, -3, 2.3, -7.2, 2.3] },
@@ -20,7 +20,7 @@ export default {
         { name: 'arm', on: 'chest', capsule: [1.9, -1.4, 3.7, -0.4, 0.6], smooth: 0.2 },
         { name: 'skull', on: 'head', box: [-3.5, -2.5, 5.5, 1.3, 1.5] },
         { name: 'jaw', on: 'head', capsule: [-2.2, 1, 3.4, 3.8, 0.95], smooth: 0.4 },
-        { name: 'hindNear', bone: 'hindNear', r: 1.25, foot: [1.6, 0.8], smooth: 0.5 },
+        { name: 'hindNear', bone: 'hindNear', along: 'capsule', r: 1.25, foot: [1.6, 0.8], smooth: 0.5 },
       ],
       paint: [{ name: 'belly', color: 'lightGrey', on: 'spine', ellipse: [3, 2, 2.2, 3] }],
     },

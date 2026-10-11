@@ -9,20 +9,23 @@ export default {
       name: 'far legs',
       far: true,
       hits: true,
-      shapes: [{ name: 'hindFar', bone: 'hindFar', r: 1.1 }, { name: 'frontFar', bone: 'frontFar', r: 1.2, foot: [1.2, 0.8] }],
+      shapes: [
+        { name: 'hindFar', bone: 'hindFar', along: 'capsule', r: 1.1 },
+        { name: 'frontFar', bone: 'frontFar', along: 'capsule', r: 1.2, foot: [1.2, 0.8] },
+      ],
     },
     {
       name: 'body',
       join: true,
       hits: true,
       shapes: [
-        { name: 'torso', bone: 'spine', r: 4.2, ends: 2.6 },
+        { name: 'torso', bone: 'spine', along: 'ellipse', r: 4.2, ends: 2.6 },
         { name: 'shoulders', on: 'chest', ellipse: [0.4, -0.4, 4.4, 4.6] },
         { name: 'head', on: 'head', ellipse: [0.8, 0.2, 4.1, 4.1] },
         { name: 'crest', on: 'head', ellipse: [-0.6, -2.8, 2.6, 2] },
         { name: 'jaw', on: 'head', ellipse: [2.6, 2.2, 2.4, 2] },
-        { name: 'hindNear', bone: 'hindNear', r: 1.25, smooth: 0.5 },
-        { name: 'frontNear', bone: 'frontNear', r: 1.35, foot: [1.3, 0.8], smooth: 0.5 },
+        { name: 'hindNear', bone: 'hindNear', along: 'capsule', r: 1.25, smooth: 0.5 },
+        { name: 'frontNear', bone: 'frontNear', along: 'capsule', r: 1.35, foot: [1.3, 0.8], smooth: 0.5 },
       ],
       paint: [
         { name: 'silver', color: 'blueGrey', on: 'spine', ellipse: [1.2, -2.4, 4.4, 2.2] },

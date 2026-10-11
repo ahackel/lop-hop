@@ -127,8 +127,8 @@
   table.list button.fold:hover { background-color: var(--line); }
   table.list button.fold.shut { transform: rotate(-90deg); }
   table.list .eye { padding: 0 0 0 6px; }
-  .cEye { width: 28px; } .cOn { width: 58px; } .cType { width: 50px; } .cFlags { width: 34px; }
-  .cKind { width: 56px; } .cKey { width: 36px; }
+  .cEye { width: 28px; } .cOn { width: 58px; } .cFlags { width: 34px; }
+  .cKey { width: 36px; }
   /* a group's head: its name, its switches (bright: on), + a shape */
   tr.layer > * { padding-top: 7px; border-top: 1px solid var(--line); }
   tbody:first-of-type tr.layer > * { border-top: 0; }
@@ -143,6 +143,7 @@
   tr.layer button.icon { padding: 1px 4px; }
   :is(tr.layer .rule, td .flag, td .key) svg { width: 12px; height: 12px; display: block; }
   td .flag { color: var(--dim); display: inline-flex; }
+  .kindIcon { color: var(--dim); display: inline-flex; flex: none; } .kindIcon svg { width: 13px; height: 13px; display: block; } /* (what a row is) */
   tr.sub > td { color: var(--dim); font-size: 11px; font-style: italic; padding-top: 5px; }
   td .key { display: inline-block; color: var(--accent); } td .key.off { color: var(--dim); }
   #inspector { padding: 10px; flex: 1; min-height: 0; overflow: auto; }

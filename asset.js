@@ -28,12 +28,15 @@
 //                socks are drawn with it, and the paws lying low (over) over it
 //   a shape      ellipse [x, y, rx, ry], capsule [ax, ay, bx, by, r], box [x0, y0, x1, y1, r] or triangle [[x, y] × 3],
 //                `on` a joint (in its frame: spine, hip, chest turn with the spine; head with the head) or in the box;
-//                or `bone`: drawn along a bone, by what it is: the spine (the torso, from the hip to the chest: r, how
-//                thick; ends, how far past them; round: round ends, else an ellipse; a move's torso changes the first),
-//                a leg (r; foot [rx, ry]: a flat foot), a chain (r, or [r at the root, r at the tip]; end: a round end;
-//                marks [[t along it, color, r]]; grows: grown out of the body, not outlined where it starts on it) or an
-//                ear (base [[x, y] × 2]: its base's ends, from its root; tipColor, tipSize: its tip in a color). Any:
-//                color (its own, in its group), a name to use it by
+//                or `bone`: drawn along a bone (the spine, from the hip to the chest; a leg, from its root by its knee
+//                to its paw; a chain, by its links), as the pose has it, `along` as one of the same: an ellipse or a
+//                box from its root to its end (r: how thick; ends: how far past both; a box's round: its corners),
+//                a capsule through its points (r, or [r at the root, r at the end]; ends; end: a round end; foot
+//                [rx, ry]: a flat foot) or a triangle from its base to its end (base [[x, y] × 2]: its base's ends,
+//                about its root, in its joint's frame; tipColor, tipSize: its end in a color); any along a bone:
+//                marks [[t along it, color, r]], grows (grown out of the body: not outlined where it starts on it).
+//                The torso: the first shape on the spine (a move's torso is its r and ends). Any: color (its own, in
+//                its group), a name to use it by
 //   dots         single pixels: { on, at, color }, drawn with the face
 //   spikes       (a group's) a shape where it bristles (speck: a color for specks inside)
 //   socks        a color for the lower legs
