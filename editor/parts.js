@@ -47,14 +47,15 @@ function boneBits(s) {
   const dirOf = (p, q) => { const d = minus(q, p), l = Math.hypot(...d) || 1; return [d[0] / l, d[1] / l]; };
   const thick = (q, dir, r, put) => { const nrm = [-dir[1], dir[0]]; handles.push({ at: plus(q, times(nrm, r)), size: true, set: (p) => put(Math.max(0.1, +round(Math.hypot(...minus(p, q))).toFixed(3))) }); };
   const rr = (i) => (Array.isArray(s.r) ? s.r[i ? 1 : 0] : s.r ?? 1);
+  const torso = s === spineShape(), dr = torso && typeof s.r !== 'object' ? (P.torso.r ?? 1) - (s.r ?? 1) : 0, de = torso ? (P.torso.ends || 0) - (s.ends || 0) : 0; // (the torso: drawn as the pose has it, more or less)
   if (k === 'triangle') (s.base || []).forEach((d, i) => handles.push({ at: world(rf, plus(at, d)), set: (p) => { s.base[i] = roundAll(minus(local(rf, p), at)); } }));
   else if (k === 'capsule') {
     if (Array.isArray(s.r)) { thick(a, dirOf(a, pts[1]), rr(0), (v) => { s.r = [v, s.r[1]]; }); thick(b, dirOf(pts[n - 2], b), rr(1), (v) => { s.r = [s.r[0], v]; }); }
-    else { const q = mix(pts[n - 2], b, 0.5); thick(q, dirOf(pts[n - 2], b), s === spineShape() ? P.torso.r : rr(0), (v) => { s.r = v; }); }
+    else { const q = mix(pts[n - 2], b, 0.5); thick(q, dirOf(pts[n - 2], b), rr(0) + dr, (v) => { s.r = Math.max(0.1, +(v - dr).toFixed(3)); }); }
   } else { // (an ellipse, a box: from its root to its end, in its frame)
-    const f = o.parts[0].f, len = Math.hypot(...minus(b, a)), r = Math.max(0.05, Math.abs(o.parts[0].s.ellipse?.[3] ?? o.parts[0].s.box[3])), e = s === spineShape() ? P.torso.ends || 0 : s.ends || 0;
-    handles.push({ at: world(f, [len / 2, -r]), size: true, set: (p) => { s.r = Math.max(0, +round(Math.abs(local(f, p)[1])).toFixed(3)); } });
-    handles.push({ at: world(f, [len + e, 0]), size: true, set: (p) => { s.ends = Math.max(0, +round(local(f, p)[0] - len).toFixed(3)); } });
+    const f = o.parts[0].f, len = Math.hypot(...minus(b, a)), r = Math.max(0.05, Math.abs(o.parts[0].s.ellipse?.[3] ?? o.parts[0].s.box[3])), e = (s.ends || 0) + de;
+    handles.push({ at: world(f, [len / 2, -r]), size: true, set: (p) => { s.r = Math.max(0, +(round(Math.abs(local(f, p)[1])) - dr).toFixed(3)); } });
+    handles.push({ at: world(f, [len + e, 0]), size: true, set: (p) => { s.ends = Math.max(0, +(round(local(f, p)[0] - len) - de).toFixed(3)); } });
   }
   const bits = o.parts.map((q) => shapeBits(q.s, q.f || null));
   return { handles, lines: bits.flatMap((x) => x.lines), hit: (p) => bits.some((x) => x.hit(p)) };

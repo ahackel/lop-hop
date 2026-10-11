@@ -61,7 +61,7 @@ export default {
     },
     duck: {
       joints: { hip: [6.5, 16.3], chest: [14.5, 16.3], head: [20, 15.3] },
-      torso: { r: 2.9, ends: 4.7 },
+      torso: { thicker: -0.9, longer: 1.2 },
       chains: { tail: { at: [-3.5, -0.3], angle: 1.55 }, earA: { tip: [-4.2, -5] }, earB: { tip: [1.5, -5.2] } },
       pad: [1.8, 1],
       over: true,
@@ -104,7 +104,7 @@ export default {
           at: 0,
           eye: 'ko',
           joints: { hip: [7, 16.3], chest: [14, 16.3], head: [19.5, 15.3] },
-          torso: { r: 2.9, ends: 4.5 },
+          torso: { thicker: -0.9, longer: 1 },
           chains: { tail: { at: [-3.5, -0.3], angle: 1.55 }, earA: { tip: [-4.2, -5] }, earB: { tip: [1.5, -5.2] } },
           flip: true,
           paws: { hindNear: [6, 11], hindFar: [10, 11], frontNear: [14, 11], frontFar: [17, 11] },
@@ -118,7 +118,7 @@ export default {
         {
           at: 0,
           joints: { hip: [9.5, 14] },
-          torso: { r: 0 },
+          torso: { thicker: -3.8 },
           roots: { hindNear: [8, 16], hindFar: [10, 16], frontNear: [13, 15], frontFar: [15, 15] },
           paws: { hindNear: [8, 18.4], hindFar: [10, 18.4], frontNear: [13, 18.4], frontFar: [15.2, 18.4] },
           chains: { tail: { root: [4.5, 17] } },

@@ -374,11 +374,11 @@ const balls = [0, 1, 2, 3].map((f) => {
 // drawn into a grid just big enough for it, with its offset (ox, oy) from the 26×20 box the game places every animal by:
 // a tail can reach out of the box. One made from another (of: the wolf, the fox's) is that one's, with its own over it
 const FILES = { rabbit, guineapig, cat, dog, pig, fox, hedgehog, squirrel, otter, skunk, wolf, boar, bear, yak, ostrich, cheetah, dromedary, rhino, gorilla, elephant, dino };
-const rawRig = (asset, of = FILES[asset.of]) => (of ? { ...rawRig(of), ...toBuild(asset) } : { ...toBuild(asset), poses: asset.moves || {} });
+const rawRig = (asset, of = FILES[asset.of]) => { const b = toBuild(asset); return of ? { ...rawRig(of), ...b } : { ...b, poses: b.moves || {} }; };
 export const rigOf = (asset, of = FILES[asset.of]) => onLayers(rawRig(asset, of));
 // its look (see asset.js): one list of groups, back to front, each drawn as one, and 'face' (where the face is drawn).
 // The body: the first group joined into one that hits, whose own shapes, paint and spikes a pose changes (see
-// layersAt). The torso: the first shape on the spine (a move's torso changes it)
+// layersAt). The torso: the first shape on the spine (a move's torso: thicker, longer)
 const defined = (o) => { for (const k in o) if (o[k] === undefined) delete o[k]; return o; };
 const isGroup = (g) => !!g && typeof g === 'object';
 const bodyOf = (layers) => layers.find((g) => isGroup(g) && g.join && g.hits);
@@ -589,14 +589,18 @@ function posedAs(rig, p) {
   const J = { ...rig.joints, ...p.joints }, a = Math.atan2(J.chest[1] - J.hip[1], J.chest[0] - J.hip[0]);
   const F = { spine: jointFrame(J.hip, a, p.flip), hip: jointFrame(J.hip, a, p.flip), chest: jointFrame(J.chest, a, p.flip), head: jointFrame(J.head, p.headAngle || 0),
     box: p.turn ? jointFrame(plus(minus(p.turn.pivot, turn(p.turn.pivot, p.turn.angle)), p.turn.by || [0, 0]), p.turn.angle) : null }; // (box: what is on no joint, turned with the whole body, moved by: see hung)
-  return { p, J, F, a, torso: rig.torso?.none ? { r: 0 } : { ...rig.torso, ...p.torso } }; // (none: no shape on the spine)
+  return { p, J, F, a, torso: rig.torso?.none ? { r: 0 } : torsoBy(rig.torso, p.torso) }; // (none: no shape on the spine)
 }
+// a torso (the first shape on the spine, see onLayers) as a pose has it: its r and ends, thicker and longer by the
+// pose's (-: thinner, shorter)
+const plusBy = (v, dv, none) => (!dv ? v : Array.isArray(v) ? v.map((x) => x + dv) : (v ?? none) + dv);
+const torsoBy = (t, d) => (d ? { ...t, r: plusBy(t.r, d.thicker, 1), ends: plusBy(t.ends, d.longer, 0) } : t);
 // a pose between two (u: 0 the first, 1 the second): the joints, the paws, the head's turn, the torso and the chains' rest
 // part way; what cannot be part way (the shapes of a pose of its own, flipped, pads), the nearer one's
 function mixPose(rig, a, b, u) {
   const m = u < 0.5 ? a : b, lerp = (x, y) => x + (y - x) * u, part = (x, y) => (x && y ? mix(x, y, u) : u < 0.5 ? x : y);
-  const ja = { ...rig.joints, ...a.joints }, jb = { ...rig.joints, ...b.joints }, ta = { ...rig.torso, ...a.torso }, tb = { ...rig.torso, ...b.torso };
-  const out = { ...m, eye: b.eye, mouth: b.mouth, joints: {}, paws: {}, chains: {}, headAngle: lerp(a.headAngle || 0, b.headAngle || 0), torso: { ...ta, ...tb, r: lerp(ta.r || 0, tb.r || 0), ends: lerp(ta.ends ?? tb.ends ?? 0, tb.ends ?? ta.ends ?? 0) } };
+  const ja = { ...rig.joints, ...a.joints }, jb = { ...rig.joints, ...b.joints }, ta = a.torso || {}, tb = b.torso || {};
+  const out = { ...m, eye: b.eye, mouth: b.mouth, joints: {}, paws: {}, chains: {}, headAngle: lerp(a.headAngle || 0, b.headAngle || 0), torso: { thicker: lerp(ta.thicker || 0, tb.thicker || 0), longer: lerp(ta.longer || 0, tb.longer || 0) } };
   for (const k in ja) out.joints[k] = mix(ja[k], jb[k], u);
   for (const k in rig.legs) out.paws[k] = part(a.paws?.[k], b.paws?.[k]);
   for (const k in rig.chains) {
@@ -607,8 +611,8 @@ function mixPose(rig, a, b, u) {
 }
 // landing (s: how hard, 1…0): the body lower (the legs bend to keep their paws down), the torso flatter and longer
 function squashPose(rig, p, s) {
-  const J = { ...rig.joints, ...p.joints }, t = { ...rig.torso, ...p.torso }, down = (q, k) => [q[0], q[1] + k * 1.5 * s];
-  return { ...p, joints: { hip: down(J.hip, 1), chest: down(J.chest, 0.8), head: down(J.head, 0.5) }, torso: t.r > 0 ? { ...t, r: t.r - 0.35 * s, ends: t.ends + 0.4 * s } : t };
+  const J = { ...rig.joints, ...p.joints }, t = p.torso || {}, down = (q, k) => [q[0], q[1] + k * 1.5 * s];
+  return { ...p, joints: { hip: down(J.hip, 1), chest: down(J.chest, 0.8), head: down(J.head, 0.5) }, torso: (rig.torso?.r || 0) + (t.thicker || 0) > 0 ? { thicker: (t.thicker || 0) - 0.35 * s, longer: (t.longer || 0) + 0.4 * s } : p.torso };
 }
 
 // a chain at rest in a pose: its root, its direction, its links (an ear: one, from its root to its tip)
@@ -627,7 +631,8 @@ function restPoints(c) {
 }
 // a shape on a bone (bone, along: see asset.js) as the pose has the bone, in the box: its parts (each a shape, in a frame
 // if it has one), and what it has more on a leg (a paw lying flat, unless far; its sock) or as a triangle (its tip).
-// chains: where each chain's points are; first: the torso (the first shape on the spine: a move's torso is its r, ends)
+// chains: where each chain's points are; first: the torso (the first shape on the spine: a move's torso makes it thicker,
+// longer)
 function onBone(rig, P, chains, s, far = false, first = false) {
   const { p, F, J } = P, n = s.bone, L = rig.legs?.[n], c = rig.chains?.[n];
   let pts, rf, at = [0, 0]; // (its points from its root; a triangle's base about its root, in rf)
@@ -639,7 +644,7 @@ function onBone(rig, P, chains, s, far = false, first = false) {
     pts = chains[n];
     if (c.ear) { rf = F[c.on]; at = c.at; } else rf = { ...F[c.on], o: pts[0] };
   } else return null;
-  const t = n === 'spine' ? { ...s, ...(first ? { r: P.torso.r, ends: P.torso.ends } : p.torso) } : s;
+  const t = n === 'spine' ? (first ? { ...s, r: P.torso.r, ends: P.torso.ends } : torsoBy(s, p.torso)) : s; // (another on the spine: changed as much)
   const kind = s.along || (n === 'spine' ? (s.round ? 'capsule' : 'ellipse') : c?.ear ? 'triangle' : 'capsule'); // (none: as its bone had it)
   const a = pts[0], b = pts[pts.length - 1], ends = t.ends || 0;
   const r = (i) => (Array.isArray(t.r) ? t.r[0] + ((t.r[1] - t.r[0]) * i) / Math.max(1, pts.length - 2) : t.r ?? 1);

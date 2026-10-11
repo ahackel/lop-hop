@@ -35,7 +35,7 @@
 //                [rx, ry]: a flat foot) or a triangle from its base to its end (base [[x, y] × 2]: its base's ends,
 //                about its root, in its joint's frame; tipColor, tipSize: its end in a color); any along a bone:
 //                marks [[t along it, color, r]], grows (grown out of the body: not outlined where it starts on it).
-//                The torso: the first shape on the spine (a move's torso is its r and ends). Any: color (its own, in
+//                The torso: the first shape on the spine (a move's torso: thicker, longer, -: less). Any: color (its own, in
 //                its group), a name to use it by
 //   dots         single pixels: { on, at, color }, drawn with the face
 //   spikes       (a group's) a shape where it bristles (speck: a color for specks inside)
@@ -66,7 +66,7 @@
 //                or a clip: { frames, fps (a loop, played over time: the idle), keys: [{ at: a frame, ease, what of the pose
 //                  it sets }] }. Each thing a key sets goes from it to the next key that sets it by its ease (step,
 //                  linear, smooth, sine; linear if none); a loop's last on round to its first; null: not set
-//                a pose: joints, paws { leg: [x, y] }, headAngle, torso, chains { name: angle, at, curl, tip }, roots
+//                a pose: joints, paws { leg: [x, y] }, headAngle, torso { thicker, longer: than the torso shape, -: less }, chains { name: angle, at, curl, tip }, roots
 //                  { leg: [x, y] }, flip (on its back), pad (the near paws flat: [rx, ry]), over (drawn over the body); eye, mouth (its face's frames by name: open and shut if
 //                  none; blinking, open is blink); shapes (the body's own and these; ownShapes: only these), paint
 //                  (the body's), top (groups of its own: after the body and the groups on no bone after it), dots. A
@@ -78,7 +78,31 @@ const OWN = ['format', 'name', 'of']; // (the file's, not the rig's)
 export function toBuild(asset) {
   const build = {};
   for (const k in asset) if (!OWN.includes(k)) build[k] = asset[k];
+  if (build.moves) build.moves = setTorsos(build);
   return build;
+}
+// a move's torso as a file from before had it (r, ends: as it is in the pose) → how much thicker and longer than the torso
+// shape (see onLayers in art.js)
+function setTorsos(b) {
+  const spine = (b.layers || []).filter((g) => g && typeof g === 'object').flatMap((g) => g.shapes).find((s) => s.bone === 'spine');
+  const r0 = typeof spine?.r === 'number' ? spine.r : 1, e0 = spine?.ends || 0, r3 = (v) => Math.round(v * 1000) / 1000;
+  let any = false;
+  const walk = (o) => {
+    if (!o || typeof o !== 'object') return o;
+    if (Array.isArray(o)) return o.map(walk);
+    const out = {};
+    for (const k in o) {
+      const v = o[k];
+      if (k === 'torso' && v && typeof v === 'object' && ('r' in v || 'ends' in v)) {
+        any = true;
+        const { r, ends, ...rest } = v;
+        out[k] = { ...rest, ...(typeof r === 'number' && { thicker: r3(r - r0) }), ...(typeof ends === 'number' && { longer: r3(ends - e0) }) };
+      } else out[k] = walk(v);
+    }
+    return out;
+  };
+  const moves = walk(b.moves);
+  return any ? moves : b.moves;
 }
 
 // a rig's build → its asset (of: kept from the asset it was, if any)

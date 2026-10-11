@@ -202,9 +202,12 @@ export function inspectMove(box) {
       one('curl', `chains.${row}.curl`, c.curl || 0, { step: 0.05, span: 1 });
     }
   } else {
-    const sp = spineShape(), t = { ...(sp && { r: sp.r, ends: sp.ends }), ...pose.torso };
+    const sp = spineShape(), r0 = typeof sp?.r === 'number' ? sp.r : 1, e0 = sp?.ends || 0; // (the torso as the frame has it; a key: how much more than its shape's)
     one('head turn', 'headAngle', pose.headAngle || 0, { step: 0.05, span: 1.5 }, 'radians, + down');
-    if (sp?.r || pose.torso) { one('torso r', 'torso.r', t.r, { min: 0, max: 8 }); one('torso ends', 'torso.ends', t.ends ?? 0, { min: 0, max: 8 }); }
+    if (sp?.r || pose.torso) {
+      box.append(mark(field('torso r', numIn(P.torso.r ?? r0, (x) => setKey('torso.thicker', +(x - r0).toFixed(3)), { min: 0, max: 12 }), 'Its torso here: a key keeps how much thicker than the torso shape (it grows with it)'), 'torso.thicker'));
+      box.append(mark(field('torso ends', numIn(P.torso.ends ?? e0, (x) => setKey('torso.longer', +(x - e0).toFixed(3)), { min: 0, max: 12 }), 'Its torso here: a key keeps how much longer than the torso shape'), 'torso.longer'));
+    }
     const flip = el('input', { type: 'checkbox', checked: !!pose.flip, onchange: () => commit(() => setKey('flip', flip.checked || null)) });
     box.append(field('on its back', flip));
     for (const part of ['eye', 'mouth']) { // its face's frames: a key sets which

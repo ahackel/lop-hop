@@ -42,7 +42,7 @@ export default {
     run: { gait: { frames: 8, stance: 0.45, reach: 5, lift: 2.2, bob: 0.5, ground: 18.4, legs: { hindNear: [0, 0.5], hindFar: [0.5, -0.5] } } },
     duck: {
       joints: { hip: [8.5, 15.5], chest: [16.5, 15.5], head: [20, 13.8] },
-      torso: { r: 2.4, ends: 5.2 },
+      torso: { thicker: 2.4, longer: 5.2 },
       ownShapes: true,
       shapes: [{ use: 'skull' }, { use: 'jaw' }],
       paint: [{ color: 'lightGrey', on: 'spine', ellipse: [3.5, 1.4, 5, 1] }],
@@ -66,7 +66,7 @@ export default {
           at: 0,
           eye: 'ko',
           joints: { hip: [9, 15.5], chest: [16, 15.5], head: [19.5, 13.8] },
-          torso: { r: 2.4, ends: 5 },
+          torso: { thicker: 2.4, longer: 5 },
           ownShapes: true,
           shapes: [{ use: 'skull' }, { use: 'jaw' }],
           paint: [{ color: 'lightGrey', on: 'spine', ellipse: [3.5, 1.4, 5, 1] }],
