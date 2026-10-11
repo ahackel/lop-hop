@@ -13,20 +13,20 @@ export default {
   dots: [{ name: 'blush', on: 'head', at: [2.5, 2], color: 'pink' }],
   legs: {
     hindFar: { on: 'hip', at: [1, 2], thigh: 3.2, shin: 4.6, r: 1.2, bend: 1, far: true },
-    frontFar: { on: 'chest', at: [3.3, 0.5], thigh: 2.8, shin: 2.8, r: 1.1, bend: -1, far: true },
+    frontFar: { on: 'chest', at: [1.4, 0.7], thigh: 2.8, shin: 2.8, r: 1.1, bend: -1, far: true },
     hindNear: { on: 'hip', at: [0, 2], thigh: 3.2, shin: 4.6, r: 1.3, bend: 1 },
-    frontNear: { on: 'chest', at: [2.5, 0.5], thigh: 2.8, shin: 2.8, r: 1.2, bend: -1 },
+    frontNear: { on: 'chest', at: [-0.2, 1], thigh: 2.8, shin: 2.8, r: 1.2, bend: -1 },
   },
   chains: {
-    tail: { on: 'hip', at: [-4.7, -1], angle: 1.2, links: 1, length: 0.5, r: 1.9, stiffness: 900, damping: 16, weight: 80 },
+    tail: { on: 'hip', at: [-4.5, 2.1], angle: 1.2, links: 1, length: 0.5, r: 1.9, stiffness: 900, damping: 16, weight: 80 },
     ear: {
       on: 'head',
       at: [-2, -3],
-      angle: 2.7,
+      angle: 3.123,
       links: 2,
-      length: 5.6,
+      length: 5.3,
       r: 1.4,
-      end: 2.1,
+      end: 1.2,
       color: 'beige',
       front: true,
       stiffness: 240,
@@ -34,7 +34,13 @@ export default {
       weight: 140,
     },
   },
-  face: { eye: [1.5, -1], nose: [4.5, 1], noseColor: 'pink' },
+  face: {
+    eye: [1.5, -1],
+    nose: [4.5, 1],
+    noseColor: 'pink',
+    mouth: [4, 3],
+    frames: { mouth: { shut: { at: [0, 0], rows: ['.'] }, open: { at: [1, 0], rows: ['x', 'x'] }, happy: { at: [0, 0], rows: ['.'] } } },
+  },
   front: {
     joints: { hip: [13, 15], chest: [13, 12], head: [13, 9] },
     shapes: [
