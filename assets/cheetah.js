@@ -16,7 +16,7 @@ export default {
       shapes: [
         { name: 'hindFar', bone: 'hindFar', along: 'capsule', r: 0.6 },
         { name: 'frontFar', bone: 'frontFar', along: 'capsule', r: 0.6 },
-        { name: 'ear', on: 'head', ellipse: [-0.7, -3.2, 1.1, 1.1] },
+        { name: 'ear', on: 'head', ellipse: [0.9, -2.9, 1.1, 1.1] },
       ],
     },
     {
@@ -27,13 +27,13 @@ export default {
         { name: 'torso', bone: 'spine', along: 'ellipse', r: 3, ends: 3 },
         { name: 'chest', on: 'chest', ellipse: [0.5, 0.4, 2.6, 2.8] },
         { name: 'head', on: 'head', ellipse: [0, 0, 3.3, 3.1] },
-        { name: 'muzzle', on: 'head', ellipse: [2.5, 1.4, 1.4, 1.1] },
-        { name: 'ear', on: 'head', ellipse: [-3, -2.8, 1.1, 1.1] },
+        { name: 'muzzle', on: 'head', ellipse: [3.4, 1.6, 1.783, 1.71] },
+        { name: 'ear', on: 'head', ellipse: [-1.8, -2.7, 1.1, 1.1], color: 'ochre' },
         { name: 'hindNear', bone: 'hindNear', along: 'capsule', r: 0.6, smooth: 0.5 },
         { name: 'frontNear', bone: 'frontNear', along: 'capsule', r: 0.6, smooth: 0.5 },
       ],
       paint: [
-        { name: 'muzzle', color: 'white', on: 'head', ellipse: [2.5, 1.4, 1.4, 1.1] },
+        { name: 'muzzle', color: 'white', on: 'head', ellipse: [3.2, 2.6, 2.216, 1.721] },
         { name: 'belly', color: 'white', on: 'spine', ellipse: [5, 2.5, 4.5, 0.9] },
       ],
     },
@@ -57,7 +57,7 @@ export default {
     frontNear: { on: 'chest', at: [0, 2], thigh: 2.9, shin: 2.9, bend: -1 },
   },
   chains: { tail: { on: 'hip', at: [-2.5, -0.8], angle: 1.947, links: 4, length: 8, curl: -0.15, stiffness: 600, damping: 36.33, weight: 40 } },
-  face: { eye: [0.9, -1], nose: [3.6, 1] },
+  face: { eye: [0.9, -1], nose: [4.6, 1.426] },
   handling: { fed: { upright: 0.04, rears: 0, stretch: 6, nod: 1.3 } },
   moves: {
     run: {

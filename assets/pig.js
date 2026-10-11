@@ -14,12 +14,11 @@ export default {
     },
     {
       name: 'body',
-      join: true,
       hits: true,
       shapes: [
         { name: 'torso', bone: 'spine', along: 'ellipse', r: 5.6, ends: 3.6 },
         { name: 'head', on: 'head', ellipse: [0, 0, 4.6, 4.4], smooth: 0.3 },
-        { name: 'snout', on: 'head', box: [3.6, 0, 7.2, 3.2, 1.1] },
+        { name: 'snout', on: 'head', box: [2.1, 0, 7.2, 3.2, 1.1] },
         { name: 'hindNear', bone: 'hindNear', along: 'capsule', r: 0.75, smooth: 0.5 },
         { name: 'frontNear', bone: 'frontNear', along: 'capsule', r: 0.75, smooth: 0.5 },
       ],
@@ -29,8 +28,8 @@ export default {
     { name: 'ear', shapes: [{ name: 'ear', bone: 'ear', along: 'capsule', r: [1.3, 1.5], end: 1.7, color: 'rose' }] },
   ],
   dots: [
-    { name: 'nostril', on: 'head', at: [5.8, 0.7] },
-    { name: 'nostril', on: 'head', at: [5.8, 2.4] },
+    { name: 'nostril', on: 'head', at: [5.3, 1.5] },
+    { name: 'nostril', on: 'head', at: [6.8, 0.9] },
     { name: 'blush', on: 'head', at: [2.2, 1.8], color: 'rose' },
   ],
   socks: 'rose',
@@ -113,7 +112,7 @@ export default {
       frames: 80,
       fps: 10,
       keys: [
-        { at: 0, paws: { hindFar: [10, 18.4], frontFar: [16, 18.4], hindNear: [8.5, 18.4], frontNear: [14, 18.4] }, joints: { hip: [8, 11.2] } },
+        { at: 0, paws: { hindFar: [9.9, 19.3], frontFar: [16.3, 19.2], hindNear: [7.7, 19.2], frontNear: [13.9, 19.8] }, joints: { hip: [8, 11.2] } },
         { at: 5, ease: 'sine', joints: { head: [20, 8.28] }, torso: { r: 5.9 } },
         { at: 5, ease: 'smooth', joints: { chest: [14.5, 11.11] } },
         { at: 10, ease: 'sine', chains: { tail: { angle: 1.2 } } },
