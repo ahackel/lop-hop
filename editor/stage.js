@@ -6,7 +6,7 @@ import { faceEdit } from './face.js';
 import { inspect } from './inspector.js';
 import { hover, isPicked, listParts, togglePick } from './lists.js';
 import { castHit, drawCast, setHue } from './palette.js';
-import { current, minus, parts, plus, same, times, setStep, setAlt } from './parts.js';
+import { current, isOwn, minus, parts, plus, same, times, setStep, setAlt } from './parts.js';
 import * as sandbox from './play.js';
 import { G, P, also, build, changed, drag, editable, hist, kind, nice, place, reach, remember, restPoints, sel, snapshot, status, toWorld, view, setAlso, setSel, setDrag } from './state.js';
 import { frames, kindOf, markFrames, setPlay, timeline } from './timeline.js';
@@ -88,7 +88,7 @@ export function draw() {
 }
 
 // the bones as lines, as the pose has them: down the spine (the hip to the chest, the chest to the head, the head's turn),
-// each leg (its root to its knee to its paw) and each chain (a tail's links at rest; an ear: its base to its tip), each
+// each leg (its root to its knee to its paw) and each chain not a shape's own (a tail's links at rest; an ear: its base to its tip), each
 // as a long thin diamond from where it starts to where it ends; dashed: from the joint a leg or a chain hangs from to
 // its root
 function drawBones(ctx) {
@@ -115,6 +115,7 @@ function drawBones(ctx) {
     if (f) hangs.push([f.o, root]);
   }
   for (const n in chains) {
+    if (isOwn(n)) continue; // (a shape's own: its handles, picked)
     const r = rigParts.chainRest(kind, P, n), f = F[r.on];
     if (r.ear) bone(r.root, plus(r.root, times(r.dir, r.length)));
     else { const pts = restPoints(r); for (let i = 1; i < pts.length; i++) bone(pts[i - 1], pts[i]); }

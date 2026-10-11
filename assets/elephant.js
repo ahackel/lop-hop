@@ -1,6 +1,6 @@
 // elephant: an asset (see asset.js), written by the editor; data only
 export default {
-  format: 4,
+  format: 5,
   name: 'elephant',
   fur: 'blueGrey',
   joints: { hip: [7, 10.5], chest: [13.5, 10], head: [18.3, 7.4] },
@@ -8,7 +8,16 @@ export default {
     {
       name: 'tail',
       outline: false,
-      shapes: [{ name: 'tail', bone: 'tail', along: 'capsule', r: 0.45, color: 'outline', marks: [[1, 'outline', 0.8]] }],
+      shapes: [
+        {
+          name: 'tail',
+          chain: { on: 'hip', at: [-3.9, -0.3], angle: 3, links: 2, length: 5.4, stiffness: 10, damping: 14, weight: 60, role: 'tail' },
+          along: 'capsule',
+          r: 0.45,
+          color: 'outline',
+          marks: [[1, 'outline', 0.8]],
+        },
+      ],
     },
     {
       name: 'far legs',
@@ -32,7 +41,30 @@ export default {
       ],
     },
     { name: 'ear', color: 'slate', shapes: [{ on: 'head', triangle: [[-5.6, -2], [-1.4, -2.4], [-3.2, 3.8]] }] },
-    { name: 'trunk', shapes: [{ name: 'trunk', bone: 'trunk', along: 'capsule', r: [1.35, 0.514], grows: true, smooth: 1 }] },
+    {
+      name: 'trunk',
+      shapes: [
+        {
+          name: 'trunk',
+          chain: {
+            on: 'head',
+            at: [4.3, 2.3],
+            angle: -3.007,
+            links: 4,
+            length: 8.2,
+            curl: 0.18,
+            stiffness: 900,
+            damping: 20,
+            weight: 50,
+            role: 'trunk',
+          },
+          along: 'capsule',
+          r: [1.35, 0.514],
+          grows: true,
+          smooth: 1,
+        },
+      ],
+    },
     { name: 'tusk', color: 'cream', shapes: [{ on: 'head', capsule: [2.8, 3, 7.1, 4.921, 0.756] }], outline: false },
     'face',
   ],
@@ -42,12 +74,9 @@ export default {
     hindNear: { on: 'hip', at: [0, 3.6], thigh: 2.2, shin: 2.2, bend: 1 },
     frontNear: { on: 'chest', at: [0, 3.6], thigh: 2.2, shin: 2.2, bend: -1 },
   },
-  chains: {
-    trunk: { on: 'head', at: [4.3, 2.3], angle: -3.007, links: 4, length: 8.2, curl: 0.18, stiffness: 900, damping: 20, weight: 50 },
-    tail: { on: 'hip', at: [-3.9, -0.3], angle: 3, links: 2, length: 5.4, stiffness: 10, damping: 14, weight: 60 },
-  },
   face: { eye: [1.4, -1] },
-  handling: { fed: { nod: 0.7, chewFor: 1.54 } },
+  handling: { fed: { nod: 0.7, chewFor: 1.54, upright: 0.04 } },
+  headPivot: [-2.284, 0],
   moves: {
     run: {
       gait: {

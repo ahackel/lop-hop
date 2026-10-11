@@ -1,6 +1,6 @@
 // guineapig: an asset (see asset.js), written by the editor; data only
 export default {
-  format: 4,
+  format: 5,
   name: 'guineapig',
   fur: 'white',
   joints: { hip: [8, 11.3], chest: [14, 11.3], head: [18.4, 10.4] },

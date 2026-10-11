@@ -1,13 +1,32 @@
 // cheetah: an asset (see asset.js), written by the editor; data only
 export default {
-  format: 4,
+  format: 5,
   name: 'cheetah',
   fur: 'tan',
   joints: { hip: [7, 10.8], chest: [15, 10.8], head: [19.6, 7.6] },
   layers: [
     {
       name: 'tail',
-      shapes: [{ name: 'tail', bone: 'tail', along: 'capsule', r: 0.718, marks: [[0.45, 'outline', 0], [0.7, 'outline', 0], [1, 'white', 0]] }],
+      shapes: [
+        {
+          name: 'tail',
+          chain: {
+            on: 'hip',
+            at: [-2.5, -0.8],
+            angle: 1.947,
+            links: 4,
+            length: 8,
+            curl: -0.15,
+            stiffness: 600,
+            damping: 36.33,
+            weight: 40,
+            role: 'tail',
+          },
+          along: 'capsule',
+          r: 0.718,
+          marks: [[0.45, 'outline', 0], [0.7, 'outline', 0], [1, 'white', 0]],
+        },
+      ],
     },
     {
       name: 'far legs',
@@ -56,7 +75,6 @@ export default {
     hindNear: { on: 'hip', at: [0, 2], thigh: 2.9, shin: 2.9, bend: 1 },
     frontNear: { on: 'chest', at: [0, 2], thigh: 2.9, shin: 2.9, bend: -1 },
   },
-  chains: { tail: { on: 'hip', at: [-2.5, -0.8], angle: 1.947, links: 4, length: 8, curl: -0.15, stiffness: 600, damping: 36.33, weight: 40 } },
   face: { eye: [0.9, -1], nose: [4.6, 1.426] },
   handling: { fed: { upright: 0.04, rears: 0, stretch: 6, nod: 1.3 } },
   moves: {

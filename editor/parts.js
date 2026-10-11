@@ -18,6 +18,11 @@ export function geomOf(s) { return GEOMS.find((g) => Array.isArray(s[g])); }
 // bone had it); its settings, each as art.js draws it if not set (so every one shows in the inspector)
 export const boneKind = (s) => (s.bone === 'spine' ? 'spine' : build.legs?.[s.bone] ? 'leg' : build.chains?.[s.bone]?.ear ? 'ear' : build.chains?.[s.bone] ? 'tail' : null);
 export const alongOf = (s) => s.along || (s.bone === 'spine' ? (s.round ? 'capsule' : 'ellipse') : build.chains?.[s.bone]?.ear ? 'triangle' : 'capsule');
+// a shape with a bone of its own: a chain only it is on, by its name (in its file: in the shape, see asset.js); in Setup
+// its bone's handles are its own, not a bone's in the list
+const shapesOn = (n) => (build.layers || []).filter(isGroup).flatMap((G) => G.shapes).filter((x) => x.bone === n);
+export const isOwn = (n) => { const on = shapesOn(n); return !!build.chains?.[n] && on.length === 1 && on[0].name === n; };
+export const ownChain = (s) => (s?.bone && s.name === s.bone && isOwn(s.bone) ? build.chains[s.bone] : null);
 export const spineShape = () => (build.layers || []).filter(isGroup).flatMap((G) => G.shapes).find((s) => s.bone === 'spine'); // (the torso: a move's torso changes it)
 export const ALONG = { // (each kind's own settings along a bone)
   ellipse: { r: 1, ends: 0 }, capsule: { r: 1, ends: 0, end: 0 }, box: { r: 1, ends: 0, round: 0 }, triangle: { base: [[-1.2, 0.5], [1.2, -0.5]], tipColor: undefined, tipSize: 2 },
@@ -187,7 +192,10 @@ export function parts() {
       gp.lines.push([pivot, turnAt]);
     }
     out.push(gp);
-    G.shapes.forEach((s, i) => out.push({ sel: { type: 'item', g, i }, layer: g, label: s.name || geomOf(s) || alongOf(s), color: swatch(s.color || G.color || build.fur), obj: s, depth: 1, off: off || hidden.has(s), ...kids[i] }));
+    G.shapes.forEach((s, i) => {
+      const own = ownChain(s), cb = own && chainBits(own), k = cb ? { ...kids[i], handles: [...kids[i].handles, ...cb.handles], lines: [...kids[i].lines, ...cb.lines] } : kids[i];
+      out.push({ sel: { type: 'item', g, i }, layer: g, label: s.name || geomOf(s) || alongOf(s), color: swatch(s.color || G.color || build.fur), obj: s, depth: 1, off: off || hidden.has(s), ...k });
+    });
     (G.paint || []).forEach((s, i) => out.push({ sel: { type: 'paint', g, i }, layer: g, label: s.name || geomOf(s), color: swatch(s.color), obj: s, depth: 2, off: off || hidden.has(s), ...shapeBits(s, groupFrame(G, s)) }));
     if (G.spikes) out.push({ sel: { type: 'spikes', g }, layer: g, label: 'spikes', obj: G.spikes, depth: 1, off: off || hidden.has(G.spikes), ...shapeBits(G.spikes), hit: null });
   });
@@ -197,25 +205,27 @@ export function parts() {
     out.push({ sel: { type: 'leg', name: n }, group: 'Legs', label: n, obj: L, lines: [],
       handles: [{ at: world(f, L.at), anchor: true, set: (p) => { L.at = roundAll(local(f, p)); } }] });
   }
-  for (const n in build.chains) {
-    const c = build.chains[n], f = frameOf(c.on), handles = [], lines = [];
-    if (c.ear) { // (its root, its tip)
-      handles.push({ at: world(f, c.at), set: (p) => { c.at = roundAll(local(f, p)); } });
-      handles.push({ at: world(f, c.tip), anchor: true, set: (p) => { c.tip = roundAll(local(f, p)); } });
-      lines.push([world(f, c.at), world(f, c.tip)]);
-    } else {
-      const root = world(f, c.at), th = f.a - c.angle, tip = plus(root, [Math.sin(th) * c.length, -Math.cos(th) * c.length]);
-      handles.push({ at: root, anchor: true, set: (p) => { c.at = roundAll(local(f, p)); } });
-      handles.push({ at: tip, size: true, set: (p) => {
-        const d = minus(p, world(f, c.at));
-        c.length = Math.max(0.3, +round(Math.hypot(d[0], d[1])).toFixed(3));
-        c.angle = +(f.a - Math.atan2(d[0], -d[1])).toFixed(3);
-      } });
-      lines.push([root, tip]);
-    }
-    out.push({ sel: { type: 'chain', name: n }, group: 'Chains', label: n, obj: c, handles, lines });
-  }
+  for (const n in build.chains) if (!isOwn(n)) out.push({ sel: { type: 'chain', name: n }, group: 'Chains', label: n, obj: build.chains[n], ...chainBits(build.chains[n]) });
   return out;
+}
+// a chain's handles: an ear's root and tip; a tail's root, and its tip (how long, its angle)
+function chainBits(c) {
+  const f = frameOf(c.on), handles = [], lines = [];
+  if (c.ear) {
+    handles.push({ at: world(f, c.at), set: (p) => { c.at = roundAll(local(f, p)); } });
+    handles.push({ at: world(f, c.tip), anchor: true, set: (p) => { c.tip = roundAll(local(f, p)); } });
+    lines.push([world(f, c.at), world(f, c.tip)]);
+  } else {
+    const root = world(f, c.at), th = f.a - c.angle, tip = plus(root, [Math.sin(th) * c.length, -Math.cos(th) * c.length]);
+    handles.push({ at: root, anchor: true, set: (p) => { c.at = roundAll(local(f, p)); } });
+    handles.push({ at: tip, size: true, set: (p) => {
+      const d = minus(p, world(f, c.at));
+      c.length = Math.max(0.3, +round(Math.hypot(d[0], d[1])).toFixed(3));
+      c.angle = +(f.a - Math.atan2(d[0], -d[1])).toFixed(3);
+    } });
+    lines.push([root, tip]);
+  }
+  return { handles, lines };
 }
 // a clip's parts at the frame shown: its joints (the head with its turn), each paw, each tail's angle and ear's tip;
 // dragging one sets a key there (see setKey)

@@ -1,6 +1,6 @@
 // hedgehog: an asset (see asset.js), written by the editor; data only
 export default {
-  format: 4,
+  format: 5,
   name: 'hedgehog',
   fur: 'brown',
   joints: { hip: [8, 11.3], chest: [14, 11.3], head: [18.5, 13] },
@@ -10,27 +10,33 @@ export default {
       far: true,
       hits: true,
       shapes: [{ name: 'hindFar', bone: 'hindFar', along: 'capsule', r: 0.8 }, { name: 'frontFar', bone: 'frontFar', along: 'capsule', r: 0.8 }],
+      outline: false,
+      color: 'deepBrown',
     },
     {
       name: 'body',
-      join: true,
       hits: true,
       shapes: [
         { name: 'torso', bone: 'spine', along: 'ellipse', r: 7.2, ends: 5.5 },
-        { name: 'belly', on: 'spine', ellipse: [4, 4.2, 6, 2.5] },
         { name: 'face', on: 'head', ellipse: [0, 0, 3.4, 3] },
         { name: 'snout', on: 'head', capsule: [1.5, 1.4, 5.1, 1.8, 1.1] },
-        { name: 'hindNear', bone: 'hindNear', along: 'capsule', r: 0.9, smooth: 0.5 },
-        { name: 'frontNear', bone: 'frontNear', along: 'capsule', r: 0.9, smooth: 0.5 },
       ],
       paint: [
         { name: 'face', color: 'beige', on: 'head', ellipse: [0, 0, 3.4, 3] },
         { name: 'snout', color: 'beige', on: 'head', capsule: [1.5, 1.4, 5.1, 1.8, 1.1] },
-        { name: 'belly', color: 'beige', on: 'spine', ellipse: [4.5, 5.1, 5, 1.3] },
       ],
       spikes: { on: 'spine', box: [-12, -12, 9, 3.7], speck: 'tan' },
+      join: true,
     },
     { name: 'ear', color: 'beige', shapes: [{ on: 'head', ellipse: [-0.9, -3.4, 1.1, 1.1] }] },
+    {
+      name: 'near legs',
+      shapes: [
+        { name: 'frontNear', bone: 'frontNear', along: 'capsule', r: 0.9, smooth: 0.5 },
+        { name: 'hindNear', bone: 'hindNear', along: 'capsule', r: 0.9, smooth: 0.5 },
+      ],
+      outline: false,
+    },
     'face',
   ],
   legs: {
@@ -41,6 +47,8 @@ export default {
   },
   chains: {},
   face: { eye: [1, -0.6], nose: [5.5, 1.4] },
+  handling: { fed: { hop: 0 } },
+  headPivot: [-1.525, -1.077],
   moves: {
     run: {
       gait: {
@@ -107,7 +115,7 @@ export default {
       frames: 80,
       fps: 10,
       keys: [
-        { at: 0, paws: { hindFar: [10, 18.4], frontFar: [16.5, 18.4], hindNear: [8.5, 18.4], frontNear: [14.5, 18.4] }, joints: { hip: [8, 11.3] } },
+        { at: 0, paws: { hindFar: [8.8, 19.9], frontFar: [16.6, 20], hindNear: [7.1, 19.7], frontNear: [14.9, 20.1] }, joints: { hip: [8, 11.3] } },
         { at: 5, ease: 'sine', joints: { head: [18.5, 12.88] }, torso: { thicker: 0.3 } },
         { at: 5, ease: 'smooth', joints: { chest: [14, 11.21] } },
         { at: 15, ease: 'sine', joints: { head: [18.5, 13.12] }, torso: { thicker: -0.3 } },

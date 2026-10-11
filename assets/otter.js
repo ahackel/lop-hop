@@ -1,11 +1,21 @@
 // otter: an asset (see asset.js), written by the editor; data only
 export default {
-  format: 4,
+  format: 5,
   name: 'otter',
   fur: 'brown',
   joints: { hip: [6, 14], chest: [15.5, 11.8], head: [20.3, 8.3] },
   layers: [
-    { name: 'tail', shapes: [{ name: 'tail', bone: 'tail', along: 'capsule', r: [1.9, 0.6] }] },
+    {
+      name: 'tail',
+      shapes: [
+        {
+          name: 'tail',
+          chain: { on: 'hip', at: [-1, 0], angle: 1.45, links: 5, length: 11, curl: -0.05, stiffness: 900, damping: 28, weight: 35, role: 'tail' },
+          along: 'capsule',
+          r: [1.9, 0.6],
+        },
+      ],
+    },
     {
       name: 'far legs',
       far: true,
@@ -18,7 +28,7 @@ export default {
       hits: true,
       shapes: [
         { name: 'torso', bone: 'spine', along: 'capsule', r: 3.8, ends: 0 },
-        { name: 'neck', on: 'chest', capsule: [0, 0, 4, -1.9, 2.8] },
+        { name: 'neck', on: 'chest', capsule: [0, 0, 4, -1.9, 2.8], role: 'neck' },
         { name: 'head', on: 'head', ellipse: [0, 0, 3.4, 3.3] },
         { name: 'snout', on: 'head', ellipse: [2.7, 1.2, 1.8, 1.5] },
         { name: 'ear', on: 'head', ellipse: [-2, -3.3, 1.2, 1.1] },
@@ -39,7 +49,6 @@ export default {
     hindNear: { on: 'hip', at: [1.5, 2.4], thigh: 1.4, shin: 1.4, bend: 1 },
     frontNear: { on: 'chest', at: [-0.1, 2.75], thigh: 2.2, shin: 2.2, bend: -1 },
   },
-  chains: { tail: { on: 'hip', at: [-1, 0], angle: 1.45, links: 5, length: 11, curl: -0.05, stiffness: 900, damping: 28, weight: 35 } },
   face: { eye: [0.7, -0.9], nose: [4.3, 0.6] },
   moves: {
     run: {

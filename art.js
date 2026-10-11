@@ -1024,6 +1024,7 @@ function handlingOf(rig) {
   return o;
 }
 export const handling = (kind) => handlingOf(RIGS[kind]);
+const trunkOf = (rig) => Object.keys(rig.chains || {}).find((n) => rig.chains[n].role === 'trunk'); // (its trunk's name: the chain it reaches with)
 const HANG_G = 900, HANG_TIP = 80; // (its weight; how little the hand tips it)
 const pivotOf = (rig) => plus(plus(mix(rig.joints.hip, rig.joints.chest, 0.5), [0, -Math.max(2, (rig.torso?.r || 0) * 0.8)]), handlingOf(rig).held.at); // (the middle of its back, and where its file says from there)
 export const heldAt = (kind) => pivotOf(RIGS[kind]); // (in its box)
@@ -1115,8 +1116,8 @@ export function petted(kind, frame, joy, t, lean = 0) {
   const chains = { ...base.chains };
   for (const name in rig.chains) {
     const c = { ...rig.chains[name], ...base.chains?.[name] };
-    if (c.ear) chains[name] = { ...base.chains?.[name], tip: [c.tip[0] - 2 * E.ears * j, c.tip[1] + 1.5 * E.ears * j] }; // (laid back)
-    else if (c.on === 'hip') chains[name] = { ...base.chains?.[name], angle: (c.angle || 0) + wag }; // (a tail)
+    if (c.role === 'ear' && c.ear) chains[name] = { ...base.chains?.[name], tip: [c.tip[0] - 2 * E.ears * j, c.tip[1] + 1.5 * E.ears * j] }; // (laid back)
+    else if (c.role === 'tail') chains[name] = { ...base.chains?.[name], angle: (c.angle || 0) + wag }; // (wagged)
   }
   const piv = [13, FOOT], a = lean * E.lean, rot = (q) => plus(piv, turn(minus(q, piv), a)); // (about its feet)
   const P = posedAs(rig, { ...base, joints: { hip: rot(J.hip), chest: rot(J.chest), head: rot([J.head[0], J.head[1] + E.duck * j]) },
@@ -1144,7 +1145,7 @@ function reachPosed(kind, tx, ty, amount = 1, look = 1, sniff = 0) {
   const rig = RIGS[kind], { upright: UPRIGHT, stretch, rears } = handlingOf(rig).fed, base = poseOf(rig, 'idle', 0), J = { ...rig.joints, ...base.joints }, n = SIZE[kind] || 0, [k, d] = growth(n);
   const x = (tx - d[0]) / k, y = (ty - d[1]) / k; // (in the rig's own pixels)
   const legs = Object.keys(rig.legs || {}), hinds = legs.filter((l) => rig.legs[l].on === 'hip'), fronts = legs.filter((l) => rig.legs[l].on !== 'hip');
-  const trunk = rig.chains?.trunk && { ...rig.chains.trunk, ...base.chains?.trunk };
+  const tn = trunkOf(rig), trunk = tn && { ...rig.chains[tn], ...base.chains?.[tn] };
   const piv = J.hip, now = Math.atan2(J.head[1] - piv[1], J.head[0] - piv[0]), want = Math.atan2(y - piv[1], x - piv[0]); // (as seen from its hip)
   // how far up it gets: by its hind legs against its body (a round one on short legs, the guinea pig's, the hedgehog's,
   // the boar's, only leans back a little: up on them it would be a ball in the air), or as its file says (rears: see HANDLING)
@@ -1157,7 +1158,7 @@ function reachPosed(kind, tx, ty, amount = 1, look = 1, sniff = 0) {
   const lift = Math.round(Math.max(0, reachLeft) * up * stands * 2) / 2, by = [0, -lift];
   const rot = (q) => plus(plus(piv, turn(minus(q, piv), a)), by), q2 = (q) => q.map((v) => Math.round(v * 2) / 2);
   const hip = q2(rot(J.hip)), body = rot(J.chest), neck = minus(J.head, J.chest), rest = Math.hypot(neck[0], neck[1]);
-  const necked = bodyShapes(rig, base).some((x) => x.name === 'neck' && x.on === 'chest');
+  const necked = bodyShapes(rig, base).some((x) => x.role === 'neck' && x.on === 'chest');
   const near = necked ? rot(J.head) : plus(body, turn(neck, -0.6 * a)); // (the head kept over the chest as it turns up; one on a neck, at its end)
   const low = trunk ? 0 : Math.round(clamp((y - near[1]) / 8, 0, 1) * clamp(1 - (x - near[0] - 6) / 20, 0, 1) * amount * 4) / 4; // (low and near: bending down)
   const chest = q2(plus(body, [0.5 * low, 1.5 * low]));
@@ -1183,7 +1184,7 @@ function reachPosed(kind, tx, ty, amount = 1, look = 1, sniff = 0) {
   const chains = { ...base.chains }, near2pi = (v, to) => v + 2 * Math.PI * Math.round((to - v) / (2 * Math.PI));
   for (const name in rig.chains) {
     const c = { ...rig.chains[name], ...base.chains?.[name] };
-    if (c.on !== 'head' || c.ear || name === 'trunk' || c.angle === undefined) continue;
+    if (c.role !== 'ear' || c.ear || c.on !== 'head' || c.angle === undefined) continue; // (a lop ear)
     const kept = c.angle + ha - (base.headAngle || 0), down = near2pi(ha - Math.PI, kept); // (its turn as at rest; straight down)
     chains[name] = { ...base.chains?.[name], angle: Math.round((kept + (down - kept) * 0.5 * up) * 10) / 10 };
   }
@@ -1194,7 +1195,7 @@ function reachPosed(kind, tx, ty, amount = 1, look = 1, sniff = 0) {
     const at = clamp(Math.atan2(y - root[1], x - root[0]), -1.75, 1.3) - (curl * (links - 1)) / 2, aimed = f.a - at - Math.PI / 2; // (up at most: not back over its head)
     const angle = near2pi(aimed, trunk.angle);
     aim = [Math.round((trunk.angle + (angle - trunk.angle) * amount) * 10) / 10, Math.round(curl * 50) / 50, Math.round((trunk.length + (clamp(dist, trunk.length, trunk.length * 1.35) - trunk.length) * amount) * 2) / 2];
-    pose = { ...pose, chains: { ...chains, trunk: { ...base.chains?.trunk, angle: aim[0], curl: aim[1], length: aim[2] } } };
+    pose = { ...pose, chains: { ...chains, [tn]: { ...base.chains?.[tn], angle: aim[0], curl: aim[1], length: aim[2] } } };
   }
   return { rig, P: posedAs(rig, pose), n, k, d, key: `${kind} reach ${JSON.stringify([hip, chest, head, ha, paws, roots, aim, chains])}` };
 }
@@ -1207,7 +1208,8 @@ export function reaching(kind, tx, ty, eating = false, amount = 1, look = 1, bod
   let s = rigFrames.get(full);
   if (s) { rigFrames.delete(full); rigFrames.set(full, s); return s; }
   s = drawRig(rig, eating ? { ...P, p: { ...P.p, eye: 'happy' } } : P, false, chains, k, d, FOOT + 1, n > 0);
-  if (chains.trunk) { const tip = chains.trunk[chains.trunk.length - 1]; s.mouth = [tip[0] * k + d[0], tip[1] * k + d[1]]; }
+  const tn = trunkOf(RIGS[kind]);
+  if (tn && chains[tn]) { const tip = chains[tn][chains[tn].length - 1]; s.mouth = [tip[0] * k + d[0], tip[1] * k + d[1]]; }
   rigFrames.set(full, s);
   if (rigFrames.size > 400) { const old = rigFrames.keys().next().value; rigFrames.get(old).free(); rigFrames.delete(old); }
   return s;

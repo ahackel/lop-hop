@@ -1,11 +1,21 @@
 // rabbit: an asset (see asset.js), written by the editor; data only
 export default {
-  format: 4,
+  format: 5,
   name: 'rabbit',
   fur: 'white',
   joints: { hip: [7, 13.5], chest: [12, 13.5], head: [15.5, 9] },
   layers: [
-    { name: 'tail', shapes: [{ name: 'tail', bone: 'tail', along: 'capsule', r: 1.9 }] },
+    {
+      name: 'tail',
+      shapes: [
+        {
+          name: 'tail',
+          chain: { on: 'hip', at: [-4.5, 2.1], angle: 1.2, links: 1, length: 0.5, stiffness: 900, damping: 16, weight: 80, role: 'tail' },
+          along: 'capsule',
+          r: 1.9,
+        },
+      ],
+    },
     {
       name: 'far legs',
       far: true,
@@ -25,7 +35,19 @@ export default {
         { name: 'frontNear', bone: 'frontNear', along: 'capsule', r: 1.2, smooth: 0.5 },
       ],
     },
-    { name: 'ear', shapes: [{ name: 'ear', bone: 'ear', along: 'capsule', r: 1.4, end: 1.2, color: 'beige' }] },
+    {
+      name: 'ear',
+      shapes: [
+        {
+          name: 'ear',
+          chain: { on: 'head', at: [-2, -3], angle: 3.123, links: 2, length: 5.3, stiffness: 240, damping: 8, weight: 140, role: 'ear' },
+          along: 'capsule',
+          r: 1.4,
+          end: 1.2,
+          color: 'beige',
+        },
+      ],
+    },
     'face',
   ],
   dots: [{ name: 'blush', on: 'head', at: [2.5, 2], color: 'pink' }],
@@ -34,10 +56,6 @@ export default {
     frontFar: { on: 'chest', at: [1.4, 0.7], thigh: 2.8, shin: 2.8, bend: -1 },
     hindNear: { on: 'hip', at: [0, 2], thigh: 3.2, shin: 4.6, bend: 1 },
     frontNear: { on: 'chest', at: [-0.2, 1], thigh: 2.8, shin: 2.8, bend: -1 },
-  },
-  chains: {
-    tail: { on: 'hip', at: [-4.5, 2.1], angle: 1.2, links: 1, length: 0.5, stiffness: 900, damping: 16, weight: 80 },
-    ear: { on: 'head', at: [-2, -3], angle: 3.123, links: 2, length: 5.3, stiffness: 240, damping: 8, weight: 140 },
   },
   face: {
     eye: [1.5, -1],

@@ -1,11 +1,22 @@
 // yak: an asset (see asset.js), written by the editor; data only
 export default {
-  format: 4,
+  format: 5,
   name: 'yak',
   fur: 'darkBrown',
   joints: { hip: [7.5, 10.6], chest: [14.5, 10.6], head: [19.4, 11] },
   layers: [
-    { name: 'tail', shapes: [{ name: 'tail', bone: 'tail', along: 'capsule', r: 0.5, end: 1.2 }] },
+    {
+      name: 'tail',
+      shapes: [
+        {
+          name: 'tail',
+          chain: { on: 'hip', at: [-3.3, -0.2], angle: 2.813, links: 2, length: 4.6, stiffness: 500, damping: 14, weight: 60, role: 'tail' },
+          along: 'capsule',
+          r: 0.5,
+          end: 1.2,
+        },
+      ],
+    },
     {
       name: 'far legs',
       far: true,
@@ -67,7 +78,6 @@ export default {
     hindNear: { on: 'hip', at: [0, 3.4], thigh: 1.9, shin: 1.9, bend: 1 },
     frontNear: { on: 'chest', at: [0, 3.4], thigh: 1.9, shin: 1.9, bend: -1 },
   },
-  chains: { tail: { on: 'hip', at: [-3.3, -0.2], angle: 2.813, links: 2, length: 4.6, stiffness: 500, damping: 14, weight: 60 } },
   face: { eye: [1.2, -0.4] },
   handling: { fed: { chewFor: 1.75, nod: 1.05 } },
   moves: {

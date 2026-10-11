@@ -1,6 +1,6 @@
 // gorilla: an asset (see asset.js), written by the editor; data only
 export default {
-  format: 4,
+  format: 5,
   name: 'gorilla',
   fur: 'charcoal',
   joints: { hip: [7.5, 11.2], chest: [13.5, 9], head: [18.6, 8.4] },

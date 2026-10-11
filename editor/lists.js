@@ -5,7 +5,7 @@ import { inspect } from './inspector.js';
 import { SWITCHES, addDot, addGroup, addShape, many, moveMany, rename, switchOn, toggle } from './layers.js';
 import { html, nothing, render } from './lit/lit-html.js';
 import { listPalette } from './palette.js';
-import { alongOf, geomOf, parts, same } from './parts.js';
+import { alongOf, geomOf, ownChain, parts, same } from './parts.js';
 import { draw, editing } from './stage.js';
 import { P, also, build, commit, editable, hide, isGroup, kind, picked, refresh, sel, toLocal, toWorld, view, setAlso, setSel } from './state.js';
 import { ABOUT, keysAt, kindOf, leaves, pathsOf, rowOf } from './timeline.js';
@@ -120,7 +120,7 @@ function bonesTable(all) {
 let boneDragged = null;
 const boneDropOn = (s) => !!boneDragged && s.type === 'joint' && (boneDragged.type === 'leg' ? build.legs : build.chains)[boneDragged.name]?.on !== s.name;
 function boneDragEnd() { boneDragged = null; for (const x of $('bones').querySelectorAll('.dropInto')) x.classList.remove('dropInto'); }
-function reparent(from, j) {
+export function reparent(from, j) {
   const o = (from.type === 'leg' ? build.legs : build.chains)[from.name], f = P.F[o.on], g = P.F[j], r3 = (v) => +v.toFixed(3);
   const into = (q) => toLocal(g, ...toWorld(f, q)).map(r3);
   commit(() => {
@@ -140,7 +140,8 @@ function whereWhat(p) {
   if (t === 'face') return ['head', ['face', 'The face']];
   if (t === 'dot') return [o.on || 'box', ['dot', 'A dot: one pixel']];
   if (t === 'spikes') return [o.on || 'box', ['spikes', 'Spikes: where it bristles']];
-  const k = o.bone ? alongOf(o) : geomOf(o) || 'ellipse';
+  const k = o.bone ? alongOf(o) : geomOf(o) || 'ellipse', own = ownChain(o);
+  if (own) return [own.on, [k, `${KINDS[k]}, drawn along a bone of its own, on ${own.on}`]];
   return [o.bone || o.on || 'box', [k, o.bone ? `${KINDS[k]}, drawn along ${o.bone}` : KINDS[k]]];
 }
 const eyeOf = (p) => html`<button class=${`eye${p.off ? ' off' : ''}`} title=${p.off ? 'Hidden: show it (H)' : 'Hide it, here only: not saved (H)'} @click=${stop(() => hide(p.obj))}>${icon(p.off ? 'eyeOff' : 'eye')}</button>`;

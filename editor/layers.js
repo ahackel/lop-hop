@@ -3,7 +3,7 @@
 // a group's switches; renamed (a pose that uses one by name still does)
 import { inspect } from './inspector.js';
 import { listParts } from './lists.js';
-import { geomOf, shiftShape } from './parts.js';
+import { geomOf, ownChain, shiftShape } from './parts.js';
 import { also, build, commit, hidden, isGroup, refresh, sel, setAlso, setSel } from './state.js';
 
 export const layers = () => (build.layers ||= []);
@@ -20,6 +20,41 @@ export function placeOf(s) {
   if (s.type === 'dot') return { arr: build.dots, at: s.i };
   if (s.type === 'group' || s.type === 'face') return { arr: layers(), at: s.g };
   return null;
+}
+// the shapes' own bones (see ownChain) with them: copied (each a name of its own), gone (their keys in the moves too),
+// renamed (and their keys)
+const shapesIn = (x) => (Array.isArray(x?.shapes) ? x.shapes : x && typeof x === 'object' ? [x] : []); // (a group's, or itself)
+const ownIn = (xs) => xs.flatMap(shapesIn).filter((s) => ownChain(s)).map((s) => s.name); // (before: own while one shape is on it)
+function freeName(n) {
+  const stem = n.replace(/\d+$/, '') || 'strand', taken = new Set([...Object.keys(build.chains || {}), ...Object.keys(build.legs || {}), 'spine']);
+  let m = stem;
+  for (let k = 2; taken.has(m); k++) m = `${stem}${k}`;
+  return m;
+}
+function ownCopies(copies, own) { // (copies: their shapes still on the originals' bones)
+  for (const s of copies.flatMap(shapesIn)) {
+    if (!own.includes(s.bone) || s.name !== s.bone) continue;
+    const n = freeName(s.name);
+    build.chains[n] = clone(build.chains[s.bone]); s.name = s.bone = n;
+  }
+}
+const chainKeys = (f) => { const walk = (o) => { if (!o || typeof o !== 'object') return; if (o.chains && typeof o.chains === 'object' && !Array.isArray(o.chains)) f(o); for (const v of Object.values(o)) walk(v); }; walk(build.moves); };
+function dropOwn(names) {
+  for (const n of names) {
+    delete build.chains?.[n];
+    chainKeys((o) => { delete o.chains[n]; if (!Object.keys(o.chains).length) delete o.chains; });
+  }
+  if (build.chains && !Object.keys(build.chains).length) delete build.chains;
+}
+// a strand: a shape with a bone of its own, swung as the body moves (a tail, an ear, a strand of a mane), in group g
+export function addStrand(g) {
+  const G = layers()[g], name = freeName('strand');
+  commit(() => {
+    (build.chains ||= {})[name] = { on: 'head', at: [-1, -3], angle: 0.5, links: 3, length: 5, curl: 0.1, stiffness: 300, damping: 8, weight: 80 };
+    G.shapes.push({ name, bone: name, along: 'capsule', r: [0.8, 0.4] });
+    setSel({ type: 'item', g, i: G.shapes.length - 1 });
+  });
+  refresh();
 }
 // where a thing is now (by what it is: its pick, after the lists have changed), or null (gone)
 export function selOf(x) {
@@ -56,11 +91,13 @@ function manyDo(what, d) {
       }
       repick(objs[0], objs.slice(1), sel);
     } else if (what === 'copy') {
-      const copies = objs.map((x) => { const arr = [...arrs].find(([, xs]) => xs.includes(x))[0], c = clone(x); arr.splice(arr.indexOf(x) + 1, 0, c); return c; });
+      const own = ownIn(objs), copies = objs.map((x) => { const arr = [...arrs].find(([, xs]) => xs.includes(x))[0], c = clone(x); arr.splice(arr.indexOf(x) + 1, 0, c); return c; });
+      ownCopies(copies, own);
       repick(copies[0], copies.slice(1), sel);
     } else {
-      const G = sel.type === 'item' || sel.type === 'paint' ? layers()[sel.g] : null; // (picked after: its group, if left)
+      const G = sel.type === 'item' || sel.type === 'paint' ? layers()[sel.g] : null, own = ownIn(objs); // (picked after: its group, if left)
       for (const [arr, xs] of arrs) for (const x of xs) { const i = arr.indexOf(x); if (i >= 0) arr.splice(i, 1); hidden.delete(x); }
+      dropOwn(own);
       for (const L of layers()) if (isGroup(L)) prune(L);
       if (build.dots && !build.dots.length) delete build.dots;
       setSel(G && layers().includes(G) ? { type: 'group', g: layers().indexOf(G) } : { type: 'rig' });
@@ -78,10 +115,10 @@ export function itemDo(what, d) {
   if (sel.type === 'face' && what !== 'move') return;
   commit(() => {
     if (what === 'move') { [arr[at], arr[to]] = [arr[to], arr[at]]; setSel({ ...sel, [k]: to }); }
-    else if (what === 'copy') { arr.splice(at + 1, 0, clone(arr[at])); setSel({ ...sel, [k]: at + 1 }); }
+    else if (what === 'copy') { const own = ownIn([arr[at]]), c = clone(arr[at]); arr.splice(at + 1, 0, c); ownCopies([c], own); setSel({ ...sel, [k]: at + 1 }); }
     else if (what === 'delete') {
-      const [x] = arr.splice(at, 1);
-      hidden.delete(x);
+      const own = ownIn([arr[at]]), [x] = arr.splice(at, 1);
+      hidden.delete(x); dropOwn(own);
       if (sel.type === 'paint') prune(layers()[sel.g]);
       if (sel.type === 'dot' && !arr.length) delete build.dots;
       setSel(sel.type === 'item' || sel.type === 'paint' ? { type: 'group', g: sel.g } : { type: 'rig' });
@@ -179,13 +216,18 @@ export function setSpikes(g, on) {
 // renamed: a pose that uses it by name (use, see asset.js) still does: the body's shapes (a pose's shapes), its paint (a
 // pose's paint), a group (a pose's top)
 export function rename(s, o, name) {
-  const to = name.trim(), was = o.name, body = s.g === bodyIndex();
+  const to = name.trim(), was = o.name, body = s.g === bodyIndex(), own = s.type === 'item' && ownChain(o);
+  if (own && to !== was && (!to || to in (build.chains || {}) || to in (build.legs || {}) || to === 'spine')) { listParts(); return; } // (its bone's name: its, and not another's)
   const list = s.type === 'group' ? 'top' : body && s.type === 'item' && !o.bone ? 'shapes' : body && s.type === 'paint' ? 'paint' : null;
   if (to === (was || '')) { listParts(); return; }
   const uses = (m, f) => { if (!m || typeof m !== 'object') return; if (Array.isArray(m[list])) for (const x of m[list]) if (x?.use === was) f(x); for (const v of Object.values(m)) uses(v, f); };
   let used = false;
   if (was && list) uses(build.moves, () => { used = true; });
   if (!to && used) { listParts(); return; } // (a name a pose uses: kept)
-  commit(() => { if (to) o.name = to; else delete o.name; if (used) uses(build.moves, (x) => { x.use = to; }); });
+  commit(() => {
+    if (to) o.name = to; else delete o.name;
+    if (used) uses(build.moves, (x) => { x.use = to; });
+    if (own) { build.chains[to] = own; delete build.chains[was]; o.bone = to; chainKeys((m) => { if (was in m.chains) { m.chains[to] = m.chains[was]; delete m.chains[was]; } }); }
+  });
   listParts(); inspect();
 }

@@ -1,11 +1,21 @@
 // bear: an asset (see asset.js), written by the editor; data only
 export default {
-  format: 4,
+  format: 5,
   name: 'bear',
   fur: 'brown',
   joints: { hip: [7.5, 11.5], chest: [14.5, 11.5], head: [19, 9.3] },
   layers: [
-    { name: 'tail', shapes: [{ name: 'tail', bone: 'tail', along: 'capsule', r: 1.2 }] },
+    {
+      name: 'tail',
+      shapes: [
+        {
+          name: 'tail',
+          chain: { on: 'hip', at: [-4, -1.9], angle: 1, links: 1, length: 0.6, stiffness: 600, damping: 14, weight: 60, role: 'tail' },
+          along: 'capsule',
+          r: 1.2,
+        },
+      ],
+    },
     {
       name: 'far legs',
       far: true,
@@ -36,7 +46,6 @@ export default {
     hindNear: { on: 'hip', at: [0, 3], thigh: 2, shin: 2, bend: 1 },
     frontNear: { on: 'chest', at: [0.5, 3], thigh: 2, shin: 2, bend: -1 },
   },
-  chains: { tail: { on: 'hip', at: [-4, -1.9], angle: 1, links: 1, length: 0.6, stiffness: 600, damping: 14, weight: 60 } },
   face: { eye: [1, -0.9], nose: [5.2, 0.9] },
   moves: {
     run: {

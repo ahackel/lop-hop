@@ -1,11 +1,22 @@
 // fox: an asset (see asset.js), written by the editor; data only
 export default {
-  format: 4,
+  format: 5,
   name: 'fox',
   fur: 'orange',
   joints: { hip: [9, 11.8], chest: [15, 11.8], head: [19.8, 8.6] },
   layers: [
-    { name: 'tail', shapes: [{ name: 'tail', bone: 'tail', along: 'capsule', r: [1.6, 2.1], marks: [[1.15, 'white', 1.8]] }] },
+    {
+      name: 'tail',
+      shapes: [
+        {
+          name: 'tail',
+          chain: { on: 'hip', at: [-3, -1.3], angle: 0.75, links: 3, length: 5.5, stiffness: 800, damping: 26, weight: 70, role: 'tail' },
+          along: 'capsule',
+          r: [1.6, 2.1],
+          marks: [[1.15, 'white', 1.8]],
+        },
+      ],
+    },
     {
       name: 'far legs',
       far: true,
@@ -21,8 +32,22 @@ export default {
         { name: 'chest', on: 'chest', ellipse: [1.5, 0.2, 2.6, 3] },
         { name: 'head', on: 'head', ellipse: [0, 0, 3.5, 3.2] },
         { name: 'snout', on: 'head', capsule: [1.2, 1.4, 4.8, 2, 1.3] },
-        { name: 'earA', bone: 'earA', along: 'triangle', base: [[-1.3, 0.55], [1.3, -0.55]], tipColor: 'brown', smooth: 0.4 },
-        { name: 'earB', bone: 'earB', along: 'triangle', base: [[-1.2, -0.55], [1.2, 0.55]], tipColor: 'brown', smooth: 0.4 },
+        {
+          name: 'earA',
+          chain: { on: 'head', ear: true, at: [-1.1, -2.85], tip: [-1.9, -7], stiffness: 1400, damping: 22, weight: 60, role: 'ear' },
+          along: 'triangle',
+          base: [[-1.3, 0.55], [1.3, -0.55]],
+          tipColor: 'brown',
+          smooth: 0.4,
+        },
+        {
+          name: 'earB',
+          chain: { on: 'head', ear: true, at: [1.6, -2.75], tip: [2, -7.1], stiffness: 1400, damping: 22, weight: 60, role: 'ear' },
+          along: 'triangle',
+          base: [[-1.2, -0.55], [1.2, 0.55]],
+          tipColor: 'brown',
+          smooth: 0.4,
+        },
         { name: 'hindNear', bone: 'hindNear', along: 'capsule', r: 0.9, smooth: 0.5 },
         { name: 'frontNear', bone: 'frontNear', along: 'capsule', r: 0.9, smooth: 0.5 },
       ],
@@ -40,11 +65,6 @@ export default {
     frontFar: { on: 'chest', at: [1.5, 1.7], thigh: 2.75, shin: 2.75, bend: -1 },
     hindNear: { on: 'hip', at: [-0.5, 1.7], thigh: 2.75, shin: 2.75, bend: 1 },
     frontNear: { on: 'chest', at: [1, 1.7], thigh: 2.75, shin: 2.75, bend: -1 },
-  },
-  chains: {
-    tail: { on: 'hip', at: [-3, -1.3], angle: 0.75, links: 3, length: 5.5, stiffness: 800, damping: 26, weight: 70 },
-    earA: { on: 'head', ear: true, at: [-1.1, -2.85], tip: [-1.9, -7], stiffness: 1400, damping: 22, weight: 60 },
-    earB: { on: 'head', ear: true, at: [1.6, -2.75], tip: [2, -7.1], stiffness: 1400, damping: 22, weight: 60 },
   },
   face: { eye: [0.7, -1.1], nose: [5.2, 1.4] },
   moves: {

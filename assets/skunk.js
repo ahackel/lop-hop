@@ -1,11 +1,22 @@
 // skunk: an asset (see asset.js), written by the editor; data only
 export default {
-  format: 4,
+  format: 5,
   name: 'skunk',
   fur: 'charcoal',
   joints: { hip: [8, 11.2], chest: [13, 11.2], head: [18.8, 12.6] },
   layers: [
-    { name: 'tail', shapes: [{ name: 'tail', bone: 'tail', along: 'capsule', r: [2.3, 2.5], marks: [[0.95, 'white', 1.5]] }] },
+    {
+      name: 'tail',
+      shapes: [
+        {
+          name: 'tail',
+          chain: { on: 'hip', at: [-2, -1.2], angle: 0.48, links: 3, length: 7.6, curl: 0.5, stiffness: 600, damping: 22, weight: 50, role: 'tail' },
+          along: 'capsule',
+          r: [2.3, 2.5],
+          marks: [[0.95, 'white', 1.5]],
+        },
+      ],
+    },
     {
       name: 'far legs',
       far: true,
@@ -37,7 +48,6 @@ export default {
     hindNear: { on: 'hip', at: [0, 4.3], thigh: 1.6, shin: 1.6, bend: 1 },
     frontNear: { on: 'chest', at: [1.5, 4.3], thigh: 1.6, shin: 1.6, bend: -1 },
   },
-  chains: { tail: { on: 'hip', at: [-2, -1.2], angle: 0.48, links: 3, length: 7.6, curl: 0.5, stiffness: 600, damping: 22, weight: 50 } },
   face: { eye: [0.7, -0.6], nose: [4.6, 1] },
   moves: {
     run: {

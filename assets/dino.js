@@ -1,11 +1,21 @@
 // dino: an asset (see asset.js), written by the editor; data only
 export default {
-  format: 4,
+  format: 5,
   name: 'dino',
   fur: 'grey',
   joints: { hip: [10, 12], chest: [14, 12], head: [17.5, 3.5] },
   layers: [
-    { name: 'tail', shapes: [{ name: 'tail', bone: 'tail', along: 'capsule', r: [2.4, 0.5] }] },
+    {
+      name: 'tail',
+      shapes: [
+        {
+          name: 'tail',
+          chain: { on: 'hip', at: [-2.5, -0.5], angle: 1.2, links: 4, length: 9, curl: -0.08, stiffness: 1200, damping: 30, weight: 40, role: 'tail' },
+          along: 'capsule',
+          r: [2.4, 0.5],
+        },
+      ],
+    },
     { name: 'far legs', far: true, hits: true, shapes: [{ name: 'hindFar', bone: 'hindFar', along: 'capsule', r: 1.1, foot: [1.6, 0.8] }] },
     {
       name: 'body',
@@ -15,7 +25,7 @@ export default {
         { name: 'torso', bone: 'spine', along: 'ellipse', r: 0 },
         { name: 'body', on: 'spine', capsule: [-0.5, 0.8, 3.5, -2.8, 3.6] },
         { name: 'belly', on: 'spine', ellipse: [2.2, 1.6, 3.3, 2.9] },
-        { name: 'neck', on: 'chest', capsule: [0, -3, 2.3, -7.2, 2.3] },
+        { name: 'neck', on: 'chest', capsule: [0, -3, 2.3, -7.2, 2.3], role: 'neck' },
         { name: 'thigh', on: 'hip', ellipse: [0.4, 2, 2.3, 2.7] },
         { name: 'arm', on: 'chest', capsule: [1.9, -1.4, 3.7, -0.4, 0.6], smooth: 0.2 },
         { name: 'skull', on: 'head', box: [-3.5, -2.5, 5.5, 1.3, 1.5] },
@@ -36,7 +46,6 @@ export default {
     hindFar: { on: 'hip', at: [2.5, 2.5], thigh: 2.2, shin: 2.2, bend: -1 },
     hindNear: { on: 'hip', at: [0.5, 2.5], thigh: 2.2, shin: 2.2, bend: -1 },
   },
-  chains: { tail: { on: 'hip', at: [-2.5, -0.5], angle: 1.2, links: 4, length: 9, curl: -0.08, stiffness: 1200, damping: 30, weight: 40 } },
   face: { eye: [-0.5, -0.8] },
   moves: {
     run: { gait: { frames: 8, stance: 0.45, reach: 5, lift: 2.2, bob: 0.5, ground: 18.4, legs: { hindNear: [0, 0.5], hindFar: [0.5, -0.5] } } },

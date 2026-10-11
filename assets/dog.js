@@ -1,11 +1,23 @@
 // dog: an asset (see asset.js), written by the editor; data only
 export default {
-  format: 4,
+  format: 5,
   name: 'dog',
   fur: 'white',
   joints: { hip: [7.5, 11.5], chest: [14.5, 11.5], head: [19.5, 7] },
   layers: [
-    { name: 'tail', shapes: [{ name: 'tail', bone: 'tail', along: 'capsule', r: 1.1, color: 'tan', marks: [[1.1, 'white', 0]] }] },
+    {
+      name: 'tail',
+      shapes: [
+        {
+          name: 'tail',
+          chain: { on: 'hip', at: [-3.5, -2], angle: 0.75, links: 3, length: 5, stiffness: 700, damping: 20, weight: 50, role: 'tail' },
+          along: 'capsule',
+          r: 1.1,
+          color: 'tan',
+          marks: [[1.1, 'white', 0]],
+        },
+      ],
+    },
     {
       name: 'far legs',
       far: true,
@@ -30,7 +42,19 @@ export default {
         { name: 'muzzle', color: 'white', on: 'head', ellipse: [3.5, 1.8, 2.6, 2] },
       ],
     },
-    { name: 'ear', shapes: [{ name: 'ear', bone: 'ear', along: 'capsule', r: 1.6, end: 2.2, color: 'brown' }] },
+    {
+      name: 'ear',
+      shapes: [
+        {
+          name: 'ear',
+          chain: { on: 'head', at: [-1.5, -3.5], angle: 2.7, links: 2, length: 4.4, stiffness: 260, damping: 9, weight: 140, role: 'ear' },
+          along: 'capsule',
+          r: 1.6,
+          end: 2.2,
+          color: 'brown',
+        },
+      ],
+    },
     'face',
   ],
   legs: {
@@ -38,10 +62,6 @@ export default {
     frontFar: { on: 'chest', at: [1.5, 2], thigh: 2.75, shin: 2.75, bend: -1 },
     hindNear: { on: 'hip', at: [-0.5, 2], thigh: 2.75, shin: 2.75, bend: 1 },
     frontNear: { on: 'chest', at: [1, 2], thigh: 2.75, shin: 2.75, bend: -1 },
-  },
-  chains: {
-    tail: { on: 'hip', at: [-3.5, -2], angle: 0.75, links: 3, length: 5, stiffness: 700, damping: 20, weight: 50 },
-    ear: { on: 'head', at: [-1.5, -3.5], angle: 2.7, links: 2, length: 4.4, stiffness: 260, damping: 9, weight: 140 },
   },
   face: { eye: [1.5, -1.5], nose: [5.5, 1] },
   moves: {
