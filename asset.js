@@ -21,7 +21,9 @@
 //                [[x, y] × 3], `on` a joint (in its frame: spine, hip, chest turn with the spine; head with the head) or in
 //                the box; joined smoothly (smooth: how much), outlined, and what collisions test; a name to use it by
 //   paint        markings: shapes in a color, only on the body
-//   top          shapes drawn over the body, outlined (horns, fangs): { color, shapes }; no collisions
+//   top          groups of shapes drawn over the body, outlined (horns, fangs): { name, color, shapes, at, angle }; no
+//                collisions. A group's shapes are placed from its pivot (at: a point in their joint's frame; none: [0, 0]),
+//                turned about it by its angle: moved or turned, all of them go with it
 //   dots         single pixels: { on, at, color }
 //   spikes       a shape where the body bristles (speck: a color for specks inside)
 //   socks        a color for the lower legs

@@ -26,6 +26,12 @@
   select, button, input { font: inherit; color: inherit; }
   button { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
   button:hover { border-color: var(--dim); }
+  /* icons: alone (what it does: its tooltip) or beside the text */
+  button svg.i { width: 15px; height: 15px; display: block; flex: none; }
+  button.icon { padding: 4px 7px; display: inline-flex; align-items: center; justify-content: center; }
+  button.withIcon { display: inline-flex; align-items: center; gap: 5px; }
+  .group button svg.i, .acts button svg.i, .row .eye svg.i { width: 13px; height: 13px; }
+  .group button.icon { padding: 1px 4px; }
   button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
   button:disabled { opacity: 0.45; cursor: default; }
   select, input[type=number], input[type=text] { background: var(--panel); border: 1px solid var(--line); border-radius: 5px; padding: 3px 5px; }
@@ -76,13 +82,29 @@
   .row.on { background: var(--accent-soft); }
   .row .sw { width: 12px; height: 12px; border-radius: 3px; border: 1px solid rgba(0,0,0,.25); flex: none; }
   .row .what { color: var(--dim); margin-left: auto; font-size: 11px; }
+  .row input.rename { flex: 1; min-width: 0; padding: 0 4px; }
+  /* a row's eye: shown or hidden on the stage (the editor's only) */
+  .row .eye { border: 0; background: none; padding: 0 2px; display: flex; color: var(--dim); opacity: 0.35; }
+  .row:hover .eye, .row .eye.off { opacity: 1; }
+  .row.hidden > span:not(.what) { opacity: 0.45; }
+  .row .eye svg { width: 14px; height: 14px; }
   #inspector { padding: 10px; flex: 1; min-height: 0; overflow: auto; }
   #inspector h2 { font-size: 13px; margin: 0 0 8px; display: flex; gap: 6px; align-items: center; }
   #inspector h2 .acts { margin-left: auto; display: flex; gap: 4px; }
   #inspector h2 .acts button { padding: 1px 7px; }
-  .field { display: grid; grid-template-columns: 78px 1fr; gap: 6px; align-items: center; margin: 4px 0; }
-  .field > span { color: var(--dim); }
-  .field .nums { display: flex; gap: 4px; flex-wrap: wrap; }
+  /* the inspector, as Figma has it: sections with small titles, compact rows, numbers in boxes with their names in them */
+  .section { padding: 8px 0 6px; border-top: 1px solid var(--line); }
+  #inspector h2 + .section { border-top: 0; padding-top: 0; }
+  .sectionTitle { font-size: 11px; font-weight: 600; margin: 0 0 6px; cursor: default; }
+  .field { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 8px; align-items: center; margin: 3px 0; min-height: 26px; }
+  .field > span:first-child { color: var(--dim); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .field > span.scrub, .lbl.scrub { cursor: ew-resize; user-select: none; -webkit-user-select: none; }
+  .field > span.scrub:hover { color: var(--ink); }
+  body.scrubbing, body.scrubbing * { cursor: ew-resize !important; user-select: none; }
+  .field input[type=text], .field select { width: 100%; min-width: 0; height: 26px; }
+  /* numbers in pairs: x and y side by side; a shape's under its type, the width of the panel */
+  .nums { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 6px; min-width: 0; }
+  .numsWide { display: flex; flex-direction: column; gap: 4px; margin: 3px 0 3px 72px; }
   .note { color: var(--dim); }
   #timeline { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; padding: 6px 4px 2px; border-top: 1px solid var(--line); }
   #timeline:empty { display: none; }
@@ -93,13 +115,20 @@
   #timeline input[type=range] { width: min(420px, 60vw); }
   #timeline .note { flex-basis: 100%; }
   .field.own > span:first-child { color: var(--accent); }
-  /* a number: its box and a slider (under it in a list; beside it on its own) */
-  .num { display: inline-flex; flex-direction: column; gap: 1px; }
-  .num input[type=number] { width: 62px; }
-  .num input[type=range] { width: 62px; height: 12px; margin: 0; accent-color: var(--accent); }
-  .field > .num { display: flex; flex-direction: row; align-items: center; gap: 6px; }
-  .field > .num input[type=range] { flex: 1; width: auto; min-width: 40px; }
-  label > .num { flex-direction: row; align-items: center; gap: 4px; }
+  /* a number: a box with its name in it (drag the name), a slider beside it only for one between a least and a most */
+  .num { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .num .box { display: flex; align-items: center; flex: 1; min-width: 0; height: 26px; background: var(--bg); border: 1px solid transparent; border-radius: 5px; padding-left: 7px; }
+  .num.ranged .box { flex: none; width: 68px; }
+  .num .box:hover { border-color: var(--line); }
+  .num .box:focus-within { border-color: var(--sel); }
+  .num .lbl { color: var(--dim); font-size: 11px; min-width: 10px; padding-right: 2px; white-space: nowrap; }
+  .num input[type=number] { border: 0; background: transparent; width: 100%; min-width: 0; padding: 0 6px 0 3px; height: 24px; -moz-appearance: textfield; appearance: textfield; }
+  .num input[type=number]:focus { outline: none; }
+  .num input[type=number]::-webkit-inner-spin-button, .num input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  .num input[type=range] { flex: 1; min-width: 40px; height: 14px; margin: 0; accent-color: var(--accent); }
+  :is(.bar, .keys) label > .num { display: inline-flex; }
+  :is(.bar, .keys) label > .num .box { width: 56px; flex: none; }
+  :is(.bar, .keys) label > .num input[type=range] { width: 90px; flex: none; }
   /* a clip's dopesheet: a row for each bone, a column for each frame, its keys (a square: step) */
   .dope { display: grid; gap: 1px; font-size: 10px; user-select: none; width: 100%; max-height: 26vh; overflow: auto; }
   .dope .name { color: var(--dim); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 4px; }
@@ -123,6 +152,14 @@
   /* a color: a button (its swatch, its name); the palette by it to pick from */
   button.colorPick { display: inline-flex; gap: 6px; align-items: center; padding: 3px 8px; justify-self: start; }
   button.colorPick .sw { width: 12px; height: 12px; border-radius: 3px; border: 1px solid rgba(0,0,0,.25); }
+  /* the keyboard's shortcuts (?) */
+  .keysHelp { position: fixed; z-index: 20; inset: 0; background: rgba(0,0,0,.3); display: flex; align-items: center; justify-content: center; }
+  .keysHelp[hidden] { display: none; }
+  .keysHelp > div { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 18px; box-shadow: 0 10px 30px rgba(0,0,0,.25); max-height: 85vh; overflow: auto; columns: 2 260px; column-gap: 28px; }
+  .keysHelp h3 { margin: 0 0 4px; font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.04em; break-after: avoid; }
+  .keysHelp table { border-collapse: collapse; margin-bottom: 12px; break-inside: avoid; }
+  .keysHelp td { padding: 2px 10px 2px 0; vertical-align: top; }
+  .keysHelp kbd { font: 11px/1 ui-monospace, monospace; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 2px 5px; white-space: nowrap; }
   .pop { position: fixed; z-index: 10; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.18); width: 236px; }
   .popGrid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; }
   .popSw { width: 24px; height: 24px; padding: 0; border-radius: 4px; border: 1px solid rgba(0,0,0,.2); }
@@ -136,7 +173,7 @@
   .tones { display: grid; grid-template-columns: 40px repeat(4, 1fr); gap: 4px; align-items: center; justify-items: start; font-size: 11px; }
   #previewCard { flex: none; }
   #previewCard > :not(.title) { margin: 8px; }
-  #preview { display: block; height: min(15vh, 170px); width: auto; max-width: 100%; margin: 0 auto; image-rendering: pixelated; border-radius: 4px; }
+  #preview { display: block; max-width: 100%; margin: 0 auto; image-rendering: pixelated; border-radius: 4px; }
   @media (max-width: 1000px), (max-height: 560px) { /* too small to fit: the page scrolls */
     html, body { height: auto; } body { overflow: auto; }
     main, main.rightFolded { grid-template-columns: 1fr; }
@@ -153,18 +190,20 @@
   <select id="kind" aria-label="Animal" title="The animal"></select>
   <label class="skinPick" title="Its skin: the animal itself, or one made from it with its colors swapped">skin <select id="skin" aria-label="Skin"></select></label>
   <span class="modes" id="modes">
-    <button data-mode="setup" title="Its bones and shapes: the build every move is made from">Setup</button>
-    <button data-mode="animate" title="Its moves: keys over frames, or a gait's settings">Animate</button>
-    <button data-mode="play" title="Handle it as the home screen does: pick it up, drop it, pet it, feed it">Play</button>
+    <button data-mode="setup" title="Its bones and shapes: the build every move is made from. Its moves are in Animate (1)">Setup</button>
+    <button data-mode="animate" title="Its moves: keys over frames, or a gait's settings (2)">Animate</button>
+    <button data-mode="play" title="Handle it as the home screen does: pick it up, drop it, pet it, feed it (3)">Play</button>
   </span>
-  <button id="gameMode" title="The game’s own, for every animal: its palette">Game</button>
-  <button id="undo" title="Undo (⌘Z)">Undo</button>
-  <button id="redo" title="Redo (⇧⌘Z)">Redo</button>
-  <button id="revert" title="Back to the file as it was loaded">Revert</button>
-  <button id="save" class="primary" title="Save into its file, assets/… (⌘S)">Save</button>
+  <button id="gameMode" title="The game’s own, for every animal: its palette (4)">Game</button>
+  <button id="undo" data-icon="undo" title="Undo (⌘Z)"></button>
+  <button id="redo" data-icon="redo" title="Redo (⇧⌘Z)"></button>
+  <button id="revert" data-icon="revert" title="Revert: back to the file as it was loaded"></button>
+  <button id="save" class="primary" data-icon="save" title="Save into its file, assets/… (⌘S)">Save</button>
   <label class="toggle" title="Off: the sprites' own colors, outlined in black (?style=outlined in the game)"><input id="shading" type="checkbox" checked> Shading</label>
   <span id="status"></span>
+  <button id="keysButton" data-icon="keyboard" title="Keyboard shortcuts (?)"></button>
 </header>
+<div id="keys" class="keysHelp" hidden></div>
 <main>
   <aside id="left">
     <div class="card panel" id="bonesCard"><div class="title" id="bonesTitle" title="The skeleton: what moves">Bones</div><div class="scroll" id="bones"></div></div>
@@ -175,11 +214,13 @@
     <div id="stageBox"><canvas id="stage" title="Drag the handles. Click a shape to pick it. Shift: half pixels."></canvas></div>
     <div class="bar">
       <label class="animate">Move <select id="move"></select></label>
-      <button class="animate" id="play" title="Play the move (Space)">▶</button>
-      <label class="animate" title="The frames before (blue) and after (orange), faded"><input id="onion" type="checkbox" checked> Onion skin</label>
-      <label class="setup animate"><input id="allHandles" type="checkbox" checked> All handles</label>
+      <button class="animate" id="play" data-icon="play" title="Play the move, stop (Space)"></button>
+      <label class="animate" title="The frames before (blue) and after (orange), faded (O)"><input id="onion" type="checkbox" checked> Onion skin</label>
+      <label class="setup animate" title="Every part’s handle, not only the joints’ (A)"><input id="allHandles" type="checkbox" checked> All handles</label>
+      <label class="setup animate" title="The bones as lines: how they hang together (dashed: what a leg or a chain hangs from) (B)"><input id="showBones" type="checkbox" checked> Bones</label>
+      <label class="setup" title="Drawn a screen pixel a pixel: the shapes as they are, not yet in the game’s pixels (the grid: its pixels) (P)"><input id="fine" type="checkbox"> Screen pixels</label>
       <label class="play" title="Everything at a quarter speed"><input id="slow" type="checkbox"> Slow motion</label>
-      <button class="play" id="replay" title="The animal back in its place, as it was">Reset</button>
+      <button class="play" id="replay" data-icon="revert" title="The animal back in its place, as it was">Reset</button>
       <span class="game">Everything the game draws: by day, by night. Click a pixel to pick its color.</span>
     </div>
     <div id="timeline"></div>

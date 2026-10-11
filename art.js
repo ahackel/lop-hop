@@ -750,12 +750,13 @@ function drawRig(rig, P, blink, chains, S = 1, [dx, dy] = [0, 0], floor = Math.r
   const { p, F, torso } = P, k = rig.smooth ?? 1, fur = NAMED[rig.fur];
   // a shape with its frame (its turn worked out once), its box in the box's coordinates, and how much nearer than its
   // distance that box may be (an ellipse's distance is short of the true one off its long axis): see near
-  const placed = (s) => {
-    const f = s.on ? F[s.on] : F.box, [a, b, c, d] = extent(s), q = [[a, b], [c, b], [a, d], [c, d]].map((v) => toWorld(f, v));
+  const placedIn = (s, group) => { // (group: one on top it is in, see groupFrame)
+    const f = group ? groupFrame(group, s) : s.on ? F[s.on] : F.box, [a, b, c, d] = extent(s), q = [[a, b], [c, b], [a, d], [c, d]].map((v) => toWorld(f, v));
     const e = s.ellipse && Math.min(s.ellipse[2], s.ellipse[3]) / Math.max(s.ellipse[2], s.ellipse[3]);
     return { s, f, cos: f ? Math.cos(f.a) : 1, sin: f ? Math.sin(f.a) : 0, k: e || 1,
       box: [Math.min(...q.map((v) => v[0])), Math.min(...q.map((v) => v[1])), Math.max(...q.map((v) => v[0])), Math.max(...q.map((v) => v[1]))] };
   };
+  const placed = (s) => placedIn(s, null);
   const sd = (b, x, y) => { // (as toLocal does it)
     if (!b.f) return sdShape(b.s, x, y);
     const dx = x - b.f.o[0], dy = y - b.f.o[1];
@@ -792,7 +793,15 @@ function drawRig(rig, P, blink, chains, S = 1, [dx, dy] = [0, 0], floor = Math.r
     };
     (c.front ? front : soft).push({ far: c.far, joined: c.joined, line: c.line, overEye: c.overEye, color: NAMED[c.color] || fur, parts, marks: (c.marks || []).map(([t, color, mr]) => [along(t), NAMED[color], mr]) });
   }
-  const tops = [...(rig.top || []), ...(p.top || [])].map((t) => ({ color: NAMED[t.color] || fur, shapes: t.shapes.map(placed), paint: t.paint || [] }));
+  // a group on top: its shapes (and paint) placed from its pivot (at, in their joint's frame), turned by its angle
+  const groupFrame = (t, s) => {
+    const b = (s.on ? F[s.on] : F.box) || { o: [0, 0], a: 0, flip: 1 };
+    return { o: toWorld(b, t.at || [0, 0]), a: b.a + (t.angle || 0) * b.flip, flip: b.flip };
+  };
+  const tops = [...(rig.top || []), ...(p.top || [])].map((t) => {
+    const grp = t.at || t.angle ? t : null; // (none: its shapes as they are)
+    return { color: NAMED[t.color] || fur, shapes: t.shapes.map((s) => placedIn(s, grp)), paint: (t.paint || []).map((s) => placedIn(s, grp)) };
+  });
   const dots = (p.dots || rig.dots || []).map((d) => [toWorld(d.on ? F[d.on] : F.box, d.at), NAMED[d.color] || OUT]);
 
   // the frame's bounds: every shape's box (turned with its frame), one more pixel for the outline
@@ -861,7 +870,7 @@ function drawRig(rig, P, blink, chains, S = 1, [dx, dy] = [0, 0], floor = Math.r
   const overMask = over.length ? g.layer(inside(any(over, (L, x, y) => sdEllipse(x, y, L.pad))), fur, OUT, at(join(...over.map((L) => ovalBox(L.pad))))) : farMask.map(() => 0);
   for (const t of tops) {
     const m = g.layer(inside(any(t.shapes, (b, x, y) => sd(b, x, y))), t.color, OUT, at(join(...t.shapes.map((b) => b.box))));
-    for (const q of t.paint.map(placed)) g.paint(inside((x, y) => sd(q, x, y)), NAMED[q.s.color], m, at(q.box));
+    for (const q of t.paint) g.paint(inside((x, y) => sd(q, x, y)), NAMED[q.s.color], m, at(q.box));
   }
   const under = front.length ? g.px.slice() : null;
   front.filter((t) => !t.overEye).forEach(chain);
@@ -1140,7 +1149,7 @@ export function front(kind, { blink = false, scale = 1 } = {}) {
 }
 
 export function setRig(kind, rig) { RIGS[kind] = rig; rigFrames.clear(); worked.clear(); tracksOf.clear(); hitboxes.clear(); delete ducks[kind]; delete depths[kind]; }
-export const rigParts = { posed: (kind, move, frame) => posed(RIGS[kind], move, frame), pose: (kind, move, frame) => poseOf(RIGS[kind], move, frame), move: (kind, name) => RIGS[kind].poses[name], moves: (kind) => Object.keys(RIGS[kind].poses), clip: (m, frame) => clipPose(m, frame), chainRest: (kind, P, name) => chainRest(RIGS[kind], P, name), growth: (kind, pose) => growth(grown(kind, pose)), toWorld, toLocal, sdShape, NAMED, faceFrame };
+export const rigParts = { posed: (kind, move, frame) => posed(RIGS[kind], move, frame), pose: (kind, move, frame) => poseOf(RIGS[kind], move, frame), move: (kind, name) => RIGS[kind].poses[name], moves: (kind) => Object.keys(RIGS[kind].poses), clip: (m, frame) => clipPose(m, frame), chainRest: (kind, P, name) => chainRest(RIGS[kind], P, name), growth: (kind, pose) => growth(grown(kind, pose)), reach, restPoints, toWorld, toLocal, sdShape, NAMED, faceFrame };
 
 // the birds that circle a knocked-out head: two frames
 const birds = [0, 1].map((f) => {
@@ -1507,7 +1516,7 @@ const cucumber = food(12, 6, (g) => {
 // (a truffle: a dark knobbly lump, dug up)
 const truffle = food(9, 8, (g) => {
   const m = g.layer([ellipse(4.5, 4.4, 3.4, 2.9), ellipse(3, 2.8, 1.6, 1.4), ellipse(6.4, 3.2, 1.5, 1.3)], BROWN, OUT);
-  g.paint([ellipse(3.4, 4.6, 0.6, 0.6), ellipse(5.8, 5.4, 0.6, 0.6), ellipse(5, 3.2, 0.5, 0.5)], BROWN, m); g.dot(3, 2, TAN);
+  g.paint([ellipse(3.4, 4.6, 0.6, 0.6), ellipse(5.8, 5.4, 0.6, 0.6), ellipse(5, 3.2, 0.5, 0.5)], DARK_BROWN, m); g.dot(3, 2, TAN);
 });
 const hay = food(11, 9, (g) => {
   const m = g.layer([capsule(2.5, 1.6, 2.5, 7.2, 1.4), capsule(5.5, 1.2, 5.5, 7.6, 1.4), capsule(8.5, 1.6, 8.5, 7.2, 1.4)], SAND, OUT);
