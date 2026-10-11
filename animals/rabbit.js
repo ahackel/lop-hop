@@ -5,9 +5,8 @@ import { crawl, jump, ko, bump, wave } from './kit.js';
 import { toBuild } from '../asset.js';
 import asset from '../assets/rabbit.js';
 
-// its build: from its asset (assets/rabbit.js, see asset.js), which the editor saves into
+// its build: its file (assets/rabbit.js, see asset.js), which the editor saves into
 export const build = toBuild(asset);
-export { asset };
 
 // the rabbit with its moves, from its build
 export const make = (rig) => {

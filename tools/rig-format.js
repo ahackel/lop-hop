@@ -1,6 +1,6 @@
-// A rig's build (its data: see animals/*.js) as source, the way the files have it: an object literal, each part on a
-// line of its own when it will not fit on one, numbers to three places. The editor writes it back between the
-// `// @build` and `// @end` lines of an animal's file (see tools/serve.mjs); node tools/rig-format.mjs does it for all.
+// An asset (assets/<name>.js, see asset.js) as source, the way the files have it: an object literal, each part on a line
+// of its own when it will not fit on one, numbers to three places. The editor saves it so (see tools/serve.mjs); npm run
+// rigs (tools/rig-format.mjs) writes them all so.
 
 const WIDTH = 150;
 const KEY = /^[A-Za-z_$][\w$]*$/;
@@ -33,14 +33,5 @@ function block(v, indent, lead) {
   return one;
 }
 
-export const formatBuild = (build) => `export const build = ${block(build, 0, 'export const build = '.length)};`;
-
-// an asset's file (assets/<name>.js, see asset.js): the object as data, a module the game imports as it is
-export const formatAsset = (asset) => `// ${asset.name}: an asset (see asset.js), written by the editor and tools/assets.mjs; data only\nexport default ${block(asset, 0, 'export default '.length)};\n`;
-
-// an animal's file with its build replaced (between the `// @build` line and the `// @end` line)
-export function spliceBuild(source, build) {
-  const m = /(\/\/ @build[^\n]*\n)[\s\S]*?\n(\/\/ @end)/.exec(source);
-  if (!m) throw new Error('no // @build … // @end in the file');
-  return source.slice(0, m.index) + m[1] + formatBuild(build) + '\n' + m[2] + source.slice(m.index + m[0].length);
-}
+// an asset's file: the object as data, a module the game imports as it is
+export const formatAsset = (asset) => `// ${asset.name}: an asset (see asset.js), written by the editor; data only\nexport default ${block(asset, 0, 'export default '.length)};\n`;

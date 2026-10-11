@@ -1,23 +1,24 @@
-// rabbit: an asset (see asset.js), written by the editor and tools/assets.mjs; data only
+// rabbit: an asset (see asset.js), written by the editor; data only
 export default {
-  format: 1,
+  format: 2,
   name: 'rabbit',
-  color: 'FUR',
+  fur: 'FUR',
   joints: { hip: [7, 13.5], chest: [12, 13.5], head: [15.5, 9] },
-  torso: { r: 5, ends: 4.5, depth: 4.6 },
-  parts: [
-    { name: 'haunch', shape: 'ellipsoid', on: 'hip', at: [0.5, 1.5, 2.2], size: [5, 4, 2.6], mirror: true },
-    { name: 'head', shape: 'ellipsoid', on: 'head', at: [0, 0, 0], size: [4.5, 4.5, 3.8] },
-    { name: 'muzzle', shape: 'ellipsoid', on: 'head', at: [3.5, 1.8, 0], size: [2.5, 2.2, 2] },
+  torso: { r: 5, ends: 4.5 },
+  shapes: [
+    { name: 'haunch', on: 'hip', ellipse: [0.5, 1.5, 5, 4] },
+    { name: 'head', on: 'head', ellipse: [0, 0, 4.5, 4.5] },
+    { name: 'muzzle', on: 'head', ellipse: [3.5, 1.8, 2.5, 2.2] },
   ],
+  dots: [{ name: 'blush', on: 'head', at: [2.5, 2], color: 'PINK' }],
   legs: {
-    hindFar: { on: 'hip', at: [1, 2], thigh: 3.2, shin: 4.6, r: 1.2, bend: 1, far: true, z: -2.6 },
-    frontFar: { on: 'chest', at: [3.3, 0.5], thigh: 2.8, shin: 2.8, r: 1.1, bend: -1, far: true, z: -1.7 },
-    hindNear: { on: 'hip', at: [0, 2], thigh: 3.2, shin: 4.6, r: 1.3, bend: 1, z: 2.6 },
-    frontNear: { on: 'chest', at: [2.5, 0.5], thigh: 2.8, shin: 2.8, r: 1.2, bend: -1, z: 1.7 },
+    hindFar: { on: 'hip', at: [1, 2], thigh: 3.2, shin: 4.6, r: 1.2, bend: 1, far: true },
+    frontFar: { on: 'chest', at: [3.3, 0.5], thigh: 2.8, shin: 2.8, r: 1.1, bend: -1, far: true },
+    hindNear: { on: 'hip', at: [0, 2], thigh: 3.2, shin: 4.6, r: 1.3, bend: 1 },
+    frontNear: { on: 'chest', at: [2.5, 0.5], thigh: 2.8, shin: 2.8, r: 1.2, bend: -1 },
   },
   chains: {
-    tail: { on: 'hip', at: [-4.7, -1], angle: 1.2, links: 1, length: 0.5, r: 1.9, stiffness: 900, damping: 16, weight: 80, z: 0 },
+    tail: { on: 'hip', at: [-4.7, -1], angle: 1.2, links: 1, length: 0.5, r: 1.9, stiffness: 900, damping: 16, weight: 80 },
     ear: {
       on: 'head',
       at: [-2, -3],
@@ -31,14 +32,10 @@ export default {
       stiffness: 240,
       damping: 8,
       weight: 140,
-      z: 4.3,
-      mirror: true,
-      end3d: false,
     },
   },
-  face: { eye: [1.5, -1], nose: [4.5, 1], noseColor: 'PINK', forward: 60, back: 2.5, marks: { eye: [0.6, 1, 0.6], nose: 0.7, dot: 0.6 } },
-  dots: [{ name: 'blush', on: 'head', at: [2.5, 2], color: 'PINK', mirror: true }],
-  front2d: {
+  face: { eye: [1.5, -1], nose: [4.5, 1], noseColor: 'PINK' },
+  front: {
     joints: { hip: [13, 15], chest: [13, 12], head: [13, 9] },
     shapes: [
       { name: 'body', ellipse: [13.5, 15.6, 5.2, 4] },

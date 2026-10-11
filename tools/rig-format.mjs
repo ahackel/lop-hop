@@ -1,13 +1,11 @@
-// node tools/rig-format.mjs — writes every animal's build (animals/*.js) the way the editor does (see rig-format.js);
-// one whose build is an asset (assets/*.js) is left as it is
+// node tools/rig-format.mjs (npm run rigs) — writes every asset (assets/*.js) the way the editor saves it (see
+// rig-format.js), so a save changes only what was edited
 import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
-import { spliceBuild } from './rig-format.js';
+import { formatAsset } from './rig-format.js';
 
-const dir = new URL('../animals/', import.meta.url);
-for (const f of readdirSync(dir).filter((f) => f.endsWith('.js') && f !== 'kit.js')) {
-  const url = new URL(f, dir), { build } = await import(url);
-  const was = readFileSync(url, 'utf8');
-  if (!was.includes('// @build')) continue; // (its build: from its asset, assets/*.js)
-  const now = spliceBuild(was, build);
-  if (now !== was) { writeFileSync(url, now); console.log(`animals/${f}`); }
+const dir = new URL('../assets/', import.meta.url);
+for (const f of readdirSync(dir).filter((f) => f.endsWith('.js'))) {
+  const url = new URL(f, dir), { default: asset } = await import(url);
+  const now = formatAsset(asset);
+  if (now !== readFileSync(url, 'utf8')) { writeFileSync(url, now); console.log(`assets/${f}`); }
 }

@@ -2,8 +2,8 @@
 // the gallop, jumping, lying low (the crawl, knocked out on its back) and an idle that breathes and looks about. Places
 // are in the 26×20 box, the feet on row 19; a leg's length is its thigh and shin.
 //
-// An animal's file holds its build (between `// @build` and `// @end`: the data the editor edits and writes back) and
-// its make: the build with its moves (poses). A build:
+// An animal's build is its file, assets/<kind>.js (see asset.js: the data the editor edits and saves); animals/<kind>.js
+// holds its make: the build with its moves (poses). A build:
 //   fur          its color (a palette name: see NAMED in art.js), as every color is
 //   joints       hip, chest, head: places in the box. The spine runs from the hip to the chest
 //   torso        r (how thick), ends (how far past the hip and the chest), capsule (round ends): along the spine; r 0: none

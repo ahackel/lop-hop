@@ -1,62 +1,13 @@
 // The dog as a rig (see the cat, and kit.js): a beagle puppy, white with a tan saddle and head, a floppy brown ear in
 // front, a wagging tail with a white tip; its tongue out as it runs.
 import { quadruped, gallop, ko, bump, wave } from './kit.js';
+import { toBuild } from '../asset.js';
+import asset from '../assets/dog.js';
 
 const tongue = [{ color: 'PINK', shapes: [{ on: 'head', ellipse: [3, 4.3, 1, 1.2] }] }];
 
-// @build: the rig, edited in the editor (editor/), which rewrites what is between these lines
-export const build = {
-  fur: 'FUR',
-  joints: { hip: [7.5, 11.5], chest: [14.5, 11.5], head: [19.5, 7] },
-  torso: { r: 4.2, ends: 3.5 },
-  shapes: [
-    { name: 'chest', on: 'chest', ellipse: [0.5, 0, 3.8, 4.4] },
-    { name: 'head', on: 'head', ellipse: [0, 0, 4.4, 4.2] },
-    { name: 'muzzle', on: 'head', ellipse: [3.5, 1.8, 2.6, 2] },
-  ],
-  paint: [
-    { name: 'saddle', color: 'TAN', on: 'spine', ellipse: [2, -3, 6.5, 3.2] },
-    { name: 'head', color: 'TAN', on: 'head', ellipse: [0, 0, 4.4, 4.2] },
-    { name: 'muzzle', color: 'FUR', on: 'head', ellipse: [3.5, 1.8, 2.6, 2] },
-  ],
-  legs: {
-    hindFar: { on: 'hip', at: [0.5, 2], thigh: 2.75, shin: 2.75, r: 1.1, far: true, bend: 1 },
-    frontFar: { on: 'chest', at: [1.5, 2], thigh: 2.75, shin: 2.75, r: 1.1, far: true, bend: -1 },
-    hindNear: { on: 'hip', at: [-0.5, 2], thigh: 2.75, shin: 2.75, r: 1.2, bend: 1 },
-    frontNear: { on: 'chest', at: [1, 2], thigh: 2.75, shin: 2.75, r: 1.2, bend: -1 },
-  },
-  chains: {
-    tail: {
-      on: 'hip',
-      at: [-3.5, -2],
-      angle: 0.75,
-      links: 3,
-      length: 5,
-      r: 1.1,
-      color: 'TAN',
-      marks: [[1.1, 'FUR', 0]],
-      stiffness: 700,
-      damping: 20,
-      weight: 50,
-    },
-    ear: {
-      on: 'head',
-      at: [-1.5, -3.5],
-      angle: 2.7,
-      links: 2,
-      length: 4.4,
-      r: 1.6,
-      end: 2.2,
-      color: 'BROWN',
-      front: true,
-      stiffness: 260,
-      damping: 9,
-      weight: 140,
-    },
-  },
-  face: { eye: [1.5, -1.5], nose: [5.5, 1] },
-};
-// @end
+// its build: its file (assets/dog.js, see asset.js), which the editor saves into
+export const build = toBuild(asset);
 
 // the dog with its moves, from its build
 export const make = (rig) => {

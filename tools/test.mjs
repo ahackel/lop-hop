@@ -113,20 +113,18 @@ for (const k of Object.keys(ANIMALS)) {
   }
   ok(low.every(Boolean) && whole, `the ${k}'s rig stands on the ground in every pose, its chains stay whole in motion`);
 }
-// every animal's build is written the way the editor saves it (so a save changes only what was edited): in its file,
-// or in its asset (assets/<kind>.js, see asset.js), which a save writes back just as it was
+// every animal's build is in its file (assets/<kind>.js, see asset.js), written the way the editor saves it (so a save
+// changes only what was edited)
 {
-  const { spliceBuild, formatAsset } = await import('./rig-format.js'), { fromRig, toBuild, toDepth } = await import('../asset.js');
+  const { formatAsset } = await import('./rig-format.js');
   const off = [];
   for (const k of Object.keys(ANIMALS)) {
-    const url = new URL(`../animals/${k}.js`, import.meta.url), src = readFileSync(url, 'utf8'), { build } = await import(url);
-    const assetUrl = new URL(`../assets/${k}.js`, import.meta.url);
-    if (existsSync(assetUrl)) {
-      const { default: a } = await import(assetUrl), text = readFileSync(assetUrl, 'utf8');
-      if (formatAsset(a) !== text || formatAsset(fromRig(k, toBuild(a), toDepth(a))) !== text) off.push(`${k} (its asset)`);
-    } else if (spliceBuild(src, build) !== src) off.push(k);
+    const url = new URL(`../assets/${k}.js`, import.meta.url);
+    if (!existsSync(url)) { off.push(`${k} (none)`); continue; }
+    const { default: a } = await import(url);
+    if (a.format !== 2 || a.name !== k || formatAsset(a) !== readFileSync(url, 'utf8')) off.push(k);
   }
-  ok(!off.length, `every animal's build is in the editor's format${off.length ? ` — npm run rigs: ${off}` : ''}`);
+  ok(!off.length, `every animal's build is in its file, in the editor's format${off.length ? ` — npm run rigs: ${off}` : ''}`);
 }
 // every animal jumps the tallest cactus (20 high), even the heavy ones
 const heights = Object.keys(ANIMALS).map((k) => [k, Math.round(jumpHeight(k))]);
@@ -136,7 +134,7 @@ ok(mults.every((m, i) => !i || m > mults[i - 1]), `each animal counts more than 
 ok(branchBottom <= DUCK_UNDER && branchBottom >= DUCK_UNDER - 2, `branches end just above a ducking animal (row ${branchBottom})`);
 ok(CROW_BOTTOM > 0, 'crows have a lowest row');
 // every animal has its food, and its file is kept for playing offline (sw.js)
-const sw = readFileSync(new URL('../sw.js', import.meta.url), 'utf8'), missing = Object.keys(ANIMALS).filter((k) => !FOOD[ANIMALS[k].food] || !sw.includes(`'animals/${k}.js'`));
+const sw = readFileSync(new URL('../sw.js', import.meta.url), 'utf8'), missing = Object.keys(ANIMALS).filter((k) => !FOOD[ANIMALS[k].food] || !sw.includes(`'animals/${k}.js'`) || !sw.includes(`'assets/${k}.js'`));
 ok(!missing.length, `every animal has its food and is kept offline${missing.length ? ` — not: ${missing}` : ''}`);
 
 // the courses (level.js): the same every run, the next animal's another; every one can be got past (a player who

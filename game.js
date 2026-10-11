@@ -15,7 +15,7 @@
 //                                             power, powerdown   golden food gives one, and it wears off
 import { StardriftPlayer, openSongZip } from './engine/src/index.js'; // (by path: Safari before 16.4 knows no import maps)
 import { songFor } from './music.js';
-import { W, H, GROUND, PALETTES, COLOR, FOOT, ANIMALS, TRUNK, animal, moveBody, stride, bird, crow, set3d,
+import { W, H, GROUND, PALETTES, COLOR, FOOT, ANIMALS, TRUNK, animal, moveBody, stride, bird, crow,
   FOOD, face, FACE_W, cloud, moon, heart, reaching, moveReaching, star, golden, flushed, shadow, hits, snap, setScale, idleFrame, jumpFrame, leaps, hitbox, readying,
   JUMP, GRAVITY, hill, strides, rgb, luma, holdUp, swing, moveHung, hung, hangDepth, heldAt, petted, made, front, hasFront, setStyle } from './art.js';
 import { GLYPHS, text, textWidth } from './font.js';
@@ -97,22 +97,6 @@ if (TRY_TOP) topSpeed(TRY_TOP);
 // ?style=outlined: the sprites as they are, outlined in black, not in the look the game is drawn in (see setStyle in
 // art.js)
 if (Q.get('style')) setStyle(Q.get('style'));
-// ?turn3d: an animal with depth (the rabbit: see turn3d.js) is drawn in 3D: everywhere (running, jumping, reaching,
-// petted, held: as the game poses it, from the side; its collisions as ever, from its pixels), and it turns round in 3D,
-// through its front, its ears swung out, instead of its front shown a moment. A test, so turn3d.js is loaded only then.
-// Drawn on the GPU (turn-gl.js) as a skinned, textured mesh (turn-mesh.js: made as it loads, some 0.3 s), each picture
-// once, read back and kept as a sprite, as its 2D ones are (a turn: to 32 angles round); ?turn3d=rays: stepping rays,
-// =parts: part by part; =cpu: on the CPU, only its turns (each angle drawn as it comes, some 7 ms on a computer; also
-// where there is no WebGL)
-let t3d = null, t3gpu = null;
-if (Q.has('turn3d')) {
-  Promise.all([import('./turn3d.js'), import('./turn-gl.js')]).then(([m, g]) => {
-    const how = Q.get('turn3d') || 'mesh';
-    if (how !== 'cpu') try { t3gpu = g.createSprites({ how, kinds: Object.keys(ANIMALS).filter((k) => m.has3d(k)) }); } catch (e) { console.warn(e); }
-    if (t3gpu) set3d((kind, P, pose, blink, chains) => (m.has3d(kind) ? t3gpu.posed(kind, P, { blink, chains }) : null));
-    t3d = m;
-  });
-}
 const query = () => [...Q].map(([k, v]) => (v ? `${k}=${encodeURIComponent(v)}` : k)).join('&'); // (the switches as they were written: ?cheats, not ?cheats=)
 
 // what this browser keeps (localStorage, lop.<name>; in a private window perhaps nothing): get, set (null: removed)
@@ -1014,7 +998,7 @@ function drawBoard(pal) {
   if (gained && state === 'ko' && !board.credits) help(t('end.unlocked', { name: nameOf(gained) }), pal, pal[7]); // (after a run: see hud)
   if (!sit) return;
   const tn = turning('sit', kind, sit.on ? sit.dir : 1), sst = stride(kind, sit.phase);
-  if (tn) return drawTurn(kind, tn, sit.on ? 'run' : 'idle', sit.on ? sst.frame : idleFrame(kind, blinkT), Math.round(sit.x), GROUND - FOOT - (sit.on ? sst.lift : 0), pal, blinking()); // (turning round)
+  if (tn) return drawTurn(kind, tn, Math.round(sit.x), GROUND - FOOT - (sit.on ? sst.lift : 0), pal, blinking()); // (turning round)
   if (!sit.on) return animal(kind, 'idle', idleFrame(kind, blinkT), { blink: blinking() }).draw(ctx, Math.round(sit.x), GROUND - FOOT, pal);
   const st = stride(kind, sit.phase), x = Math.round(sit.x); // running there (the way it goes)
   if (sit.dir < 0) { ctx.save(); ctx.translate(2 * x + 26, 0); ctx.scale(-1, 1); }
@@ -1797,35 +1781,19 @@ function toCome(pal) {
   }
 }
 // turning round: an animal with a front (see front in art.js) is seen from the front a moment (TURN_SECS) as it turns
-// from facing one way (dir: 1 right, -1 left) to the other; one without turns at once. With ?turn3d, one with depth
-// turns in 3D (TURN3D_SECS, through its front), its ears swung out by it, and stays in 3D till they have settled.
-// (turns: by where it is drawn, k for the title's row, 'sit' for the high scores: the animal there, the way it faced
-// last, when it turned, its chains' swing and how fast it turned the frame before.) → null, or the turn: { u (0…1
-// through it), dir (the way it turns to), swing (in 3D) }
-const TURN_SECS = 0.15, TURN3D_SECS = 0.3, turns = {};
+// from facing one way (dir: 1 right, -1 left) to the other; one without turns at once. (turns: by where it is drawn, k
+// for the title's row, 'sit' for the high scores: the animal there, the way it faced last, when it turned.) → null, or
+// the turn: { u (0…1 through it), dir (the way it turns to) }
+const TURN_SECS = 0.15, turns = {};
 function turning(at, k, dir) {
   const t = turns[at];
-  if (!t || t.k !== k) { turns[at] = { k, dir, t: -Infinity, last: blinkT, sw: {}, w: 0 }; return null; }
-  if (t.dir !== dir) { t.dir = dir; t.t = blinkT; t.sw = {}; t.w = 0; }
-  const since = blinkT - t.t, dt = blinkT - t.last;
-  t.last = blinkT;
-  if (t3d?.has3d(k) && since < TURN3D_SECS + 1) {
-    const u = Math.min(1, since / TURN3D_SECS), w = since < TURN3D_SECS ? ((Math.PI * 6 * u * (1 - u)) / TURN3D_SECS) * -dir : 0; // (radians a second: eased, as drawTurn)
-    if (dt > 0) { t3d.swingChains(t.sw, k, w, (w - t.w) / dt, dt); t.w = w; }
-    const settled = u >= 1 && Object.keys(t.sw).every((n) => Math.abs(t.sw[n].flare) + Math.abs(t.sw[n].lag) < 0.25);
-    return settled ? null : { u, dir, swing: t.sw };
-  }
+  if (!t || t.k !== k) { turns[at] = { k, dir, t: -Infinity }; return null; }
+  if (t.dir !== dir) { t.dir = dir; t.t = blinkT; }
+  const since = blinkT - t.t;
   return hasFront(k) && since < TURN_SECS ? { u: since / TURN_SECS, dir } : null;
 }
-// an animal turning round (tn: see turning), in its box at x, y, in a move's frame: in 3D, from 0° (facing right) to 180°
-// (facing left) or back, through its front (chains: where its body has them); else its front
-function drawTurn(k, tn, move, frame, x, y, pal, blink, chains = null) {
-  if (!tn.swing) return front(k, { blink }).draw(ctx, x, y, pal);
-  const e = ease(tn.u);
-  const yaw = tn.dir < 0 ? 180 * e : 180 * (1 - e);
-  if (t3gpu) t3gpu.turned(k, move, frame, yaw, { blink, chains, swing: tn.swing }).draw(ctx, x, y, pal);
-  else t3d.sprite3d(k, move, frame, yaw, { blink, chains, swing: tn.swing, snap }).draw(ctx, x, y, pal);
-}
+// an animal turning round (tn: see turning), in its box at x, y: its front
+function drawTurn(k, tn, x, y, pal, blink) { front(k, { blink }).draw(ctx, x, y, pal); }
 // a padlock over an animal unlocked but not bought (see padlocked): its shackle in ink, its body golden
 const PADLOCK = ['..xxx..', '.x...x.', '.x...x.', 'xxxxxxx', 'xooooox', 'xooxoox', 'xooxoox', 'xooooox', 'xxxxxxx'];
 // an animal standing on the title (and the high scores): the one picked in front, the others
@@ -1838,9 +1806,9 @@ function standing(k, p, on, pal) {
   const jp = jumps[k], reaches = on && !r?.on && (chew > 0 || treatAt() || begging), turned = turning(k, k, r?.on ? r.dir : reaches && faceL ? -1 : 1);
   if (jp) animal(k, 'jump', jumpFrame(k, jp.v / (JUMP * ANIMALS[k].jump))).draw(ctx, x, GROUND - FOOT - Math.round(jp.alt), pal); // jumping (a double tap)
   else if (grip?.duck && grip.k === k) animal(k, 'duck', 0).draw(ctx, x, GROUND - FOOT, pal); // pushed down
-  else if (turned) { // turning round (seen from the front; in 3D)
+  else if (turned) { // turning round (seen from the front)
     const st = r?.on ? stride(k, r.phase) : null;
-    drawTurn(k, turned, st ? 'run' : 'idle', st ? st.frame : on ? idleFrame(k, blinkT) : 0, x, GROUND - FOOT - (st ? st.lift : 0), pal, on && blinking(), on && body.kind === k ? t3d?.chainPoints(body) : null);
+    drawTurn(k, turned, x, GROUND - FOOT - (st ? st.lift : 0), pal, on && blinking());
   }
   else if (on && chew > 0 && !r?.on) drawFacing(chewing(), x, GROUND - FOOT - Math.round(reach.alt), pal); // chewing a treat
   else if (on && (treatAt() || begging) && !r?.on) drawFacing(reachFor(x, treatAt() || begAt(), loose?.eat > 0.2 && !loose.far), x, GROUND - FOOT - Math.round(reach.alt), pal); // reaching for a treat (eating it; begging for one)

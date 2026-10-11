@@ -1,6 +1,5 @@
-// The editor (npm run dev, then /editor). It edits an animal's build, the data between the
-// `// @build` and `// @end` lines of animals/<kind>.js: handles on the joints, the shapes, the legs' roots, the chains and
-// the face, drawn over the animal's own pixels; a list of its parts and an inspector for the one picked; a preview in
+// The editor (npm run dev, then /editor). It edits an animal's build, its file assets/<kind>.js (see asset.js): handles
+// on the joints, the shapes, the legs' roots, the chains and the face, drawn over the animal's own pixels; a list of its parts and an inspector for the one picked; a preview in
 // the game's scene. Its moves on a timeline: keyframes set by hand (handles on the joints, paws, head, tail and ears of
 // a frame), a gait's settings, a loop to look at; the frames before and after faded (onion skin). After every change the
 // animal is made again from its build (its make) and drawn by the game's own code; Save writes the build back into its
@@ -23,8 +22,8 @@ const swatch = (name) => PALETTES.day[NAMED[name]] || 'transparent';
 const X0 = -12, Y0 = -9, VW = 50, VH = 31;
 let Z = 16;
 
-const mods = {}, saved = {}, histories = {}, assets = new Set();
-const fileOf = (k) => (assets.has(k) ? `assets/${k}.js` : `animals/${k}.js`); // (one with an asset is saved into it: see asset.js)
+const mods = {}, saved = {}, histories = {};
+const fileOf = (k) => `assets/${k}.js`; // (an animal's build: its file, see asset.js)
 let kind, mod, build, made, P, G = [1, [0, 0]], sel = { type: 'rig' }, drag = null;
 const view = { move: 'edit', frame: 0, play: false, t: 0 };
 
@@ -719,7 +718,6 @@ new ResizeObserver(() => kind && draw()).observe($('stageBox')); // (the window,
 for (const k of KINDS) {
   mods[k] = await import(`../animals/${k}.js`);
   saved[k] = JSON.stringify(mods[k].build);
-  if (mods[k].asset) assets.add(k); // (its build from its asset)
   $('kind').append(el('option', { value: k, textContent: ANIMALS[k].name.toLowerCase() }));
 }
 const asked = new URLSearchParams(location.search).get('animal');
