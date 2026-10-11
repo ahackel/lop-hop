@@ -53,7 +53,14 @@
   body.play #stage { cursor: grab; }
   .group.own span:first-child, .field.own > span:first-child { color: var(--accent); }
   #status.dirty { color: var(--accent); }
-  main { flex: 1; min-height: 0; display: grid; grid-template-columns: 290px minmax(0, 1fr) 320px; gap: 12px; padding: 12px 16px; }
+  main { --left: 290px; --right: 320px; position: relative; flex: 1; min-height: 0; display: grid; grid-template-columns: var(--left) minmax(0, 1fr) var(--right); gap: 12px; padding: 12px 16px; }
+  /* the side panels' widths: dragged by the gaps beside them (a double-click: as they were) */
+  .splitter { position: absolute; top: 12px; bottom: 12px; width: 12px; cursor: col-resize; z-index: 2; touch-action: none; }
+  .splitter::after { content: ''; position: absolute; left: 5px; top: 0; bottom: 0; width: 2px; border-radius: 1px; }
+  .splitter:hover::after, .splitter.on::after { background: var(--sel); }
+  #splitLeft { left: calc(16px + var(--left)); } #splitRight { right: calc(16px + var(--right)); }
+  main.rightFolded #splitRight { display: none; }
+  body.resizing, body.resizing * { cursor: col-resize !important; user-select: none; -webkit-user-select: none; }
   #left, #center, #right { display: flex; flex-direction: column; gap: 12px; min-height: 0; min-width: 0; }
   .panel { display: flex; flex-direction: column; min-height: 0; flex: 1; }
   /* a panel's title: click it to fold the panel away (and back); what the panel is: its tooltip */
@@ -64,7 +71,7 @@
   .card.collapsed > :not(.title) { display: none !important; }
   .panel.collapsed { flex: none; }
   /* the inspector folds sideways: to a strip at the right, its title down it */
-  main.rightFolded { grid-template-columns: 290px minmax(0, 1fr) auto; }
+  main.rightFolded { grid-template-columns: var(--left) minmax(0, 1fr) auto; }
   #inspectorCard > .title::before { transform: rotate(-90deg); }
   #inspectorCard.collapsed { flex: 1; }
   #inspectorCard.collapsed > .title { writing-mode: vertical-rl; height: 100%; padding: 10px 7px; }
@@ -211,6 +218,7 @@
   @media (max-width: 1000px), (max-height: 560px) { /* too small to fit: the page scrolls */
     html, body { height: auto; } body { overflow: auto; }
     main, main.rightFolded { grid-template-columns: 1fr; }
+    .splitter { display: none; }
     #inspectorCard.collapsed > .title { writing-mode: horizontal-tb; height: auto; padding: 7px 10px 6px; }
     #inspectorCard > .title::before { transform: none; } #inspectorCard.collapsed > .title::before { transform: rotate(-90deg); }
     .panel, #inspector { max-height: 50vh; }
@@ -241,9 +249,11 @@
 </header>
 <div id="keys" class="keysHelp" hidden></div>
 <main>
+  <div class="splitter" id="splitLeft" title="Drag: the bones and shapes wider or narrower (double-click: as they were)"></div>
+  <div class="splitter" id="splitRight" title="Drag: the inspector wider or narrower (double-click: as it was)"></div>
   <aside id="left">
     <div class="card panel" id="bonesCard"><div class="title" id="bonesTitle" title="The skeleton: what moves">Bones</div><div class="scroll" id="bones"></div></div>
-    <div class="card panel setup animate play" id="shapesCard"><div class="title" title="On the bones, back to front: drag a shape up or down its list to draw it earlier or later">Shapes</div><div class="scroll" id="shapes"></div></div>
+    <div class="card panel setup play" id="shapesCard"><div class="title" title="On the bones, back to front: drag a shape up or down its list to draw it earlier or later">Shapes</div><div class="scroll" id="shapes"></div></div>
   </aside>
   <section id="center">
   <div class="card" id="stageWrap">
