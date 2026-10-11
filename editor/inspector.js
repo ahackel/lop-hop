@@ -22,7 +22,7 @@ export function inspect() {
     const acts = el('span', { className: 'acts' });
     for (const [ic, what, arg, tip] of [['up', 'move', -1, 'Drawn earlier ( [ )'], ['down', 'move', 1, 'Drawn later ( ] )'], ['copy', 'copy', 0, 'Copy (⌘D)'], ['trash', 'delete', 0, 'Delete (⌫)']]) acts.append(iconBtn(ic, '', { title: tip, onclick: () => itemDo(what, arg) }));
     title.append(acts);
-    if (also.length) box.append(el('p', { className: 'note', textContent: `${also.length + 1} picked: moved, copied, deleted, hidden and dragged together. Below: ${p.label}, picked last.` }));
+    if (also.length) box.append(el('p', { className: 'note', textContent: `${also.length + 1} selected`, title: `Moved, copied, deleted, hidden and dragged together; below: ${p.label}, picked last` }));
     const name = el('input', { type: 'text', value: o.name || '', placeholder: p.label, onchange: () => rename(sel, o, name.value) }), head = [field('name', name, 'Its name (Enter, or double-click its row): a move uses it by it')];
     if (t === 'item') head.push(field('bone', attach(o), 'The bone it is on: a joint (in its frame; the box: none), or a bone it is drawn along (as the pose has it)'));
     if (t === 'item' || t === 'paint') head.push(field('shape', shapeKind(o), o.bone ? 'What it is drawn as along its bone' : 'What it is: fitted to where it was'));
