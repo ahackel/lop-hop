@@ -1141,7 +1141,7 @@ function reachPosed(kind, tx, ty, amount = 1, look = 1, sniff = 0) {
   // the boar's, only leans back a little: up on them it would be a ball in the air), or as its file says (rears: see HANDLING)
   const legLen = (l) => rig.legs[l].thigh + rig.legs[l].shin, tr = rig.torso?.r || 0;
   const stands = !fronts.length || trunk ? 0 : rears ?? (hinds.length && tr ? clamp((Math.min(...hinds.map(legLen)) / tr - 0.5) / 0.6, 0, 1) : 1);
-  const a = Math.round(clamp(1.1 * (want - now), -Math.max(0.3, UPRIGHT * stands), 0.35) * amount * 10) / 10, up = clamp(-a / UPRIGHT, 0, 1);
+  const a = Math.round(clamp(1.1 * (want - now), -Math.min(UPRIGHT, Math.max(0.3, UPRIGHT * stands)), 0.35) * amount * 10) / 10, up = UPRIGHT > 0 ? clamp(-a / UPRIGHT, 0, 1) : 0; // (upright 0: never up)
   // its hip up: as far as the hind legs reach (straightened, to their paws where they are), at most 3
   const P0 = posedAs(rig, base), rootOf = (l) => base.roots?.[l] || toWorld(P0.F[rig.legs[l].on], rig.legs[l].at);
   const reachLeft = Math.min(3, ...hinds.filter((l) => base.paws[l]).map((l) => rig.legs[l].thigh + rig.legs[l].shin - 0.4 - Math.hypot(...minus(base.paws[l], rootOf(l)))));
