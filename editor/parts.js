@@ -153,8 +153,14 @@ export function parts() {
   if (view.move !== 'edit') return kindOf(view.move) === 'clip' ? poseParts() : out;
   out.push({ sel: { type: 'rig' }, group: 'Animal', label: 'root', obj: build, handles: [], lines: [] });
   for (const n in build.joints) {
-    out.push({ sel: { type: 'joint', name: n }, group: 'Joints', label: n, obj: build.joints, key: n, lines: [],
-      handles: [{ at: P.J[n], anchor: true, joint: true, set: (p) => { build.joints[n] = roundAll(p); } }] });
+    const jp = { sel: { type: 'joint', name: n }, group: 'Joints', label: n, obj: build.joints, key: n, lines: [],
+      handles: [{ at: P.J[n], anchor: true, joint: true, set: (p) => { build.joints[n] = roundAll(p); } }] };
+    if (n === 'head') { // (what it turns about: from the joint, as it is at rest)
+      const pv = plus(P.J.head, build.headPivot || [0, 0]);
+      jp.handles.push({ at: pv, size: true, set: (p) => { const q = roundAll(minus(p, P.J.head)); if (q[0] || q[1]) build.headPivot = q; else delete build.headPivot; } });
+      jp.lines.push([P.J.head, pv]);
+    }
+    out.push(jp);
   }
   // each group (in the order drawn): itself (on no bone: its pivot, dragged: all of it moves, with ⌥ the pivot alone; and
   // its turn, the handle on the line out of the pivot), then its shapes, its paint, its spikes, each a part of its own
@@ -214,12 +220,12 @@ export function parts() {
 // a clip's parts at the frame shown: its joints (the head with its turn), each paw, each tail's angle and ear's tip;
 // dragging one sets a key there (see setKey)
 export function poseParts() {
-  const out = [], F = P.F, turnAt = world(F.head, [5, 0]), n = frames(view.move);
+  const out = [], F = P.F, pivot = plus(P.J.head, build.headPivot || [0, 0]), turnAt = plus(pivot, [Math.cos(F.head.a) * 5, Math.sin(F.head.a) * 5]), n = frames(view.move); // (the head's turn: about its pivot)
   out.push({ sel: { type: 'frame' }, group: 'Frame', label: `frame ${view.frame + 1} of ${n}`, obj: null, handles: [], lines: [] });
   for (const j of Object.keys(build.joints)) {
     const handles = [{ at: P.J[j], anchor: true, joint: true, set: (p) => setKey(`joints.${j}`, roundAll(p)) }];
-    if (j === 'head') handles.push({ at: turnAt, size: true, set: (p) => { const d = minus(p, P.J.head); setKey('headAngle', +Math.atan2(d[1], d[0]).toFixed(2)); } });
-    out.push({ sel: { type: 'joint', name: j }, group: 'Joints', label: j, ...(j === 'head' && { tip: 'The ring: its turn' }), obj: null, lines: j === 'head' ? [[P.J.head, turnAt]] : [], handles });
+    if (j === 'head') handles.push({ at: turnAt, size: true, set: (p) => { const d = minus(p, pivot); setKey('headAngle', +Math.atan2(d[1], d[0]).toFixed(2)); } });
+    out.push({ sel: { type: 'joint', name: j }, group: 'Joints', label: j, ...(j === 'head' && { tip: 'The ring: its turn' }), obj: null, lines: j === 'head' ? [[pivot, turnAt]] : [], handles });
   }
   for (const l in build.legs) {
     out.push({ sel: { type: 'paw', name: l }, group: 'Paws', label: l, obj: null, lines: [],

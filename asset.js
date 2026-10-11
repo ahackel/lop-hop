@@ -46,6 +46,7 @@
 //   chains       bones swung by the body's motion: a tail (on, at, angle from straight up, more: further back; links,
 //                length, curl per link, +: forward) or an ear (ear: true; at, its root, and tip, on the head). stiffness
 //                pulls each link to its rest, damping stops it ringing, weight pulls it down
+//   headPivot    [x, y]: what the head turns about, from the head joint (where the neck meets it; none: the joint)
 //   face         eye, nose, mouth (none: no mouth drawn), points in the head's frame; noseColor; frames: its own pictures
 //                for its eye and its mouth, or more of them, by name: { eye: { open: { at: [column, row] (the pixel put
 //                on the eye's point), rows: ['x', 'x'] (. nothing, x the dark line, w white, p pink, r red, k ink, or one

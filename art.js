@@ -454,6 +454,8 @@ function turned(s, f) {
 }
 // a joint's frame: its place, its angle, flipped (on its back); points from it (local) and back (world)
 const jointFrame = (o, a, flip) => ({ o, a, flip: flip ? -1 : 1 });
+// the head's: turned by a about its pivot (from the head joint, as it is at rest; none: the joint itself)
+const headFrame = (o, a, pv) => jointFrame(pv ? plus(o, minus(pv, turn(pv, a))) : o, a);
 const toLocal = (f, x, y) => { const dx = x - f.o[0], dy = y - f.o[1], c = Math.cos(f.a), s = Math.sin(f.a); return [dx * c + dy * s, (-dx * s + dy * c) * f.flip]; };
 const toWorld = (f, [x, y]) => (f ? plus(f.o, turn([x, y * f.flip], f.a)) : [x, y]);
 
@@ -593,7 +595,7 @@ function using(rig, p) {
 const posed = (rig, name, frame) => posedAs(rig, poseOf(rig, name, frame));
 function posedAs(rig, p) {
   const J = { ...rig.joints, ...p.joints }, a = Math.atan2(J.chest[1] - J.hip[1], J.chest[0] - J.hip[0]);
-  const F = { spine: jointFrame(J.hip, a, p.flip), hip: jointFrame(J.hip, a, p.flip), chest: jointFrame(J.chest, a, p.flip), head: jointFrame(J.head, p.headAngle || 0),
+  const F = { spine: jointFrame(J.hip, a, p.flip), hip: jointFrame(J.hip, a, p.flip), chest: jointFrame(J.chest, a, p.flip), head: headFrame(J.head, p.headAngle || 0, rig.headPivot),
     box: p.turn ? jointFrame(plus(minus(p.turn.pivot, turn(p.turn.pivot, p.turn.angle)), p.turn.by || [0, 0]), p.turn.angle) : null }; // (box: what is on no joint, turned with the whole body, moved by: see hung)
   return { p, J, F, a, torso: rig.torso?.none ? { r: 0 } : torsoBy(rig.torso, p.torso) }; // (none: no shape on the spine)
 }

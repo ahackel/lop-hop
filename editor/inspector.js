@@ -28,11 +28,18 @@ export function inspect() {
     if (t === 'item' || t === 'paint') head.push(field('shape', shapeKind(o), o.bone ? 'What it is drawn as along its bone' : 'What it is: fitted to where it was'));
     box.append(section(t === 'group' ? 'Group' : 'Shape', head));
   }
-  if (t === 'joint') { box.append(field('place', nums(o, sel.name))); return; }
+  if (t === 'joint') {
+    box.append(field('place', nums(o, sel.name)));
+    if (sel.name === 'head') { // (what it turns about)
+      const pv = () => build.headPivot || [0, 0], put = (q) => { if (q[0] || q[1]) build.headPivot = q; else delete build.headPivot; };
+      box.append(field('pivot', stack(pv().map((v, j) => numIn(v, (x) => { const q = pv().slice(); q[j] = x; put(q); }, { label: 'xy'[j] }))), 'What it turns about, from the joint: where the neck meets it (drag the ring by the joint)'));
+    }
+    return;
+  }
   if (t === 'group') { groupFields(o, box); return; }
   if (t === 'item' && o.bone) { fields(withDefaults(o, boneDefaults(o)), box, ['name', 'bone', 'along']); return; } // (a shape on a bone: all it can be)
   if (t === 'item') { fields(withDefaults(o, { color: undefined, smooth: 1, ...((o.ellipse || o.box) && { angle: 0 }) }), box, ['name', 'on']); return; } // (an ellipse, a box: turned)
-  const skip = t === 'rig' ? ['joints', 'layers', 'dots', 'legs', 'chains', 'face', 'moves', 'handling', 'recolor'] : t === 'paint' || t === 'dot' ? ['name'] : t === 'leg' || t === 'chain' ? ['on'] : []; // (a bone's joint: dragged onto another in the list)
+  const skip = t === 'rig' ? ['joints', 'headPivot', 'layers', 'dots', 'legs', 'chains', 'face', 'moves', 'handling', 'recolor'] : t === 'paint' || t === 'dot' ? ['name'] : t === 'leg' || t === 'chain' ? ['on'] : []; // (a bone's joint: dragged onto another in the list)
   fields(o, box, t === 'face' ? ['frames'] : skip);
   if (t === 'face') faceFrames(box);
   if (t === 'rig') rootMore(box);
