@@ -3,7 +3,7 @@
 // (Its power: flying, its wings beating, see its jump.)
 import { quadruped, crawl } from './kit.js';
 
-// @build: the rig, edited in the workshop (tools/workshop.html), which rewrites what is between these lines
+// @build: the rig, edited in the editor (editor/), which rewrites what is between these lines
 export const build = {
   fur: 'OSTRICH',
   joints: { hip: [9, 9.6], chest: [14, 9.2], head: [18.8, 1] },

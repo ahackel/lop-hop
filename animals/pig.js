@@ -3,7 +3,7 @@
 // a curly tail that springs about, little dark trotters.
 import { quadruped, standIdle } from './kit.js';
 
-// @build: the rig, edited in the workshop (tools/workshop.html), which rewrites what is between these lines
+// @build: the rig, edited in the editor (editor/), which rewrites what is between these lines
 export const build = {
   fur: 'PIG',
   joints: { hip: [8, 11.2], chest: [14.5, 11.2], head: [20, 8.4] },

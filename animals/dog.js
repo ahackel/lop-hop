@@ -4,7 +4,7 @@ import { quadruped, gallop, ko, bump, wave } from './kit.js';
 
 const tongue = [{ color: 'PINK', shapes: [{ on: 'head', ellipse: [3, 4.3, 1, 1.2] }] }];
 
-// @build: the rig, edited in the workshop (tools/workshop.html), which rewrites what is between these lines
+// @build: the rig, edited in the editor (editor/), which rewrites what is between these lines
 export const build = {
   fur: 'FUR',
   joints: { hip: [7.5, 11.5], chest: [14.5, 11.5], head: [19.5, 7] },

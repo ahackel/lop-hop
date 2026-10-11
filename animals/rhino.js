@@ -2,7 +2,7 @@
 // on top), skin folds, thick short legs, a pointed ear, a thin tail.
 import { quadruped, earsBack, standIdle } from './kit.js';
 
-// @build: the rig, edited in the workshop (tools/workshop.html), which rewrites what is between these lines
+// @build: the rig, edited in the editor (editor/), which rewrites what is between these lines
 export const build = {
   fur: 'RHINO',
   joints: { hip: [7.5, 11.5], chest: [14.5, 11.5], head: [19, 11] },
@@ -41,6 +41,7 @@ export const build = {
       weight: 60,
     },
     ear: { on: 'head', ear: [[-3.6, -3.4], [-1.2, -3.8]], tip: [-3.1, -7.4], stiffness: 1400, damping: 22, weight: 60 },
+    earFar: { on: 'head', ear: [[-1.1, -2.8], [1.3, -3.2]], tip: [-0.6, -6.8], stiffness: 1400, damping: 22, weight: 60 },
   },
   face: { eye: [-0.4, -1], nose: [5.6, 1.6] },
 };

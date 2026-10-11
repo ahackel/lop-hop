@@ -1,4 +1,4 @@
-// rabbit: an asset (see asset.js), written by the workshop and tools/assets.mjs; data only
+// rabbit: an asset (see asset.js), written by the editor and tools/assets.mjs; data only
 export default {
   format: 1,
   name: 'rabbit',
@@ -11,8 +11,10 @@ export default {
     { name: 'muzzle', shape: 'ellipsoid', on: 'head', at: [3.5, 1.8, 0], size: [2.5, 2.2, 2] },
   ],
   legs: {
-    hindNear: { on: 'hip', at: [0, 2], thigh: 3.2, shin: 4.6, r: 1.3, bend: 1, z: 2.6, mirror: true },
-    frontNear: { on: 'chest', at: [2.5, 0.5], thigh: 2.8, shin: 2.8, r: 1.2, bend: -1, z: 1.7, mirror: true },
+    hindFar: { on: 'hip', at: [1, 2], thigh: 3.2, shin: 4.6, r: 1.2, bend: 1, far: true, z: -2.6 },
+    frontFar: { on: 'chest', at: [3.3, 0.5], thigh: 2.8, shin: 2.8, r: 1.1, bend: -1, far: true, z: -1.7 },
+    hindNear: { on: 'hip', at: [0, 2], thigh: 3.2, shin: 4.6, r: 1.3, bend: 1, z: 2.6 },
+    frontNear: { on: 'chest', at: [2.5, 0.5], thigh: 2.8, shin: 2.8, r: 1.2, bend: -1, z: 1.7 },
   },
   chains: {
     tail: { on: 'hip', at: [-4.7, -1], angle: 1.2, links: 1, length: 0.5, r: 1.9, stiffness: 900, damping: 16, weight: 80, z: 0 },
@@ -53,8 +55,14 @@ export default {
   },
   moves: {
     jump: [
-      { joints: { hip: [7, 14.5], chest: [12, 12.3], head: [15.5, 7.8] }, paws: { hindNear: [0, 17.6], frontNear: [19, 15] } },
-      { joints: { hip: [7.5, 12.8], chest: [12, 14], head: [16, 9.5] }, paws: { hindNear: [11.5, 17.6], frontNear: [16.5, 17.8] } },
+      {
+        joints: { hip: [7, 14.5], chest: [12, 12.3], head: [15.5, 7.8] },
+        paws: { hindNear: [0, 17.6], hindFar: [1, 17.6], frontNear: [19, 15], frontFar: [19.8, 15.2] },
+      },
+      {
+        joints: { hip: [7.5, 12.8], chest: [12, 14], head: [16, 9.5] },
+        paws: { hindNear: [11.5, 17.6], hindFar: [12.5, 17.6], frontNear: [16.5, 17.8], frontFar: [17.3, 17.8] },
+      },
     ],
   },
 };

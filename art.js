@@ -100,9 +100,73 @@ const words = new Map();
 function wordsOf(pal) {
   let out = words.get(pal);
   if (!out) {
-    out = new Uint32Array(256);
-    for (const k in pal) if (/^\d+$/.test(k)) { const v = parseInt(pal[k].slice(1, 7), 16); out[k] = 0xff000000 | ((v & 0xff) << 16) | (v & 0xff00) | (v >> 16); }
+    out = new Uint32Array(64 * TONES.length);
+    const put = (i, hex) => { const v = parseInt(hex.slice(1, 7), 16); out[i] = 0xff000000 | ((v & 0xff) << 16) | (v & 0xff00) | (v >> 16); };
+    for (const k in pal) if (/^\d+$/.test(k)) { put(k, pal[k]); if (STYLE === 'between') for (let t = 1; t < TONES.length; t++) put(+k + 64 * t, pal.flat ? pal[k] : toned(pal[k], t)); } // (flat: one color, no tones: see shadow)
     words.set(pal, out);
+  }
+  return out;
+}
+
+// the look (?style in game.js, the editor's Style): 'between' (as the game is drawn): outlines in a dark tone of the
+// color inside them, a shade on the underside, far legs (behind the body) in a cooler, darker tone; 'outlined': as the
+// sprites are, outlined in black. Worked out by rule from a sprite's palette indices as it is first drawn (see styled),
+// into the tones' indices: 64 on for each (see TONES)
+let STYLE = 'between';
+export const STYLES = ['between', 'outlined'];
+export function setStyle(s) { STYLE = STYLES.includes(s) ? s : 'between'; words.clear(); }
+const TONES = [null, ['#4b5687', 0.24], ['#2b2541', 0.55], ['#6c7398', 0.38]]; // (shade, line, far: toward a color, how far)
+const SHADE = 64, LINE = 128, FAR = 192;
+const toned = (hex, t) => { const a = rgb(hex), b = rgb(TONES[t][0]); return '#' + a.map((v, i) => Math.round(v + (b[i] - v) * TONES[t][1]).toString(16).padStart(2, '0')).join(''); };
+// a styled pixel's color (k: as styled has it), in a palette
+export const colorOf = (pal, k) => (k < 64 ? pal[k] : toned(pal[k % 64], k >> 6));
+// a sprite's pixels in the look. The outline's pixels (OUT): next to nothing (the silhouette's), joined to it or in a
+// line longer than 6 (lines), or small marks (eyes: as they are; marks: a mask of them, a rig's face). The silhouette
+// and lines in the line tone of the color they border. Each part (the pixels of a color between lines, 4 round) shaded
+// on its underside (the lowest third of it, down each column, if 3 or more tall). A far leg (far: a mask) in the far tone
+function styled({ w, h, px }, far, marks) {
+  // (on a grid a pixel bigger all round, empty there: a neighbour is an offset, 4 round first, then the corners)
+  const W = w + 2, n = W * (h + 2), v = new Uint8Array(n), N = [1, -1, W, -W, W + 1, W - 1, 1 - W, -1 - W];
+  const kind = new Uint8Array(n), seen = new Uint8Array(n), reg = new Int32Array(n).fill(-1), q = new Int32Array(n), tone = new Uint16Array(n);
+  for (let y = 0; y < h; y++) v.set(px.subarray(y * w, (y + 1) * w), (y + 1) * W + 1);
+  const part = (i) => { for (let k = 0; k < 8; k++) if (reg[i + N[k]] >= 0) return i + N[k]; return -1; };
+  if (marks) for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const i = (y + 1) * W + x + 1; if (marks[y * w + x] && v[i] === OUT) { kind[i] = 3; seen[i] = 1; } } // (marks: the face, as drawn: see drawRig)
+  for (let i = 0; i < n; i++) if (v[i] === OUT && !kind[i] && (!v[i + 1] || !v[i - 1] || !v[i + W] || !v[i - W])) kind[i] = 1; // (1: the silhouette's)
+  for (let i = 0, r = 0; i < n; i++) { // the parts
+    if (!v[i] || v[i] === OUT || reg[i] >= 0) continue;
+    let len = 1; q[0] = i; reg[i] = r;
+    for (let c = 0; c < len; c++) for (let k = 0; k < 4; k++) { const j = q[c] + N[k]; if (v[j] && v[j] !== OUT && reg[j] < 0) { reg[j] = r; q[len++] = j; } }
+    r++;
+  }
+  for (let i = 0; i < n; i++) { // the outline's other pixels, by the line they are in (8 round): 2 a line, 3 a mark (inside one part)
+    if (v[i] !== OUT || seen[i]) continue;
+    let len = 1, edge = false, inside = -1; q[0] = i; seen[i] = 1;
+    for (let c = 0; c < len; c++) {
+      if (kind[q[c]] === 1) edge = true;
+      for (let k = 0; k < 8; k++) {
+        const j = q[c] + N[k];
+        if (v[j] === OUT && !seen[j]) { seen[j] = 1; q[len++] = j; } else if (reg[j] >= 0 && k < 4) { if (inside === -1) inside = reg[j]; else if (inside !== reg[j]) edge = true; }
+      }
+    }
+    for (let c = 0; c < len; c++) if (!kind[q[c]]) kind[q[c]] = edge || len > 6 ? 2 : 3;
+  }
+  for (let i = 0; i < n; i++) {
+    if (v[i] !== OUT) continue;
+    const j = kind[i] === 3 ? -1 : part(i);
+    tone[i] = j < 0 ? OUT : LINE + v[j];
+  }
+  for (let pass = 0; pass < 2; pass++) for (let i = 0; i < n; i++) { // (bordering no part: as the outline next to it)
+    if (tone[i] !== OUT || kind[i] === 3) continue;
+    for (let k = 0; k < 8; k++) { const j = i + N[k]; if (v[j] === OUT && tone[j] !== OUT) { tone[i] = tone[j]; break; } }
+  }
+  const out = new Uint16Array(w * h);
+  for (let x = 0; x < w; x++) for (let y = 0; y < h;) { // down each column: the outline's tones, and a part's run at a time
+    const i = (y + 1) * W + x + 1, r = reg[i];
+    if (r < 0) { out[y * w + x] = tone[i]; y++; continue; }
+    let end = y + 1;
+    while (end < h && reg[(end + 1) * W + x + 1] === r) end++;
+    const tall = end - y, shade = tall >= 3 ? Math.max(1, Math.round(tall * 0.3)) : 0;
+    for (; y < end; y++) { const o = y * w + x; out[o] = (far && far[o] ? FAR : end - 1 - y < shade ? SHADE : 0) + px[o]; }
   }
   return out;
 }
@@ -128,9 +192,10 @@ function imageFor(cx, w, h) {
 // frame, bigger than the box: see the rigs)
 function sprite(g, mask, extra) {
   let canvases = {};
+  const looks = {}, look = () => (STYLE === 'between' ? looks[STYLE] || (looks[STYLE] = styled(g, extra?.far, extra?.marks)) : g.px);
   const ox = extra?.ox || 0, oy = extra?.oy || 0, W = roomy(g.w), H = roomy(g.h), size = `${W} ${H}`;
   return {
-    w: g.w, h: g.h, px: g.px, mask, ...extra,
+    w: g.w, h: g.h, px: g.px, mask, ...extra, look, // (look: its pixels in the look, see styled)
     free() {
       let list = spare.get(size);
       if (!list) spare.set(size, (list = []));
@@ -138,15 +203,16 @@ function sprite(g, mask, extra) {
       canvases = {};
     },
     draw(ctx, x, y, pal) {
-      let c = canvases[pal.bg];
+      const key = STYLE + pal.bg;
+      let c = canvases[key];
       if (!c) {
-        c = canvases[pal.bg] = spare.get(size)?.pop();
+        c = canvases[key] = spare.get(size)?.pop();
         if (!c) {
-          c = canvases[pal.bg] = typeof OffscreenCanvas === 'function' ? new OffscreenCanvas(W, H) : Object.assign(document.createElement('canvas'), { width: W, height: H }); // (Safari before 16.4: none)
+          c = canvases[key] = typeof OffscreenCanvas === 'function' ? new OffscreenCanvas(W, H) : Object.assign(document.createElement('canvas'), { width: W, height: H }); // (Safari before 16.4: none)
           made.canvases++;
         }
         made.sprites++;
-        const cx = c.getContext('2d'), { img, out } = imageFor(cx, g.w, g.h), rw = img.width, word = wordsOf(pal), px = g.px;
+        const cx = c.getContext('2d'), { img, out } = imageFor(cx, g.w, g.h), rw = img.width, word = wordsOf(pal), px = look();
         for (let y = 0, i = 0; y < g.h; y++) for (let x = 0, o = y * rw; x < g.w; x++, i++, o++) out[o] = px[i] ? word[px[i]] : 0;
         cx.putImageData(img, 0, 0, 0, 0, g.w, g.h); // (its corner, the clear pixels too: what was there before is gone)
       }
@@ -277,7 +343,7 @@ const balls = [0, 1, 2, 3].map((f) => {
 // chains (a tail, ears) that the body's motion swings, and a pose for each move and frame. Its shapes are distances (how
 // far a point lies outside them), so they join smoothly. Each frame is drawn into a grid just big enough for it, with its
 // offset (ox, oy) from the 26×20 box the game places every animal by: a tail can reach out of the box.
-// (moves: the build's own, over the moves its make worked out: a list of keyframes set by hand in the workshop's timeline,
+// (moves: the build's own, over the moves its make worked out: a list of keyframes set by hand in the editor's timeline,
 // in place of the move; or a gait's settings over the worked-out ones, a leg's over its own)
 function withMoves(rig) {
   if (!rig.moves) return rig;
@@ -644,7 +710,7 @@ function drawRig(rig, P, pose, blink, chains, S = 1, [dx, dy] = [0, 0], floor = 
       const n = pts.length - 1, u = clamp(t * n, 0, n), i = Math.min(n - 1, Math.floor(u));
       return mix(pts[i], pts[i + 1], u - i);
     };
-    (c.front ? front : soft).push({ joined: c.joined, line: c.line, overEye: c.overEye, color: NAMED[c.color] || fur, parts, marks: (c.marks || []).map(([t, color, mr]) => [along(t), NAMED[color], mr]) });
+    (c.front ? front : soft).push({ far: c.far, joined: c.joined, line: c.line, overEye: c.overEye, color: NAMED[c.color] || fur, parts, marks: (c.marks || []).map(([t, color, mr]) => [along(t), NAMED[color], mr]) });
   }
   const tops = [...(rig.top || []), ...(p.top || [])].map((t) => ({ color: NAMED[t.color] || fur, shapes: t.shapes.map(placed), paint: t.paint || [] }));
   const dots = (p.dots || rig.dots || []).map((d) => [toWorld(d.on ? F[d.on] : F.box, d.at), NAMED[d.color] || OUT]);
@@ -673,9 +739,10 @@ function drawRig(rig, P, pose, blink, chains, S = 1, [dx, dy] = [0, 0], floor = 
       if (r) g.paint(inside((x, y) => Math.hypot(x - mx, y - my) - r), color, m, at([mx - r, my - r, mx + r, my + r]));
       else pixel.dot(mx, my, color);
     }
+    return m;
   };
 
-  soft.forEach(chain);
+  const farChains = soft.map(chain).filter((m, i) => soft[i].far); // (far: on the far side, as the far legs: see styled)
   const farLegs = legs.filter((L) => L.far);
   const farMask = g.layer(inside(any(farLegs, (L, x, y) => legSd(L, x, y))), fur, OUT, at(join(...farLegs.map((L) => L.box))));
   // the body: its shapes, ears and near legs joined smoothly, one after another. A part too far off to change it is
@@ -726,21 +793,26 @@ function drawRig(rig, P, pose, blink, chains, S = 1, [dx, dy] = [0, 0], floor = 
       if (bodyMask[i] && g.px[i] === OUT && under[i] !== OUT && Math.hypot(x + 0.5 - cx, y + 0.5 - cy) < R) g.px[i] = under[i];
     }
   }
-  for (const [[x, y], c] of dots) pixel.dot(x, y, c);
+  const marks = new Uint8Array(g.w * g.h), face = { dot: (x, y, c) => { // (the face's dark pixels: kept as they are in any look, see styled)
+    pixel.dot(x, y, c);
+    for (let a = 0; a < n; a++) for (let b = 0; b < n; b++) { const X = Math.round(x) * S - ox + a, Y = Math.round(y) * S - oy + b; if (X >= 0 && Y >= 0 && X < g.w && Y < g.h) marks[Math.round(Y) * g.w + Math.round(X)] = 1; }
+  } };
+  for (const [[x, y], c] of dots) face.dot(x, y, c);
   if (rig.recolor) { const to = {}; for (const a in rig.recolor) to[NAMED[a]] = NAMED[rig.recolor[a]]; for (let i = 0; i < g.px.length; i++) g.px[i] = to[g.px[i]] ?? g.px[i]; }
-  const face = rig.face, both = (face.eyes || [face.eye]).map((q) => toWorld(F.head, q)), eye = mix(both[0], both[both.length - 1], 0.5); // (eyes: two, seen from the front)
-  for (const q of both) eyes(pixel, pose, q, blink);
-  if (face.nose) { const nose = toWorld(F.head, face.nose); pixel.dot(nose[0], nose[1], NAMED[face.noseColor] || OUT); }
+  const head = rig.face, both = (head.eyes || [head.eye]).map((q) => toWorld(F.head, q)), eye = mix(both[0], both[both.length - 1], 0.5); // (eyes: two, seen from the front)
+  for (const q of both) eyes(face, pose, q, blink);
+  if (head.nose) { const nose = toWorld(F.head, head.nose); face.dot(nose[0], nose[1], NAMED[head.noseColor] || OUT); }
   front.filter((t) => t.overEye).forEach(chain); // (over the eye too: the pig's lop ear)
   // (dx, dy: moved, grown from where its feet touch the ground: see rigFrame. settle: grown, a row short of the ground
   // only by rounding, it is set down on it)
   let mask = union(farMask, bodyMask, overMask), down = 0;
+  let far = farLegs.length || farChains.length ? union(farMask, ...farChains).map((v, i) => (v && !bodyMask[i] && !overMask[i] ? 1 : 0)) : null; // (the far legs where they show: see styled)
   if (settle && g.h > 1 && oy + dy + g.h === floor && !g.px.subarray((g.h - 1) * g.w).some(Boolean) && g.px.subarray((g.h - 2) * g.w, (g.h - 1) * g.w).some(Boolean)) {
     down = 1;
     const cut = new Grid(g.w, g.h - 1); cut.px.set(g.px.subarray(0, cut.px.length));
-    mask = mask.slice(0, cut.px.length); g = cut;
+    mask = mask.slice(0, cut.px.length); far = far && far.slice(0, cut.px.length); g = cut;
   }
-  return sprite(g, mask, { ox: ox + dx, oy: oy + dy + down, head: [(eye[0] - 1) * S + dx, (eye[1] - 6) * S + dy + down] });
+  return sprite(g, mask, { far, marks: marks.subarray(0, g.px.length), ox: ox + dx, oy: oy + dy + down, head: [(eye[0] - 1) * S + dx, (eye[1] - 6) * S + dy + down] });
 }
 
 // ------------------------------------------------------------------------------------------------------ held up
@@ -940,7 +1012,7 @@ export function reaching(kind, tx, ty, eating = false, amount = 1, look = 1, bod
 // its moving parts (ears, tail, trunk) swung as it reaches (as moveBody does for a move)
 export function moveReaching(body, kind, tx, ty, amount, look, x, y, dt, sniff = 0) { moveBody(body, kind, 'reach', 0, x, y, 0, dt, reachPosed(kind, tx, ty, amount, look, sniff).P); }
 
-// for the workshop (tools/workshop.html): an edited rig swapped in (its frames drawn again), and what places its parts
+// for the editor (editor/): an edited rig swapped in (its frames drawn again), and what places its parts
 // -------------------------------------------------------------------------------------------------------- the front
 // An animal seen from the front, as it turns round (the game shows it a moment between facing one way and the other):
 // its build's front, a rig of its own (shapes in the box, no legs; chains: ears hanging either side; face: eyes, two),
@@ -1406,7 +1478,7 @@ export function flushed(pal) {
 // stands out from the hills)
 const shades = {};
 export function shadow(pal, color = COLOR.FAINT) {
-  return (shades[`${pal.bg} ${color}`] ||= { ...Object.fromEntries(Object.entries(pal).map(([k, hex]) => [k, k === 'bg' ? hex : pal[color]])), bg: `${pal.bg} shadow ${color}` });
+  return (shades[`${pal.bg} ${color}`] ||= { ...Object.fromEntries(Object.entries(pal).map(([k, hex]) => [k, k === 'bg' ? hex : pal[color]])), bg: `${pal.bg} shadow ${color}`, flat: true });
 }
 export const star = fromRows([
   '..y..',

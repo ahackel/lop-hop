@@ -17,7 +17,7 @@ import { StardriftPlayer, openSongZip } from './engine/src/index.js'; // (by pat
 import { songFor } from './music.js';
 import { W, H, GROUND, PALETTES, COLOR, FOOT, ANIMALS, TRUNK, animal, moveBody, stride, bird, crow, set3d,
   FOOD, face, FACE_W, cloud, moon, heart, reaching, moveReaching, star, golden, flushed, shadow, hits, snap, setScale, idleFrame, jumpFrame, leaps, hitbox, readying,
-  JUMP, GRAVITY, hill, strides, rgb, luma, holdUp, swing, moveHung, hung, hangDepth, heldAt, petted, made, front, hasFront } from './art.js';
+  JUMP, GRAVITY, hill, strides, rgb, luma, holdUp, swing, moveHung, hung, hangDepth, heldAt, petted, made, front, hasFront, setStyle } from './art.js';
 import { GLYPHS, text, textWidth } from './font.js';
 import { ICONS, PAD_ICONS } from './icons.js';
 import { course, pace, topSpeed, drain, hardness, nightAt, random, seedOf, chaserOf, SCORE_PER_PX, CROWS_FROM, FAST_FROM, CHASE } from './level.js';
@@ -94,6 +94,9 @@ const CHEATING = Q.has('cheats');
 // a visit, to try a top speed (see pace in level.js); its runs are not written down either
 const TRY_TOP = +Q.get('top') || 0;
 if (TRY_TOP) topSpeed(TRY_TOP);
+// ?style=outlined: the sprites as they are, outlined in black, not in the look the game is drawn in (see setStyle in
+// art.js)
+if (Q.get('style')) setStyle(Q.get('style'));
 // ?turn3d: an animal with depth (the rabbit: see turn3d.js) is drawn in 3D: everywhere (running, jumping, reaching,
 // petted, held: as the game poses it, from the side; its collisions as ever, from its pixels), and it turns round in 3D,
 // through its front, its ears swung out, instead of its front shown a moment. A test, so turn3d.js is loaded only then.

@@ -2,7 +2,7 @@
 // its end, little white tusks, a pointed ear (darker), a thin tail, thin legs.
 import { quadruped, earsBack, standIdle } from './kit.js';
 
-// @build: the rig, edited in the workshop (tools/workshop.html), which rewrites what is between these lines
+// @build: the rig, edited in the editor (editor/), which rewrites what is between these lines
 export const build = {
   fur: 'BOAR',
   joints: { hip: [8, 11.8], chest: [15, 11.8], head: [18.3, 11.2] },

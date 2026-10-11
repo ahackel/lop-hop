@@ -2,7 +2,7 @@
 // down like a skirt (a fringe of tufts), a white blaze down its face, wide curved horns (on top), a bushy tail.
 import { quadruped, standIdle, jump } from './kit.js';
 
-// @build: the rig, edited in the workshop (tools/workshop.html), which rewrites what is between these lines
+// @build: the rig, edited in the editor (editor/), which rewrites what is between these lines
 export const build = {
   fur: 'YAK',
   joints: { hip: [7.5, 10.6], chest: [14.5, 10.6], head: [19.4, 11] },

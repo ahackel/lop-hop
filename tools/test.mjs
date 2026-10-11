@@ -113,7 +113,7 @@ for (const k of Object.keys(ANIMALS)) {
   }
   ok(low.every(Boolean) && whole, `the ${k}'s rig stands on the ground in every pose, its chains stay whole in motion`);
 }
-// every animal's build is written the way the workshop saves it (so a save changes only what was edited): in its file,
+// every animal's build is written the way the editor saves it (so a save changes only what was edited): in its file,
 // or in its asset (assets/<kind>.js, see asset.js), which a save writes back just as it was
 {
   const { spliceBuild, formatAsset } = await import('./rig-format.js'), { fromRig, toBuild, toDepth } = await import('../asset.js');
@@ -126,7 +126,7 @@ for (const k of Object.keys(ANIMALS)) {
       if (formatAsset(a) !== text || formatAsset(fromRig(k, toBuild(a), toDepth(a))) !== text) off.push(`${k} (its asset)`);
     } else if (spliceBuild(src, build) !== src) off.push(k);
   }
-  ok(!off.length, `every animal's build is in the workshop's format${off.length ? ` — npm run rigs: ${off}` : ''}`);
+  ok(!off.length, `every animal's build is in the editor's format${off.length ? ` — npm run rigs: ${off}` : ''}`);
 }
 // every animal jumps the tallest cactus (20 high), even the heavy ones
 const heights = Object.keys(ANIMALS).map((k) => [k, Math.round(jumpHeight(k))]);

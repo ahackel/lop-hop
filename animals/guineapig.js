@@ -2,7 +2,7 @@
 // dark saddle and a ginger head with a white blaze down its nose; a fur swirl on its back, little round ears, tiny legs.
 import { quadruped, standIdle } from './kit.js';
 
-// @build: the rig, edited in the workshop (tools/workshop.html), which rewrites what is between these lines
+// @build: the rig, edited in the editor (editor/), which rewrites what is between these lines
 export const build = {
   fur: 'FUR',
   joints: { hip: [8, 11.3], chest: [14, 11.3], head: [18.4, 10.4] },

@@ -2,7 +2,7 @@
 // stubby tail.
 import { quadruped } from './kit.js';
 
-// @build: the rig, edited in the workshop (tools/workshop.html), which rewrites what is between these lines
+// @build: the rig, edited in the editor (editor/), which rewrites what is between these lines
 export const build = {
   fur: 'BARK',
   joints: { hip: [7.5, 11.5], chest: [14.5, 11.5], head: [19, 9.3] },

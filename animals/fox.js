@@ -2,7 +2,7 @@
 // and jaw, a bushy tail with a white tip.
 import { quadruped, earsBack, bump, wave } from './kit.js';
 
-// @build: the rig, edited in the workshop (tools/workshop.html), which rewrites what is between these lines
+// @build: the rig, edited in the editor (editor/), which rewrites what is between these lines
 export const build = {
   fur: 'FOX',
   joints: { hip: [9, 11.8], chest: [15, 11.8], head: [19.8, 8.6] },

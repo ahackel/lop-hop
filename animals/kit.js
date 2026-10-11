@@ -2,7 +2,7 @@
 // the gallop, jumping, lying low (the crawl, knocked out on its back) and an idle that breathes and looks about. Places
 // are in the 26×20 box, the feet on row 19; a leg's length is its thigh and shin.
 //
-// An animal's file holds its build (between `// @build` and `// @end`: the data the workshop edits and writes back) and
+// An animal's file holds its build (between `// @build` and `// @end`: the data the editor edits and writes back) and
 // its make: the build with its moves (poses). A build:
 //   fur          its color (a palette name: see NAMED in art.js), as every color is
 //   joints       hip, chest, head: places in the box. The spine runs from the hip to the chest
@@ -29,7 +29,7 @@
 //                [[x, y] × 2] for its eye; no legs. None: it turns at once
 //   moves        the build's own over the moves its make works out, by name (run, duck, jump, hurt, ko): keyframes set by
 //                hand (a list of poses, each: joints, paws { leg: [x, y] }, headAngle, torso, chains { name: what of it
-//                changes: angle, at, curl, tip }), or { gait: settings } over a gait's (the workshop's timeline sets both)
+//                changes: angle, at, curl, tip }), or { gait: settings } over a gait's (the editor's timeline sets both)
 
 export const ease = (u) => u * u * (3 - 2 * u), clamp01 = (u) => Math.min(1, Math.max(0, u));
 // eased in from a to a + e and out from b - e to b: 0…1…0

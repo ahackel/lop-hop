@@ -4,7 +4,7 @@
 // tapering tail. Made of shapes, it stays smooth as it grows giant (drawn bigger, not its pixels: see drawRig).
 import { quadruped, crawl } from './kit.js';
 
-// @build: the rig, edited in the workshop (tools/workshop.html), which rewrites what is between these lines
+// @build: the rig, edited in the editor (editor/), which rewrites what is between these lines
 export const build = {
   fur: 'DINO',
   joints: { hip: [10, 12], chest: [14, 12], head: [17.5, 3.5] },

@@ -5,7 +5,7 @@ import { quadruped } from './kit.js';
 const head = { color: 'SKUNK', shapes: [{ on: 'head', ellipse: [0, 0, 3.3, 3] }, { on: 'head', ellipse: [3, 1.2, 1.8, 1.2] }, { on: 'head', ellipse: [-1.6, -2.8, 1, 1] }],
   paint: [{ color: 'BELLY', on: 'head', capsule: [1.8, -1.4, -1.2, -2.8, 0.7] }] }; // (and the stripe up its forehead)
 
-// @build: the rig, edited in the workshop (tools/workshop.html), which rewrites what is between these lines
+// @build: the rig, edited in the editor (editor/), which rewrites what is between these lines
 export const build = {
   fur: 'SKUNK',
   joints: { hip: [8, 11.2], chest: [13, 11.2], head: [18.8, 12.6] },

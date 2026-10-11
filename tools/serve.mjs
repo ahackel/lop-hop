@@ -1,5 +1,5 @@
 // Minimal static dev server. Sends no-store so the browser never runs stale engine code
-// (AudioWorklet module imports are cached aggressively and survive normal reloads). The workshop saves through it:
+// (AudioWorklet module imports are cached aggressively and survive normal reloads). The editor (editor/) saves through it:
 // POST /save {kind, build} writes an animal's build into animals/<kind>.js (see tools/rig-format.js), or into its asset
 // (assets/<kind>.js, see asset.js) when it has one. The game sends its
 // runs to it: POST /runs [run, …] adds those not there yet to data/runs.jsonl (a run a line; see the runs in game.js),
@@ -69,7 +69,10 @@ http.createServer(async (req, res) => {
     let p = decodeURIComponent(new URL(req.url, 'http://x').pathname);
     let file = path.join(root, p);
     if (!file.startsWith(root)) { res.writeHead(403).end(); return; }
-    if ((await fs.stat(file)).isDirectory()) file = path.join(file, 'index.html');
+    if ((await fs.stat(file)).isDirectory()) {
+      if (!p.endsWith('/')) { res.writeHead(301, { Location: `${p}/${new URL(req.url, 'http://x').search}` }).end(); return; } // (its own files are found from the directory)
+      file = path.join(file, 'index.html');
+    }
     const body = await fs.readFile(file);
     res.writeHead(200, { 'Content-Type': TYPES[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-store' });
     res.end(body);

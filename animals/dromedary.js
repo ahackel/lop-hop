@@ -3,7 +3,7 @@
 // knobbly knees, a thin tail with a tuft.
 import { quadruped, earsBack, standIdle } from './kit.js';
 
-// @build: the rig, edited in the workshop (tools/workshop.html), which rewrites what is between these lines
+// @build: the rig, edited in the editor (editor/), which rewrites what is between these lines
 export const build = {
   fur: 'CAMEL',
   joints: { hip: [7, 9.6], chest: [13, 9.6], head: [20.6, 4.6] },

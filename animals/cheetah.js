@@ -2,7 +2,7 @@
 // its eyes, a long tail with dark rings and a white tip.
 import { quadruped, standIdle } from './kit.js';
 
-// @build: the rig, edited in the workshop (tools/workshop.html), which rewrites what is between these lines
+// @build: the rig, edited in the editor (editor/), which rewrites what is between these lines
 export const build = {
   fur: 'CHEETAH',
   joints: { hip: [8, 10.8], chest: [15, 10.8], head: [19.6, 7.6] },

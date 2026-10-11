@@ -2,7 +2,7 @@
 // back. It runs in long leaps.
 import { quadruped, earsBack } from './kit.js';
 
-// @build: the rig, edited in the workshop (tools/workshop.html), which rewrites what is between these lines
+// @build: the rig, edited in the editor (editor/), which rewrites what is between these lines
 export const build = {
   fur: 'STRIPE',
   joints: { hip: [9, 13], chest: [14, 13], head: [18.5, 9.6] },
@@ -25,6 +25,7 @@ export const build = {
   chains: {
     tail: { on: 'hip', at: [-3, -1], angle: 0.42, links: 4, length: 9.2, r: [2.2, 2.6], curl: 0.45, stiffness: 600, damping: 22, weight: 50 },
     ear: { on: 'head', ear: [[-1.9, -2.4], [0.1, -3.2]], tip: [-1.5, -6.8], stiffness: 1400, damping: 22, weight: 60 },
+    earFar: { on: 'head', ear: [[0.6, -1.8], [2.6, -2.6]], tip: [1, -6.2], stiffness: 1400, damping: 22, weight: 60 },
   },
   face: { eye: [1, -0.8], nose: [4.5, 0.8] },
 };

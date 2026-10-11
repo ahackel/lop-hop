@@ -4,7 +4,7 @@ import { quadruped, standIdle } from './kit.js';
 
 const ear = (dy = 0) => [{ color: 'ELEPHANT_DARK', shapes: [{ on: 'head', triangle: [[-5.6, -2 + dy], [-1.4, -2.4 + dy], [-3.2, 3.8 + dy]] }] }];
 
-// @build: the rig, edited in the workshop (tools/workshop.html), which rewrites what is between these lines
+// @build: the rig, edited in the editor (editor/), which rewrites what is between these lines
 export const build = {
   fur: 'ELEPHANT',
   joints: { hip: [7, 10.5], chest: [13.5, 10], head: [18.3, 7.4] },

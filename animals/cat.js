@@ -1,7 +1,7 @@
 // The cat as a rig (see kit.js for what a rig holds): a ginger kitten, pointed ears, the tail up.
 import { jump, crawl, standing, bump, wave } from './kit.js';
 
-// @build: the rig, edited in the workshop (tools/workshop.html), which rewrites what is between these lines
+// @build: the rig, edited in the editor (editor/), which rewrites what is between these lines
 export const build = {
   fur: 'GINGER',
   joints: { hip: [7, 12], chest: [14, 12], head: [19.5, 8.5] },

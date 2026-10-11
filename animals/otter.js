@@ -2,7 +2,7 @@
 // a long thick tail tapering to its tip.
 import { quadruped } from './kit.js';
 
-// @build: the rig, edited in the workshop (tools/workshop.html), which rewrites what is between these lines
+// @build: the rig, edited in the editor (editor/), which rewrites what is between these lines
 export const build = {
   fur: 'BROWN',
   joints: { hip: [6, 14], chest: [15.5, 11.8], head: [20.3, 8.3] },

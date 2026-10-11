@@ -3,7 +3,7 @@
 // chest, standing up: see drum.) Its arms swing up and forward as it jumps.
 import { quadruped, standIdle, jump } from './kit.js';
 
-// @build: the rig, edited in the workshop (tools/workshop.html), which rewrites what is between these lines
+// @build: the rig, edited in the editor (editor/), which rewrites what is between these lines
 export const build = {
   fur: 'GORILLA',
   joints: { hip: [7.5, 11.2], chest: [13.5, 9], head: [18.6, 8.4] },

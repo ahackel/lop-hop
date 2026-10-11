@@ -1,4 +1,4 @@
-// The animal workshop (npm run dev, then /tools/workshop.html). It edits an animal's build, the data between the
+// The editor (npm run dev, then /editor). It edits an animal's build, the data between the
 // `// @build` and `// @end` lines of animals/<kind>.js: handles on the joints, the shapes, the legs' roots, the chains and
 // the face, drawn over the animal's own pixels; a list of its parts and an inspector for the one picked; a preview in
 // the game's scene. Its moves on a timeline: keyframes set by hand (handles on the joints, paws, head, tail and ears of
@@ -6,7 +6,7 @@
 // animal is made again from its build (its make) and drawn by the game's own code; Save writes the build back into its
 // file (POST /save, see serve.mjs and rig-format.js).
 import { ANIMALS, PALETTES, COLOR, FOOT, GROUND, W, H, animal, setRig, rigParts, moveBody, stride, strides, idleFrame, jumpFrame, golden, cactus, hill,
-  JUMP, GRAVITY } from '../art.js';
+  JUMP, GRAVITY, setStyle, colorOf } from '../art.js';
 
 const { toWorld, toLocal, sdShape, NAMED } = rigParts;
 const KINDS = Object.keys(ANIMALS);
@@ -226,8 +226,9 @@ function sprite() { return view.move === 'edit' ? animal(kind, 'hurt', 0) : anim
 
 function draw() {
   const c = $('stage'), ctx = c.getContext('2d');
-  Z = Math.max(8, Math.floor(c.clientWidth / VW)) || 16;
-  if (c.width !== VW * Z) { c.width = VW * Z; c.height = VH * Z; }
+  const box = $('stageBox'); // (as big as fits in what the window leaves it)
+  Z = Math.max(4, Math.floor(Math.min(box.clientWidth / VW, box.clientHeight / VH))) || 16;
+  if (c.width !== VW * Z) { c.width = VW * Z; c.height = VH * Z; c.style.width = `${VW * Z}px`; c.style.height = `${VH * Z}px`; }
   ctx.fillStyle = PALETTES.day.bg; ctx.fillRect(0, 0, c.width, c.height); // (the game's day: its outlines show)
   ctx.fillStyle = 'rgba(128,128,128,0.08)';
   for (let x = 1; x < VW; x++) ctx.fillRect(x * Z, 0, 1, c.height);
@@ -237,10 +238,11 @@ function draw() {
   place();
   const s = sprite(), n = view.move === 'edit' ? 1 : frames(view.move);
   const pixels = (sp, color) => {
+    const px = color ? sp.px : sp.look(); // (in the look: see Style)
     for (let y = 0; y < sp.h; y++) for (let x = 0; x < sp.w; x++) {
-      const k = sp.px[y * sp.w + x];
+      const k = px[y * sp.w + x];
       if (!k) continue;
-      ctx.fillStyle = color || pal[k]; ctx.fillRect((x + sp.ox - X0) * Z, (y + sp.oy - Y0) * Z, Z, Z);
+      ctx.fillStyle = color || colorOf(pal, k); ctx.fillRect((x + sp.ox - X0) * Z, (y + sp.oy - Y0) * Z, Z, Z);
     }
   };
   if ($('onion').checked && n > 1 && !view.play) { // (the frames before and after: faded, under it)
@@ -318,31 +320,44 @@ $('stage').addEventListener('pointerup', () => {
   listParts(); inspect(); status();
 });
 
-// --------------------------------------------------------------------------------------------- the list of parts
+// --------------------------------------------------------------------------------------------- the lists of parts
+// two lists, as Spine has them: the bones (a tree: the animal at its root, hip, chest and head down the spine, each
+// joint's legs and chains under it) and the shapes hung on them, by layer in the order they are drawn, each with its bone
+const BONES = ['Animal', 'Frame', 'Joints', 'Legs', 'Chains', 'Paws', 'Tails and ears'];
+const ADD = { 'Body shapes': 'shapes', Paint: 'paint', 'On top': 'top', Dots: 'dots' };
+const DRAWN = ['Body shapes', 'Paint', 'Spikes', 'On top', 'Dots', 'Face']; // (as drawRig in art.js draws them)
 function listParts() {
-  const box = $('parts'); box.textContent = '';
-  if (!editable()) { box.append(el('div', { className: 'group', textContent: `the ${kind} is the fox, recolored` })); return; }
-  if (view.move !== 'edit' && kindOf(view.move) !== 'keys') { box.append(el('p', { className: 'note', style: 'padding:0 10px', textContent: ABOUT[kindOf(view.move)] })); return; }
-  let group = null;
-  for (const p of parts()) {
-    if (p.group !== group) {
-      group = p.group;
-      const head = el('div', { className: 'group' }, el('span', { textContent: group }));
-      const list = { 'Body shapes': 'shapes', Paint: 'paint', 'On top': 'top', Dots: 'dots' }[group];
-      if (list) head.append(el('button', { textContent: '+ add', title: `Add to ${group.toLowerCase()}`, onclick: () => add(list) }));
-      box.append(head);
-    }
-    const row = el('div', { className: `row${same(p.sel, sel) ? ' on' : ''}` },
-      el('span', { className: 'sw', style: `background:${p.color || 'transparent'}` }), el('span', { textContent: p.label }),
-      el('span', { className: 'what', textContent: p.obj && geomOf(p.obj) ? `${geomOf(p.obj)}${p.obj.on ? ` · ${p.obj.on}` : ''}` : '' }));
-    row.onclick = () => { sel = p.sel; listParts(); inspect(); draw(); };
-    box.append(row);
-  }
-  // (a group with nothing in it yet, to add to)
-  if (view.move !== 'edit') return;
-  for (const [list, label] of [['paint', 'Paint'], ['top', 'On top'], ['dots', 'Dots']]) {
-    if (build[list]?.length) continue;
-    box.append(el('div', { className: 'group' }, el('span', { textContent: label }), el('button', { textContent: '+ add', onclick: () => add(list) })));
+  const bones = $('bones'), shapes = $('shapes'), note = (box, text) => box.append(el('p', { className: 'note', style: 'padding:0 10px', textContent: text }));
+  bones.textContent = shapes.textContent = '';
+  if (!editable()) { note(bones, `The ${kind} is the fox, recolored.`); return; }
+  if (view.move !== 'edit' && kindOf(view.move) !== 'keys') { note(bones, ABOUT[kindOf(view.move)]); return; }
+  const all = parts(), row = (p, depth, what) => {
+    const r = el('div', { className: `row${same(p.sel, sel) ? ' on' : ''}`, style: `padding-left:${10 + depth * 12}px` },
+      el('span', { className: 'sw', style: `background:${p.color || 'transparent'}` }), el('span', { textContent: p.label }), el('span', { className: 'what', textContent: what }));
+    r.onclick = () => { sel = p.sel; listParts(); inspect(); draw(); };
+    return r;
+  };
+  // the bones
+  const onOf = (p) => (p.sel.type === 'leg' || p.sel.type === 'paw' ? build.legs[p.sel.name]?.on : p.sel.type === 'chain' ? build.chains[p.sel.name]?.on : null);
+  const whatOf = (p) => (p.sel.type === 'leg' ? 'leg' : p.sel.type === 'paw' ? 'paw' : p.sel.type === 'chain' ? (build.chains[p.sel.name]?.ear ? 'ear' : 'chain') : '');
+  const bonesOf = all.filter((p) => BONES.includes(p.group)), shown = new Set();
+  const put = (p, depth) => { bones.append(row(p, depth, whatOf(p))); shown.add(p); };
+  for (const p of bonesOf) if (p.sel.type === 'rig' || p.sel.type === 'frame') put(p, 0);
+  Object.keys(build.joints).forEach((j, d) => {
+    const jp = bonesOf.find((p) => p.sel.type === 'joint' && p.sel.name === j);
+    if (jp) put(jp, d + 1);
+    for (const p of bonesOf) if (!shown.has(p) && onOf(p) === j) put(p, d + 2);
+  });
+  for (const p of bonesOf) if (!shown.has(p)) put(p, 1); // (on no joint)
+  // the shapes
+  if (view.move !== 'edit') { note(shapes, 'Shapes are set in the build: pick “standing (the build)”.'); return; }
+  for (const label of DRAWN) { // (a layer with nothing on it yet: to add to)
+    const on = all.filter((p) => p.group === label);
+    if (!on.length && !ADD[label]) continue;
+    const h = el('div', { className: 'group' }, el('span', { textContent: label }));
+    if (ADD[label]) h.append(el('button', { textContent: '+ add', title: `Add to ${label.toLowerCase()}`, onclick: () => add(ADD[label]) }));
+    shapes.append(h);
+    for (const p of on) shapes.append(row(p, 0, p.obj && geomOf(p.obj) ? `${geomOf(p.obj)}${p.obj.on ? ` · ${p.obj.on}` : ''}` : p.obj?.on || ''));
   }
 }
 
@@ -490,6 +505,11 @@ function show(move, frame = 0) {
 $('move').onchange = () => show($('move').value);
 $('allHandles').onchange = draw;
 $('onion').onchange = draw;
+// shading: the look the game draws in (see setStyle in art.js); off: the sprites' own colors, outlined in black.
+// ?style=outlined to start with it off
+$('shading').checked = new URLSearchParams(location.search).get('style') !== 'outlined';
+$('shading').onchange = () => { setStyle($('shading').checked ? 'between' : 'outlined'); draw(); };
+setStyle($('shading').checked ? 'between' : 'outlined');
 
 // the strip of frames (a long loop: a slider), what can be done with them, what the move is
 let strip = [];
@@ -694,7 +714,7 @@ document.addEventListener('keydown', (e) => {
   }
 });
 window.addEventListener('beforeunload', (e) => { if (KINDS.some((k) => mods[k] && dirty(k))) e.preventDefault(); });
-window.addEventListener('resize', draw);
+new ResizeObserver(() => kind && draw()).observe($('stageBox')); // (the window, or the timeline under it, changing)
 
 for (const k of KINDS) {
   mods[k] = await import(`../animals/${k}.js`);

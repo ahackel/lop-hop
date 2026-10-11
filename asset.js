@@ -19,7 +19,7 @@
 //   front2d: the 2D front view the game shows turning (till it turns in 3D); moves: a move's keyframes, as the rig's
 //   anything else: as the rig has it
 // toBuild and toDepth make the rig's build and its depth (turn3d.js DEPTH) of it, as the game has used them; fromRig
-// the other way (the workshop's saves; tools/assets.mjs, an animal made into an asset).
+// the other way (the editor's saves; tools/assets.mjs, an animal made into an asset).
 
 const own = (o, keys) => { const out = {}; for (const k in o) if (!keys.includes(k)) out[k] = o[k]; return out; };
 const map = (o, f) => (o ? Object.fromEntries(Object.entries(o).map(([k, v]) => [k, f(v, k)])) : o);

@@ -2,7 +2,7 @@
 // round ear; short legs. (Its power, rolled up in a ball: drawn on its own, see balls in art.js.)
 import { quadruped } from './kit.js';
 
-// @build: the rig, edited in the workshop (tools/workshop.html), which rewrites what is between these lines
+// @build: the rig, edited in the editor (editor/), which rewrites what is between these lines
 export const build = {
   fur: 'BROWN',
   joints: { hip: [8, 11.3], chest: [14, 11.3], head: [18.5, 13] },

@@ -5,14 +5,14 @@ import { crawl, jump, ko, bump, wave } from './kit.js';
 import { toBuild } from '../asset.js';
 import asset from '../assets/rabbit.js';
 
-// its build: from its asset (assets/rabbit.js, see asset.js), which the workshop saves into
+// its build: from its asset (assets/rabbit.js, see asset.js), which the editor saves into
 export const build = toBuild(asset);
 export { asset };
 
 // the rabbit with its moves, from its build
 export const make = (rig) => {
   // crouched on the ground: the foot flat, the front paws down
-  const crouched = { paws: { hindNear: [11, 18.4], frontNear: [15, 18.4] } };
+  const crouched = { paws: { hindNear: [11, 18.4], hindFar: [12, 18.4], frontNear: [15, 18.4], frontFar: [15.8, 18.4] } };
   // lying low: long and flat
   const low = { joints: { hip: [7.5, 16], chest: [12.5, 16], head: [17.5, 15.5] }, torso: { r: 3.3, ends: 6 },
     chains: { tail: { at: [-5.5, -0.5], angle: 1.5 } } };
@@ -20,6 +20,7 @@ export const make = (rig) => {
   // the hop: long and slow (rate: 0.6 of the usual strides), on the ground for the first quarter of it, then 6 high
   const run = { gait: { leap: true, rate: 0.6, frames: 12, land: 0.25, height: 6, stretch: 1.5, gather: 1, crouch: 0.6, pitch: 1.2, ground: 18.4, legs: {
     hindNear: { down: [0, 0.25], at: [4, 2], air: [-14, -1.5] }, frontNear: { down: [0.92, 0.25], at: [0.5, -0.5], air: [4.5, -3] },
+    hindFar: { down: [0, 0.25], at: [4, 2], air: [-14, -1.5] }, frontFar: { down: [0.95, 0.27], at: [0.5, -0.5], air: [4.5, -3] }, // (a moment after the near one)
   } } };
 
   // sitting about, t (0…1) through an 8 s loop: crouched, breathing, its nose twitching now and then; once it sits up tall
@@ -33,7 +34,7 @@ export const make = (rig) => {
   return { ...rig, poses: {
   run,
   jump: jump(rig), // (the build's own: see moves)
-  duck: crawl(rig, low, { bob: 0.2, legs: { hindNear: [0, 1], frontNear: [0.5, 2.5] } }), // (its round back barely rolling)
+  duck: crawl(rig, low, { bob: 0.2, legs: { hindNear: [0, 1], frontNear: [0.5, 2.5], hindFar: [0.5, 1.5], frontFar: [0.05, 3] } }), // (its round back barely rolling)
   hurt: [crouched],
   ko: [{ ...ko(rig, low), dots: [] }],
   idle: { frames: 80, fps: 10, at: idle },

@@ -1,4 +1,4 @@
-// node tools/rig-format.mjs — writes every animal's build (animals/*.js) the way the workshop does (see rig-format.js);
+// node tools/rig-format.mjs — writes every animal's build (animals/*.js) the way the editor does (see rig-format.js);
 // one whose build is an asset (assets/*.js) is left as it is
 import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { spliceBuild } from './rig-format.js';
