@@ -24,10 +24,10 @@ export function listParts() {
   const filled = (fill) => { const d = el('div'); fill(d); return d; }; // (made by el: put in as it is)
   const show = (b, s = nothing) => { render(b, bones); render(s, shapes); };
   if (view.mode === 'game') { bt.textContent = 'Palette'; bt.title = 'The game’s colors: everything is drawn in them'; show(html`${filled(listPalette)}`); return; }
-  bt.textContent = playing ? 'Play' : 'Bones'; bt.title = playing ? 'What to try on the stage' : 'The skeleton: what moves';
+  bt.textContent = playing ? 'Play' : 'Bones'; bt.title = playing ? 'What to try on the stage, as the home screen does it, by the game’s own code (the row of animals and the treats it has left out)' : 'The skeleton: what moves';
   if (playing) { show(html`${filled(playHelp)}`, note('Shapes are set in Setup.')); return; }
   if (!editable()) { show(note(`The ${kind} has no bones.`)); return; }
-  if (view.move !== 'edit' && kindOf(view.move) !== 'clip') { show(note(ABOUT[kindOf(view.move)])); return; }
+  if (view.move !== 'edit' && kindOf(view.move) !== 'clip') { show(html`<p class="note" style="padding:4px 10px" title=${ABOUT[kindOf(view.move)]}>a ${kindOf(view.move)}</p>`); return; }
   const all = parts();
   show(bonesTable(all), view.move === 'edit' ? shapesTable(all) : note('Shapes are set in Setup.'));
   const input = renamingSel && shapes.querySelector('input.rename');

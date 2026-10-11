@@ -28,8 +28,7 @@ function setHandling(g, k, v) {
   if (!Object.keys(h).length) delete build.handling;
 }
 export function inspectPlay(box) {
-  box.append(el('h2', { textContent: `Handling the ${ANIMALS[kind].name.toLowerCase()}` }));
-  if (skin) box.append(el('p', { className: 'note', textContent: `A skin of the ${base}: handled as the ${base} is (changing it changes both).` }));
+  box.append(el('h2', { textContent: `Handling the ${ANIMALS[kind].name.toLowerCase()}`, title: `${skin ? `A skin of the ${base}: handled as the ${base} is (changing it changes both). ` : ''}Orange: set in its file; the rest as every animal is. They are tried on the stage at once, and in the preview below.` }));
   const own = (g, k) => build.handling?.[g]?.[k] !== undefined;
   for (const [g, [title, specs]] of Object.entries(HANDLED)) {
     const head = el('div', { className: `group${build.handling?.[g] ? ' own' : ''}` }, el('span', { textContent: title }));
@@ -60,14 +59,12 @@ export function inspectPlay(box) {
     box.append(el('div', { className: 'note', style: 'margin-top:6px', textContent: `${n}${c.ear ? ' (an ear)' : ''}` }));
     for (const [k, [min, max, note]] of Object.entries(CHAIN)) box.append(field(k, numIn(c[k] ?? 0, (x) => { c[k] = x; }, { min, max: Math.max(max, (c[k] || 0) * 2), step: stepOf(min, max) }), note));
   }
-  box.append(el('p', { className: 'note', textContent: 'Orange: set in its file; the rest as every animal is. They are tried on the stage at once, and in the preview below.' }));
 }
 // what can be done on the stage, in Play
 export function playHelp(box) {
   const tips = [['Pick it up', 'press on it and pull up; carry it about'], ['Drop it', 'let go, high or low'], ['Pet it', 'press and rub sideways along its back'],
     ['Make it duck', 'press it down'], ['Feed it', 'take the treat over it and hold it out; let go at its mouth (or drop it)'], ['A hop', 'double-click it']];
-  for (const [t, d] of tips) box.append(el('div', { className: 'row', style: 'cursor:default;display:block' }, el('b', { textContent: t }), el('div', { className: 'note', textContent: d })));
-  box.append(el('p', { className: 'note', style: 'padding:6px 10px', textContent: 'As the home screen does it, by the game’s own code; the row of animals and the treats it has are left out.' }));
+  for (const [t, d] of tips) box.append(el('div', { className: 'row', style: 'cursor:default', title: d }, el('span', { textContent: t })));
 }
 $('slow').onchange = () => { sandbox.play.slow = $('slow').checked; };
 $('replay').onclick = () => sandbox.reset(kind);

@@ -101,14 +101,13 @@ function badName(n) {
 }
 export function inspectPalette(box) {
   if (hue === 'night') {
-    box.append(el('h2', { textContent: 'Night' }), el('p', { className: 'note', textContent: 'By night each color is worked out from its day color, each channel: day × contrast + lift. The dark ones lighter, the light ones darker, so they show against the night sky. The roles have their own.' }));
+    box.append(el('h2', { textContent: 'Night', title: 'By night each color is worked out from its day color, each channel: day × contrast + lift. The dark ones lighter, the light ones darker, so they show against the night sky. The roles have their own.' }));
     box.append(field('contrast', numIn(palette.night.contrast, (x) => { palette.night.contrast = x; }, { min: 0.5, max: 1.2, step: 0.01 }), 'less: all nearer the middle'));
     box.append(field('lift', numIn(palette.night.lift, (x) => { palette.night.lift = x; }, { min: -40, max: 80, step: 1, whole: true }), 'more: all lighter'));
     return;
   }
   const role = isRole(hue), i = NAMED[hue];
-  box.append(el('h2', {}, el('span', { className: 'sw', style: `width:12px;height:12px;border-radius:3px;background:${PALETTES.day[i]}` }), el('span', { textContent: nice(hue) }), ...(role ? [el('span', { className: 'note', textContent: 'a role' })] : [])));
-  if (role) box.append(el('p', { className: 'note', textContent: ROLE_ABOUT[hue] || '' }));
+  box.append(el('h2', { title: role ? ROLE_ABOUT[hue] || '' : '' }, el('span', { className: 'sw', style: `width:12px;height:12px;border-radius:3px;background:${PALETTES.day[i]}` }), el('span', { textContent: nice(hue) }), ...(role ? [el('span', { className: 'note', textContent: 'a role' })] : [])));
   // a color to set: picked (live while picking: one undo), or written
   const hexIn = (get, put) => {
     const pick = el('input', { type: 'color', value: get() }), text = el('input', { type: 'text', value: get(), size: 8 });
@@ -127,7 +126,7 @@ export function inspectPalette(box) {
   // its tones, as the shaded look works them out
   const tones = el('div', { className: 'tones' }, el('span'), ...TONE_NAMES.map((t) => el('span', { className: 'note', textContent: t })));
   for (const t of ['day', 'night']) tones.append(el('span', { className: 'note', textContent: t }), ...TONE_NAMES.map((_, k) => el('span', { className: 'sw big', title: colorOf(PALETTES[t], i + 64 * k), style: `background:${colorOf(PALETTES[t], i + 64 * k)}` })));
-  box.append(el('div', { className: 'group' }, el('span', { textContent: 'Tones' })), tones, el('p', { className: 'note', textContent: 'Worked out by the shaded look: the color times a cool tint, so always darker than it.' }));
+  box.append(el('div', { className: 'group', title: 'Worked out by the shaded look: the color times a cool tint, so always darker than it' }, el('span', { textContent: 'Tones' })), tones);
   // where it is
   const named = KINDS.filter((k) => JSON.stringify(builds[k]).includes(`"${hue}"`)), drawn = (cast ||= castOf()).filter((it) => it.s.look().some((k) => k && k % 64 === i)).map((it) => it.name);
   box.append(el('div', { className: 'group' }, el('span', { textContent: 'Where' })),

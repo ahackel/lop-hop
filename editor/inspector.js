@@ -230,14 +230,13 @@ function convert(v, from, to) {
 // the root: for a skin, what it is made from and its colors swapped (its own: all a skin has); for an animal, its skins
 function rootMore(box) {
   if (skin) {
-    box.append(el('div', { className: 'group' }, el('span', { textContent: 'Skin' })),
-      el('p', { className: 'note', textContent: `A skin of the ${base}: its bones, shapes, moves and handling are the ${base}’s (editing them changes both). Its own: its colors, one for another.` }));
+    box.append(el('div', { className: 'group', title: `A skin of the ${base}: its bones, shapes, moves and handling are the ${base}’s (editing them changes both). Its own: its colors, one for another.` }, el('span', { textContent: 'Skin' })));
     recolors(box, skin);
     return;
   }
-  box.append(el('div', { className: 'group' }, el('span', { textContent: 'Skins' })));
+  box.append(el('div', { className: 'group', title: 'A skin: this animal with its colors swapped (the wolf: the fox in grey)' }, el('span', { textContent: 'Skins' })));
   const list = skinsOf(base);
-  if (!list.length) box.append(el('p', { className: 'note', textContent: 'None yet: a skin is this animal with its colors swapped (the wolf: the fox in grey).' }));
+  if (!list.length) box.append(el('p', { className: 'note', textContent: 'none' }));
   for (const k of list) box.append(el('div', { className: 'row', onclick: () => choose(k) }, el('span', { textContent: k }), el('span', { className: 'what', textContent: Object.entries(builds[k].recolor || {}).map(([a, b]) => `${nice(a)} → ${nice(b)}`).join(', ') })));
   box.append(el('div', { className: 'keys' },
     iconBtn('plus', 'New skin…', { onclick: () => { $('skin').value = '+'; $('skin').onchange(); } }),

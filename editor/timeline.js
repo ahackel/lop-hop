@@ -116,7 +116,8 @@ export function timeline() {
   if (what === 'gait') {
     const row = el('div', { className: 'frames' });
     for (let i = 0; i < n; i++) { const b = el('button', { title: `Frame ${i + 1}`, onclick: () => goTo(i) }, el('canvas', { width: 42, height: 26 }), el('span', { textContent: i + 1 })); row.append(b); strip.push(b); }
-    box.append(row, el('span', { className: 'note', textContent: `${ABOUT.gait} ${GAME[view.move] || ''}` }));
+    row.title = `${ABOUT.gait} ${GAME[view.move] || ''}`;
+    box.append(row);
     markFrames();
     return;
   }
@@ -147,7 +148,8 @@ export function timeline() {
   act('copy', 'Copy pose', 'The pose here, to paste at another frame or into another move', () => { copied = JSON.parse(JSON.stringify(rawPose())); timeline(); });
   act('paste', 'Paste pose', 'Keys here for all of the pose copied', () => keyDo('paste'), !copied);
   bar.append(el('label', { title: 'How many frames the move has' }, 'frames ', numIn(n, (v) => keyDo('frames', v), { step: 1, min: 1, max: Math.max(80, n), whole: true, commit: true })));
-  box.append(bar, el('span', { className: 'note', textContent: `${ABOUT.clip} ${GAME[view.move] || ''}` }));
+  bar.title = `${ABOUT.clip} ${GAME[view.move] || ''}`;
+  box.append(bar);
 }
 // a gait's frames drawn (as they are now), the one shown marked
 export function markFrames() {
@@ -211,7 +213,6 @@ export function inspectMove(box) {
       for (const n of frameNames(part)) pick.append(el('option', { value: n, textContent: n, selected: n === now }));
       box.append(mark(field(part, pick, keyed(part) ? 'a key here' : 'its frame: setting it sets a key (blinking, open is blink)'), part));
     }
-    box.append(el('p', { className: 'note', textContent: 'Pick a joint, a paw, a tail or an ear on the stage, in the list or on the timeline.' }));
   }
 }
 // a gait's settings
