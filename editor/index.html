@@ -38,7 +38,7 @@
   select { -webkit-appearance: none; appearance: none; padding-right: 20px; background: var(--panel) var(--chev) no-repeat right 5px center / 10px; }
   input[type=number] { width: 62px; }
   #status { color: var(--dim); margin-left: auto; }
-  .skinPick, .toggle { display: flex; gap: 5px; align-items: center; color: var(--dim); }
+  .toggle { display: flex; gap: 5px; align-items: center; color: var(--dim); }
   .modes { display: inline-flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
   .modes button { border: 0; border-radius: 0; padding: 4px 12px; }
   .modes button + button { border-left: 1px solid var(--line); }
@@ -46,7 +46,7 @@
   /* what belongs to one mode or another (body's class: the mode) */
   body.setup :is(.animate, .play, .game):not(.setup), body.animate :is(.setup, .play, .game):not(.animate), body.play :is(.setup, .animate, .game):not(.play),
   body.game :is(.setup, .animate, .play):not(.game) { display: none; }
-  body.game :is(#kind, .skinPick, #modes) { display: none; } /* (the game's own: no animal, none of its modes) */
+  body.game :is(#files, #modes) { display: none; } /* (the game's own: no animal, none of its modes) */
   .gameTitle { font-weight: 600; }
   body.game #stage { cursor: pointer; }
   #gameMode.on { background: var(--accent-soft); font-weight: 600; }
@@ -227,6 +227,29 @@
   .popName { color: var(--dim); margin: 6px 0; min-height: 1.4em; }
   .popNew { display: flex; gap: 4px; align-items: center; border-top: 1px solid var(--line); padding-top: 8px; }
   .popNew input[type=text] { flex: 1; min-width: 0; }
+  /* the files (see browser.js): the header's button, and every animal as a picture, its skins under it */
+  #files { gap: 6px; padding: 2px 8px 2px 4px; }
+  #files .pic { height: 22px; }
+  #files .dim { color: var(--dim); }
+  #files .chev svg.i { width: 12px; height: 12px; color: var(--dim); }
+  canvas.pic { image-rendering: pixelated; display: block; }
+  .pop.files { width: min(560px, calc(100vw - 16px)); padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+  .pop.files input[type=search] { width: 100%; background: var(--panel); border: 1px solid var(--line); border-radius: 5px; padding: 4px 7px; }
+  .filesList { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px; max-height: min(60vh, 520px); overflow: auto; align-items: start; }
+  .fileCard { border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
+  .fileCard.on { border-color: var(--sel); }
+  .fileCard button { display: flex; align-items: center; gap: 6px; width: 100%; border: 0; border-radius: 0; background: none; text-align: left; }
+  .fileCard button:hover { background: var(--bg); }
+  .fileCard button.on { background: var(--accent-soft); }
+  .fileCard .file { flex-direction: column; padding: 6px; }
+  .fileCard .file .pic { height: 40px; max-width: 100%; object-fit: contain; }
+  .fileCard .skins { border-top: 1px solid var(--line); }
+  .fileCard .skin { padding: 3px 6px; font-size: 12px; }
+  .fileCard .skin .pic { height: 16px; }
+  .fileCard .name { display: flex; align-items: center; gap: 4px; }
+  .fileCard .dot { width: 6px; height: 6px; border-radius: 3px; background: var(--accent); flex: none; }
+  .fileCard .tag { font-size: 10px; color: var(--dim); border: 1px solid var(--line); border-radius: 4px; padding: 0 3px; }
+  .filesActs { display: flex; gap: 6px; border-top: 1px solid var(--line); padding-top: 8px; }
   input[type=color] { width: 32px; height: 24px; padding: 0 2px; border: 1px solid var(--line); border-radius: 5px; background: var(--panel); }
   .sw.big { display: inline-block; width: 22px; height: 22px; border-radius: 4px; border: 1px solid rgba(0,0,0,.2); }
   .tones { display: grid; grid-template-columns: 40px repeat(4, 1fr); gap: 4px; align-items: center; justify-items: start; font-size: 11px; }
@@ -249,8 +272,7 @@
   <h1>Lop Hop Editor</h1>
   <button id="leaveGame" class="game" data-icon="back" title="Back to the animal, as you left it (4)">Back</button>
   <span class="game gameTitle">Game settings</span>
-  <select id="kind" aria-label="Animal" title="The animal"></select>
-  <label class="skinPick" title="Its skin: the animal itself, or one made from it with its colors swapped">skin <select id="skin" aria-label="Skin"></select></label>
+  <button id="files" class="withIcon" title="The animal and its skin: another, or a new one" aria-haspopup="dialog"></button>
   <span class="modes" id="modes">
     <button data-mode="setup" title="Its bones and shapes: the build every move is made from. Its moves are in Animate (1)">Setup</button>
     <button data-mode="animate" title="Its moves: keys over frames, or a gait's settings (2)">Animate</button>

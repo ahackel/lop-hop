@@ -6,7 +6,7 @@ import { SWITCHES, addPaint, addShape, bodyIndex, itemDo, layers, rename, setSpi
 import { listParts } from './lists.js';
 import { colorPick, inspectPalette } from './palette.js';
 import { ALONG, alongOf, boneDefaults, current, geomOf, middleOf, parts, repivot, withDefaults } from './parts.js';
-import { COLOR_KEYS, GEOMS, also, base, build, builds, changed, choose, commit, editable, isGroup, kind, nice, paints, refresh, remember, sel, skin, skinsOf, status, view, setSel } from './state.js';
+import { COLOR_KEYS, GEOMS, also, base, build, builds, changed, choose, commit, editable, isGroup, kind, newAnimal, newSkin, nice, paints, refresh, remember, sel, skin, skinsOf, status, view, setSel } from './state.js';
 import { inspectMove, timeline } from './timeline.js';
 
 export function inspect() {
@@ -263,8 +263,8 @@ function rootMore(box) {
   if (!list.length) box.append(el('p', { className: 'note', textContent: 'none' }));
   for (const k of list) box.append(el('div', { className: 'row', onclick: () => choose(k) }, el('span', { textContent: k }), el('span', { className: 'what', textContent: Object.entries(builds[k].recolor || {}).map(([a, b]) => `${nice(a)} → ${nice(b)}`).join(', ') })));
   box.append(el('div', { className: 'keys' },
-    iconBtn('plus', 'New skin…', { onclick: () => { $('skin').value = '+'; $('skin').onchange(); } }),
-    iconBtn('plus', 'New animal from this…', { title: 'A new animal: a copy of this one, to change as it likes (in the editor only, till the game is given it)', onclick: () => { $('kind').value = '+'; $('kind').onchange(); } })));
+    iconBtn('plus', 'New skin…', { onclick: newSkin }),
+    iconBtn('plus', 'New animal from this…', { title: 'A new animal: a copy of this one, to change as it likes (in the editor only, till the game is given it)', onclick: newAnimal })));
   if (build.recolor) { box.append(el('div', { className: 'group' }, el('span', { textContent: 'Colors swapped' }))); recolors(box, build); }
 }
 // colors swapped, one for another, everywhere (o.recolor): those the animal has first

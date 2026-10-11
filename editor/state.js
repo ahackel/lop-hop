@@ -4,7 +4,8 @@
 import { ANIMALS, PALETTES, rigOf, rigParts, setPalette, setRig } from '../art.js';
 import { toAsset } from '../asset.js';
 import paletteFile from '../assets/palette.js';
-import { $, el } from './dom.js';
+import { fileLabel } from './browser.js';
+import { $ } from './dom.js';
 import { inspect } from './inspector.js';
 import { listParts } from './lists.js';
 import { castOf, setCast } from './palette.js';
@@ -39,7 +40,7 @@ export let also = [];
 export const picked = () => [sel, ...also];
 export const baseOf = (k) => files[k].of || k;
 export const skinsOf = (k) => KINDS.filter((o) => files[o].of === k);
-const inGame = (k) => k in GAME_ANIMALS;
+export const inGame = (k) => k in GAME_ANIMALS;
 export const view = { mode: 'setup', move: 'edit', frame: 0, play: false, t: 0 }; // (play: a move playing, in Animate)
 export let lastMove = 'idle'; // (the move Animate shows)
 
@@ -112,9 +113,8 @@ export function choose(k) {
   if (baseOf(k) !== base) hidden.clear();
   kind = k; base = baseOf(k); build = builds[base]; skin = k === base ? null : builds[k]; also = []; sel = { type: view.move === 'edit' ? 'rig' : 'frame' };
   pv.body = {};
-  fillKinds();
   const url = new URL(location.href); url.searchParams.set('animal', k); window.history.replaceState(null, '', url);
-  fillMoves(); rebuild(); sandbox.reset(k); refresh(); status();
+  fillMoves(); rebuild(); sandbox.reset(k); refresh(); status(); fileLabel();
 }
 // the mode: Setup (the build: what every move is made from), Animate (a move), Play (see play.js); Game (the game's own)
 let before = 'setup'; // (the mode Game was opened from: back to it)
@@ -163,18 +163,7 @@ export async function save() {
   status(); if (said.length) $('status').textContent = said.join(' · ');
 }
 
-// the animal (one made from no other) and its skin (default: itself; or one made from it, its colors swapped); each
-// list's last: a new one (an animal: a copy of the one shown, skin and all; a skin: of it, colors as they are)
-function fillKinds() {
-  const a = $('kind'), sk = $('skin');
-  a.textContent = sk.textContent = '';
-  for (const k of KINDS.filter((o) => !files[o].of)) a.append(el('option', { value: k, textContent: `${ANIMALS[k].name.toLowerCase()}${inGame(k) ? '' : ' (not in the game)'}` }));
-  a.append(el('option', { value: '+', textContent: '+ new animal from this…' }));
-  sk.append(el('option', { value: base, textContent: 'default' }));
-  for (const k of skinsOf(base)) sk.append(el('option', { value: k, textContent: `${k}${inGame(k) ? '' : ' (not in the game)'}` }));
-  sk.append(el('option', { value: '+', textContent: '+ new skin…' }));
-  a.value = base; sk.value = kind;
-}
+// new ones (see browser.js): an animal (a copy of the one shown, skin and all), a skin of it (colors as they are)
 const named = (what) => { // (a name for a new one: lower case letters, not taken)
   const n = prompt(`A name for the new ${what} (lower case letters)`)?.trim().toLowerCase();
   if (!n) return null;
@@ -182,24 +171,19 @@ const named = (what) => { // (a name for a new one: lower case letters, not take
   return n;
 };
 function create(k, b, of) {
-  files[k] = { format: 3, name: k, ...(of && { of }) }; builds[k] = b; saved[k] = null; KINDS.push(k);
+  files[k] = { format: 4, name: k, ...(of && { of }) }; builds[k] = b; saved[k] = null; KINDS.push(k);
   ANIMALS[k] = { ...ANIMALS[of || base], name: k.toUpperCase() };
   setRig(k, rigFor(k));
   choose(k); status();
 }
-$('kind').onchange = () => {
-  if ($('kind').value !== '+') { choose($('kind').value); return; }
+export function newAnimal() {
   const n = named('animal');
-  if (!n) { fillKinds(); return; }
+  if (!n) return;
   const b = JSON.parse(JSON.stringify(build));
   if (skin?.recolor) b.recolor = { ...b.recolor, ...skin.recolor }; // (the skin shown: its colors its own)
   create(n, b);
-};
-$('skin').onchange = () => {
-  if ($('skin').value !== '+') { choose($('skin').value); return; }
-  const n = named('skin');
-  if (n) create(n, { recolor: {} }, base); else fillKinds();
-};
+}
+export function newSkin() { const n = named('skin'); if (n) create(n, { recolor: {} }, base); }
 $('undo').onclick = undo; $('redo').onclick = redo; $('save').onclick = save;
 export const gameToggle = () => setMode(view.mode === 'game' ? before : 'game');
 $('gameMode').onclick = gameToggle;

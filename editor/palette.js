@@ -141,6 +141,7 @@ export function colorPick(value, on) {
 }
 export let popup = null;
 export function unpop() { popup?.remove(); popup = null; }
+export function setPopup(p) { return (popup = p); } // (one of another's: see browser.js)
 function popPalette(anchor, value, on) {
   unpop();
   const name = el('div', { className: 'popName', textContent: nice(value) }), grid = el('div', { className: 'popGrid' });
