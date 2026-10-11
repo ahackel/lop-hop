@@ -1,24 +1,39 @@
 // cat: an asset (see asset.js), written by the editor; data only
 export default {
-  format: 3,
+  format: 4,
   name: 'cat',
   fur: 'tan',
   joints: { hip: [7, 12], chest: [14, 12], head: [19.5, 8.5] },
-  shapes: [
-    { name: 'torso', bone: 'spine', r: 3.8, ends: 3.5 },
-    { name: 'head', on: 'head', ellipse: [0, 0, 4, 3.7] },
-    { name: 'muzzle', on: 'head', ellipse: [2.8, 1.5, 2, 1.6] },
-    { name: 'earA', bone: 'earA', base: [[-1.55, 0.6], [1.55, -0.6]], smooth: 0.4 },
-    { name: 'earB', bone: 'earB', base: [[-1.5, -0.9], [1.5, 0.9]], smooth: 0.4 },
-    { name: 'hindNear', bone: 'hindNear', r: 1, smooth: 0.5 },
-    { name: 'frontNear', bone: 'frontNear', r: 1, smooth: 0.5 },
-  ],
-  paint: [
-    { name: 'stripe', color: 'rust', on: 'spine', capsule: [-0.5, -4, -1, -1.7, 0.6] },
-    { name: 'stripe', color: 'rust', on: 'spine', capsule: [2.5, -4, 2, -1.7, 0.6] },
-    { name: 'stripe', color: 'rust', on: 'spine', capsule: [5.5, -4, 5, -1.7, 0.6] },
-    { name: 'muzzle', color: 'white', on: 'head', ellipse: [2.8, 1.5, 2, 1.6] },
-    { name: 'chest', color: 'white', on: 'chest', ellipse: [2, 1, 2.5, 2.2] },
+  layers: [
+    { name: 'tail', shapes: [{ name: 'tail', bone: 'tail', r: 1.1 }] },
+    {
+      name: 'far legs',
+      far: true,
+      hits: true,
+      shapes: [{ name: 'hindFar', bone: 'hindFar', r: 0.9 }, { name: 'frontFar', bone: 'frontFar', r: 0.9 }],
+    },
+    {
+      name: 'body',
+      join: true,
+      hits: true,
+      shapes: [
+        { name: 'torso', bone: 'spine', r: 3.8, ends: 3.5 },
+        { name: 'head', on: 'head', ellipse: [0, 0, 4, 3.7] },
+        { name: 'muzzle', on: 'head', ellipse: [2.8, 1.5, 2, 1.6] },
+        { name: 'earA', bone: 'earA', base: [[-1.55, 0.6], [1.55, -0.6]], smooth: 0.4 },
+        { name: 'earB', bone: 'earB', base: [[-1.5, -0.9], [1.5, 0.9]], smooth: 0.4 },
+        { name: 'hindNear', bone: 'hindNear', r: 1, smooth: 0.5 },
+        { name: 'frontNear', bone: 'frontNear', r: 1, smooth: 0.5 },
+      ],
+      paint: [
+        { name: 'stripe', color: 'rust', on: 'spine', capsule: [-0.5, -4, -1, -1.7, 0.6] },
+        { name: 'stripe', color: 'rust', on: 'spine', capsule: [2.5, -4, 2, -1.7, 0.6] },
+        { name: 'stripe', color: 'rust', on: 'spine', capsule: [5.5, -4, 5, -1.7, 0.6] },
+        { name: 'muzzle', color: 'white', on: 'head', ellipse: [2.8, 1.5, 2, 1.6] },
+        { name: 'chest', color: 'white', on: 'chest', ellipse: [2, 1, 2.5, 2.2] },
+      ],
+    },
+    'face',
   ],
   legs: {
     hindFar: { on: 'hip', at: [0.5, 1.5], thigh: 2.75, shin: 2.75, bend: 1 },
@@ -31,7 +46,6 @@ export default {
     earA: { on: 'head', ear: true, at: [-1.55, -2.9], tip: [-2.5, -6.9], stiffness: 1400, damping: 22, weight: 60 },
     earB: { on: 'head', ear: true, at: [2, -2.8], tip: [2.5, -7.1], stiffness: 1400, damping: 22, weight: 60 },
   },
-  back: [{ name: 'tail', bone: 'tail', r: 1.1 }, { name: 'hindFar', bone: 'hindFar', r: 0.9 }, { name: 'frontFar', bone: 'frontFar', r: 0.9 }],
   face: { eye: [1, -1], nose: [3.5, 1], noseColor: 'pink' },
   moves: {
     run: {

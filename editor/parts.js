@@ -1,6 +1,6 @@
 // The parts of the build (see editor.js): what picks each, its handles (where, and what dragging one does), its outline
 import { rigParts } from '../art.js';
-import { GEOMS, P, build, editable, kind, reach, restPoints, sdShape, sel, swatch, toLocal, toWorld, view } from './state.js';
+import { GEOMS, P, build, editable, hidden, isGroup, kind, reach, restPoints, sdShape, sel, swatch, toLocal, toWorld, view } from './state.js';
 import { frames, kindOf, setKey } from './timeline.js';
 
 // every part of the build: what picks it (sel), its name in the list, its color, the object the inspector edits, its
@@ -14,18 +14,16 @@ const roundAll = (p) => p.map((v) => +round(v).toFixed(3));
 export const plus = (a, b) => [a[0] + b[0], a[1] + b[1]], minus = (a, b) => [a[0] - b[0], a[1] - b[1]], times = (a, k) => [a[0] * k, a[1] * k];
 
 export function geomOf(s) { return GEOMS.find((g) => Array.isArray(s[g])); }
-// a shape on a bone (bone: see asset.js): the kind of bone it follows; where it may go (its layers); its settings, each
-// as art.js draws it if not set (so every one shows in the inspector)
+// a shape on a bone (bone: see asset.js): the kind of bone it follows; its settings, each as art.js draws it if not set
+// (so every one shows in the inspector)
 export const boneKind = (s) => (s.bone === 'spine' ? 'spine' : build.legs?.[s.bone] ? 'leg' : build.chains?.[s.bone]?.ear ? 'ear' : build.chains?.[s.bone] ? 'tail' : null);
-export const spineShape = () => (build.shapes || []).find((s) => s.bone === 'spine');
-export const shapeOn = (bone) => ['back', 'shapes', 'top'].flatMap((l) => (build[l] || []).map((s, i) => ({ s, list: l, i }))).find((x) => x.s.bone === bone);
-export const BONE_LAYERS = { spine: ['shapes'], leg: ['shapes', 'back'], ear: ['shapes'], tail: ['back', 'top'] };
-export function boneDefaults(s, list) {
+export const spineShape = () => (build.layers || []).filter(isGroup).flatMap((G) => G.shapes).find((s) => s.bone === 'spine'); // (the torso: a move's torso changes it)
+export function boneDefaults(s) {
   const kind = boneKind(s);
   if (kind === 'spine') return { bone: '', r: 3, ends: 0, round: false, smooth: 1 };
   if (kind === 'leg') return { bone: '', r: 1, foot: null, smooth: 1 };
   if (kind === 'ear') return { bone: '', tipColor: undefined, tipSize: 2, smooth: 1 };
-  return { bone: '', r: 1, end: 0, color: build.fur, outline: true, marks: [], ...(list === 'back' ? { far: false } : { joined: false, overEye: false }) };
+  return { bone: '', r: 1, end: 0, color: undefined, marks: [], grows: false };
 }
 // an object as the inspector shows it: what it has, and what it does not have yet as it is drawn without it (setting one
 // sets it)
@@ -78,6 +76,7 @@ function boneBits(s) {
 const kind_ = () => kind; // (the animal shown: boneBits has a kind of its own)
 const bitsOf = (s) => (s.bone ? boneBits(s) : shapeBits(s));
 // a group's frame for one of its shapes: its pivot (at) in the shape's joint's frame, turned by its angle (as drawRig)
+// (a shape on a bone: its bone's, see boneBits)
 function groupFrame(t, s) {
   if (!t.at && !t.angle) return frameOf(s.on);
   const b = frameOf(s.on) || { o: [0, 0], a: 0, flip: 1 };
@@ -150,36 +149,41 @@ export function parts() {
   const out = [];
   if (!editable()) return out;
   if (view.move !== 'edit') return kindOf(view.move) === 'clip' ? poseParts() : out;
-  const list = (name, label, color) => (build[name] || []).forEach((s, i) => {
-    const bits = bitsOf(s);
-    out.push({ sel: { type: 'item', list: name, i }, group: label, label: s.name || geomOf(s) || s.bone, color: color(s), obj: s, ...bits });
-  });
   out.push({ sel: { type: 'rig' }, group: 'Animal', label: 'root', obj: build, handles: [], lines: [] });
   for (const n in build.joints) {
     out.push({ sel: { type: 'joint', name: n }, group: 'Joints', label: n, obj: build.joints, key: n, lines: [],
       handles: [{ at: P.J[n], anchor: true, joint: true, set: (p) => { build.joints[n] = roundAll(p); } }] });
   }
-  list('back', 'Behind', (s) => swatch(s.color || build.fur));
-  list('shapes', 'Body shapes', () => swatch(build.fur));
-  list('paint', 'Paint', (s) => swatch(s.color));
-  // a group on top: its pivot (dragged: all of it moves; with ⌥: the pivot alone) and its turn (the handle on the line
-  // out of the pivot), then its shapes, each a part of its own
-  (build.top || []).forEach((t, i) => {
-    if (t.bone) { out.push({ sel: { type: 'item', list: 'top', i }, group: 'On top', label: t.name || t.bone, color: swatch(t.color || build.fur), obj: t, ...boneBits(t) }); return; } // (a lop ear, a trunk)
-    const b = frameOf(t.shapes[0]?.on), kids = t.shapes.map((s) => shapeBits(s, groupFrame(t, s))), at = t.at || [0, 0], a = t.angle || 0;
-    const pivot = world(b, at), turnAt = world(b, plus(at, [Math.cos(a) * 3, Math.sin(a) * 3]));
-    out.push({ sel: { type: 'item', list: 'top', i }, group: 'On top', label: t.name || 'group', color: swatch(t.color || build.fur), obj: t,
-      handles: [{ at: pivot, anchor: true, move: true, set: (p) => { const q = roundAll(local(b, p)); if (alt) repivot(t, q); else t.at = q; } },
-        { at: turnAt, size: true, set: (p) => { const q = minus(local(b, p), at); t.angle = +Math.atan2(q[1], q[0]).toFixed(3); } }],
-      lines: [...kids.flatMap((k) => k.lines), [pivot, turnAt]], hit: (p) => kids.some((k) => k.hit(p)) });
-    t.shapes.forEach((s, j) => out.push({ sel: { type: 'item', list: 'top', i, j }, group: 'On top', label: s.name || geomOf(s), color: swatch(t.color || build.fur), obj: s, depth: 1, ...kids[j] }));
+  // each group (in the order drawn): itself (on no bone: its pivot, dragged: all of it moves, with ⌥ the pivot alone; and
+  // its turn, the handle on the line out of the pivot), then its shapes, its paint, its spikes, each a part of its own
+  const face = (g) => {
+    if (build.face) {
+      const f = P.F.head, fc = build.face;
+      out.push({ sel: { type: 'face' }, layer: g, label: 'face', color: swatch(fc.noseColor || 'outline'), obj: fc, lines: [],
+        handles: ['eye', 'nose', 'mouth'].filter((k) => fc[k]).map((k) => ({ at: world(f, fc[k]), anchor: k === 'eye', set: (p) => { fc[k] = roundAll(local(f, p)); } })) });
+    }
+    (build.dots || []).forEach((d, i) => {
+      const f = frameOf(d.on);
+      out.push({ sel: { type: 'dot', i }, layer: g, label: d.name || 'dot', color: swatch(d.color || 'outline'), obj: d, depth: 1, off: hidden.has(d), lines: [],
+        handles: [{ at: world(f, d.at), anchor: true, set: (p) => { d.at = roundAll(local(f, p)); } }] });
+    });
+  };
+  (build.layers || []).forEach((G, g) => {
+    if (!isGroup(G)) { face(g); return; }
+    const off = hidden.has(G), kids = G.shapes.map((s) => (s.bone ? boneBits(s) : shapeBits(s, groupFrame(G, s))));
+    const gp = { sel: { type: 'group', g }, layer: g, label: G.name || 'group', color: swatch(G.color || build.fur), obj: G, off, handles: [], lines: kids.flatMap((k) => k.lines), hit: (p) => kids.some((k) => k.hit?.(p)) };
+    if (G.shapes.length && !G.shapes.some((s) => s.bone)) {
+      const b = frameOf(G.shapes[0].on), at = G.at || [0, 0], a = G.angle || 0, pivot = world(b, at), turnAt = world(b, plus(at, [Math.cos(a) * 3, Math.sin(a) * 3]));
+      gp.handles.push({ at: pivot, anchor: true, move: true, set: (p) => { const q = roundAll(local(b, p)); if (alt) repivot(G, q); else G.at = q; } },
+        { at: turnAt, size: true, set: (p) => { const q = minus(local(b, p), G.at || [0, 0]); G.angle = +Math.atan2(q[1], q[0]).toFixed(3); } });
+      gp.lines.push([pivot, turnAt]);
+    }
+    out.push(gp);
+    G.shapes.forEach((s, i) => out.push({ sel: { type: 'item', g, i }, layer: g, label: s.name || geomOf(s) || s.bone, color: swatch(s.color || G.color || build.fur), obj: s, depth: 1, off: off || hidden.has(s), ...kids[i] }));
+    (G.paint || []).forEach((s, i) => out.push({ sel: { type: 'paint', g, i }, layer: g, label: s.name || geomOf(s), color: swatch(s.color), obj: s, depth: 2, off: off || hidden.has(s), ...shapeBits(s, groupFrame(G, s)) }));
+    if (G.spikes) out.push({ sel: { type: 'spikes', g }, layer: g, label: 'spikes', obj: G.spikes, depth: 1, off: off || hidden.has(G.spikes), ...shapeBits(G.spikes), hit: null });
   });
-  (build.dots || []).forEach((d, i) => {
-    const f = frameOf(d.on);
-    out.push({ sel: { type: 'item', list: 'dots', i }, group: 'Dots', label: d.name || 'dot', color: swatch(d.color || 'outline'), obj: d, lines: [],
-      handles: [{ at: world(f, d.at), anchor: true, set: (p) => { d.at = roundAll(local(f, p)); } }] });
-  });
-  if (build.spikes) out.push({ sel: { type: 'spikes' }, group: 'Spikes', label: 'where the spikes are', obj: build.spikes, ...shapeBits(build.spikes), hit: null });
+  if (!(build.layers || []).includes('face')) face(-1);
   for (const n in build.legs) {
     const L = build.legs[n], f = frameOf(L.on);
     out.push({ sel: { type: 'leg', name: n }, group: 'Legs', label: n, obj: L, lines: [],
@@ -187,7 +191,7 @@ export function parts() {
   }
   for (const n in build.chains) {
     const c = build.chains[n], f = frameOf(c.on), handles = [], lines = [];
-    if (c.ear) { // (its root, its tip; its base: its shape's)
+    if (c.ear) { // (its root, its tip)
       handles.push({ at: world(f, c.at), set: (p) => { c.at = roundAll(local(f, p)); } });
       handles.push({ at: world(f, c.tip), anchor: true, set: (p) => { c.tip = roundAll(local(f, p)); } });
       lines.push([world(f, c.at), world(f, c.tip)]);
@@ -202,11 +206,6 @@ export function parts() {
       lines.push([root, tip]);
     }
     out.push({ sel: { type: 'chain', name: n }, group: 'Chains', label: n, obj: c, handles, lines });
-  }
-  if (build.face) {
-    const f = P.F.head, face = build.face;
-    out.push({ sel: { type: 'face' }, group: 'Face', label: 'face', color: swatch(face.noseColor || 'outline'), obj: face, lines: [],
-      handles: ['eye', 'nose', 'mouth'].filter((k) => face[k]).map((k) => ({ at: world(f, face[k]), anchor: k === 'eye', set: (p) => { face[k] = roundAll(local(f, p)); } })) });
   }
   return out;
 }
@@ -229,11 +228,11 @@ export function poseParts() {
     const handles = [{ at: tip, anchor: true, set: r.ear ? (p) => setKey(`chains.${c}.tip`, roundAll(local(f, p)))
       : (p) => { const d = minus(p, r.root); setKey(`chains.${c}.angle`, +(f.a - Math.atan2(d[0], -d[1])).toFixed(3)); } }];
     out.push({ sel: { type: 'chain', name: c }, group: 'Tails and ears', label: c, obj: null, handles,
-      lines: [r.ear ? [r.base[0], tip, r.base[1]] : [r.root, tip]] });
+      lines: [[r.root, tip]] });
   }
   return out;
 }
-export const same = (a, b) => a.type === b.type && a.list === b.list && a.i === b.i && a.j === b.j && a.name === b.name; // (j: a shape in a group)
+export const same = (a, b) => a.type === b.type && a.g === b.g && a.i === b.i && a.name === b.name; // (g: its group, i: where in it)
 export const current = () => parts().find((p) => same(p.sel, sel));
 
 export function setStep(v) { return (step = v); }

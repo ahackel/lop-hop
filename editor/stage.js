@@ -5,10 +5,10 @@ import { $, css, el } from './dom.js';
 import { faceEdit } from './face.js';
 import { inspect } from './inspector.js';
 import { hover, listParts } from './lists.js';
-import { castHit, drawCast, hue, setHue } from './palette.js';
-import { alt, current, minus, parts, plus, same, step, times, setStep, setAlt } from './parts.js';
+import { castHit, drawCast, setHue } from './palette.js';
+import { current, minus, parts, plus, same, times, setStep, setAlt } from './parts.js';
 import * as sandbox from './play.js';
-import { G, P, build, changed, drag, editable, hidden, hist, keyOf, kind, nice, place, reach, remember, restPoints, sel, snapshot, status, toWorld, view, setSel, setDrag } from './state.js';
+import { G, P, build, changed, drag, editable, hist, kind, nice, place, reach, remember, restPoints, snapshot, status, toWorld, view, setSel, setDrag } from './state.js';
 import { frames, kindOf, markFrames, setPlay, timeline } from './timeline.js';
 
 // the stage shows art pixels from (X0, Y0), VW × VH of them (the 26×20 box and room around it), Z screen pixels each
@@ -131,12 +131,12 @@ function drawHandles(ctx) {
   const stroke = (line) => { ctx.beginPath(); line.forEach((p, i) => { const [x, y] = toScreen(p); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.stroke(); };
   if (hover) { // (pointed at in the lists: a row's part, or a layer's)
     ctx.save(); ctx.strokeStyle = accent; ctx.globalAlpha = 0.85; ctx.lineWidth = 1.5; ctx.setLineDash([4, 3]);
-    for (const p of all) if (p !== on && !hidden.has(keyOf(p.sel)) && (hover.layer ? p.group === hover.layer : hover.sels.some((s) => same(s, p.sel)))) p.lines.forEach(stroke);
+    for (const p of all) if (p !== on && !p.off && hover.sels.some((s) => same(s, p.sel))) p.lines.forEach(stroke);
     ctx.restore();
   }
   if (on) { ctx.strokeStyle = accent; ctx.lineWidth = 2; on.lines.forEach(stroke); }
   for (const p of all) {
-    if (p === on || hidden.has(keyOf(p.sel))) continue;
+    if (p === on || p.off) continue;
     for (const h of p.handles) if (h.anchor && (h.joint || $('allHandles').checked)) dot(h.at, h.joint ? 6 : 4, h.joint ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.6)', h.joint ? '#333' : 'rgba(60,60,60,0.6)');
   }
   if (on) for (const h of on.handles) dot(h.at, h.joint || h.move ? 6 : 5, h.size ? '#fff' : accent, h.size ? accent : '#fff');
@@ -153,14 +153,14 @@ $('stage').addEventListener('pointerdown', (e) => {
   const p = toArt(e), near = (h) => Math.hypot(...minus(toScreen(h.at), toScreen(p))) < 9;
   const all = parts(), on = current();
   let hit = on?.handles.find(near), owner = on;
-  if (!hit) for (const q of all) { if (hidden.has(keyOf(q.sel))) continue; const h = q.handles.find((x) => x.anchor && (x.joint || $('allHandles').checked) && near(x)); if (h) { hit = h; owner = q; break; } }
+  if (!hit) for (const q of all) { if (q.off) continue; const h = q.handles.find((x) => x.anchor && (x.joint || $('allHandles').checked) && near(x)); if (h) { hit = h; owner = q; break; } }
   if (hit) {
     if (owner !== on) { setSel(owner.sel); listParts(); inspect(); }
     remember(); setDrag({ sel: owner.sel, index: owner.handles.indexOf(hit) });
     $('stage').setPointerCapture(e.pointerId);
     return;
   }
-  const picked = [...all].reverse().find((q) => !hidden.has(keyOf(q.sel)) && q.hit?.(p)); // (the one drawn last: on top; not one hidden)
+  const picked = [...all].reverse().find((q) => !q.off && q.hit?.(p)); // (the one drawn last: on top; not one hidden)
   setSel(picked ? picked.sel : { type: 'rig' });
   listParts(); inspect(); draw();
 });

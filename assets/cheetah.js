@@ -1,22 +1,37 @@
 // cheetah: an asset (see asset.js), written by the editor; data only
 export default {
-  format: 3,
+  format: 4,
   name: 'cheetah',
   fur: 'tan',
   joints: { hip: [8, 10.8], chest: [15, 10.8], head: [19.6, 7.6] },
-  shapes: [
-    { name: 'torso', bone: 'spine', r: 3, ends: 3 },
-    { name: 'chest', on: 'chest', ellipse: [0.5, 0.4, 2.6, 2.8] },
-    { name: 'head', on: 'head', ellipse: [0, 0, 3.3, 3.1] },
-    { name: 'muzzle', on: 'head', ellipse: [2.5, 1.4, 1.4, 1.1] },
-    { name: 'ear', on: 'head', ellipse: [-2, -2.8, 1.1, 1.1] },
-    { name: 'ear', on: 'head', ellipse: [1, -3.2, 1.1, 1.1] },
-    { name: 'hindNear', bone: 'hindNear', r: 0.85, smooth: 0.5 },
-    { name: 'frontNear', bone: 'frontNear', r: 0.85, smooth: 0.5 },
-  ],
-  paint: [
-    { name: 'muzzle', color: 'white', on: 'head', ellipse: [2.5, 1.4, 1.4, 1.1] },
-    { name: 'belly', color: 'white', on: 'spine', ellipse: [5, 2.5, 4.5, 0.9] },
+  layers: [
+    { name: 'tail', shapes: [{ name: 'tail', bone: 'tail', r: 0.8, marks: [[0.45, 'outline', 0], [0.7, 'outline', 0], [1, 'white', 0]] }] },
+    {
+      name: 'far legs',
+      far: true,
+      hits: true,
+      shapes: [{ name: 'hindFar', bone: 'hindFar', r: 0.77 }, { name: 'frontFar', bone: 'frontFar', r: 0.77 }],
+    },
+    {
+      name: 'body',
+      join: true,
+      hits: true,
+      shapes: [
+        { name: 'torso', bone: 'spine', r: 3, ends: 3 },
+        { name: 'chest', on: 'chest', ellipse: [0.5, 0.4, 2.6, 2.8] },
+        { name: 'head', on: 'head', ellipse: [0, 0, 3.3, 3.1] },
+        { name: 'muzzle', on: 'head', ellipse: [2.5, 1.4, 1.4, 1.1] },
+        { name: 'ear', on: 'head', ellipse: [-2, -2.8, 1.1, 1.1] },
+        { name: 'ear', on: 'head', ellipse: [1, -3.2, 1.1, 1.1] },
+        { name: 'hindNear', bone: 'hindNear', r: 0.85, smooth: 0.5 },
+        { name: 'frontNear', bone: 'frontNear', r: 0.85, smooth: 0.5 },
+      ],
+      paint: [
+        { name: 'muzzle', color: 'white', on: 'head', ellipse: [2.5, 1.4, 1.4, 1.1] },
+        { name: 'belly', color: 'white', on: 'spine', ellipse: [5, 2.5, 4.5, 0.9] },
+      ],
+    },
+    'face',
   ],
   dots: [
     { name: 'spot', on: 'spine', at: [-1, -2] },
@@ -36,11 +51,6 @@ export default {
     frontNear: { on: 'chest', at: [0, 2], thigh: 2.9, shin: 2.9, bend: -1 },
   },
   chains: { tail: { on: 'hip', at: [-2.5, -0.8], angle: 1.1, links: 4, length: 8, curl: -0.15, stiffness: 600, damping: 18, weight: 40 } },
-  back: [
-    { name: 'tail', bone: 'tail', r: 0.8, marks: [[0.45, 'outline', 0], [0.7, 'outline', 0], [1, 'white', 0]] },
-    { name: 'hindFar', bone: 'hindFar', r: 0.77 },
-    { name: 'frontFar', bone: 'frontFar', r: 0.77 },
-  ],
   face: { eye: [0.9, -1], nose: [3.6, 1] },
   moves: {
     run: {

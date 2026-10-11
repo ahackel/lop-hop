@@ -1,17 +1,33 @@
 // pig: an asset (see asset.js), written by the editor; data only
 export default {
-  format: 3,
+  format: 4,
   name: 'pig',
   fur: 'lightPink',
   joints: { hip: [8, 11.2], chest: [14.5, 11.2], head: [20, 8.4] },
-  shapes: [
-    { name: 'torso', bone: 'spine', r: 5.6, ends: 3.6 },
-    { name: 'head', on: 'head', ellipse: [0, 0, 4.6, 4.4], smooth: 0.3 },
-    { name: 'snout', on: 'head', box: [3.6, 0, 7.2, 3.2, 1.1] },
-    { name: 'hindNear', bone: 'hindNear', r: 0.75, smooth: 0.5 },
-    { name: 'frontNear', bone: 'frontNear', r: 0.75, smooth: 0.5 },
+  layers: [
+    { name: 'tail', shapes: [{ name: 'tail', bone: 'tail', r: 0.5 }] },
+    {
+      name: 'far legs',
+      far: true,
+      hits: true,
+      shapes: [{ name: 'hindFar', bone: 'hindFar', r: 0.65 }, { name: 'frontFar', bone: 'frontFar', r: 0.65 }],
+    },
+    {
+      name: 'body',
+      join: true,
+      hits: true,
+      shapes: [
+        { name: 'torso', bone: 'spine', r: 5.6, ends: 3.6 },
+        { name: 'head', on: 'head', ellipse: [0, 0, 4.6, 4.4], smooth: 0.3 },
+        { name: 'snout', on: 'head', box: [3.6, 0, 7.2, 3.2, 1.1] },
+        { name: 'hindNear', bone: 'hindNear', r: 0.75, smooth: 0.5 },
+        { name: 'frontNear', bone: 'frontNear', r: 0.75, smooth: 0.5 },
+      ],
+      paint: [{ name: 'snout', color: 'rose', on: 'head', ellipse: [6.6, 1.6, 1.6, 2] }],
+    },
+    'face',
+    { name: 'ear', shapes: [{ name: 'ear', bone: 'ear', r: [1.3, 1.5], end: 1.7, color: 'rose' }] },
   ],
-  paint: [{ name: 'snout', color: 'rose', on: 'head', ellipse: [6.6, 1.6, 1.6, 2] }],
   dots: [
     { name: 'nostril', on: 'head', at: [5.8, 0.7] },
     { name: 'nostril', on: 'head', at: [5.8, 2.4] },
@@ -28,8 +44,6 @@ export default {
     tail: { on: 'hip', at: [-4.6, -2.2], angle: 0.9, links: 4, length: 4.4, curl: 1.1, stiffness: 300, damping: 6, weight: 60 },
     ear: { on: 'head', at: [0.2, -3.6], angle: -2.6, links: 2, length: 3.6, stiffness: 240, damping: 8, weight: 140 },
   },
-  back: [{ name: 'tail', bone: 'tail', r: 0.5 }, { name: 'hindFar', bone: 'hindFar', r: 0.65 }, { name: 'frontFar', bone: 'frontFar', r: 0.65 }],
-  top: [{ name: 'ear', bone: 'ear', r: [1.3, 1.5], end: 1.7, color: 'rose', overEye: true }],
   face: { eye: [2.8, -0.4] },
   moves: {
     run: {

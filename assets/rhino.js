@@ -1,20 +1,40 @@
 // rhino: an asset (see asset.js), written by the editor; data only
 export default {
-  format: 3,
+  format: 4,
   name: 'rhino',
   fur: 'grey',
   joints: { hip: [7.5, 11.5], chest: [14.5, 11.5], head: [19, 11] },
-  shapes: [
-    { name: 'torso', bone: 'spine', r: 5, ends: 4 },
-    { name: 'head', on: 'head', capsule: [-2.5, -1, 3, 1.4, 3] },
-    { name: 'ear', bone: 'ear', base: [[-1.2, 0.2], [1.2, -0.2]], smooth: 0.4 },
-    { name: 'earFar', bone: 'earFar', base: [[-1.2, 0.2], [1.2, -0.2]], smooth: 0.4 },
-    { name: 'hindNear', bone: 'hindNear', r: 1.5, smooth: 0.5 },
-    { name: 'frontNear', bone: 'frontNear', r: 1.5, smooth: 0.5 },
-  ],
-  paint: [
-    { name: 'fold', color: 'darkGrey', on: 'spine', capsule: [2, -4.5, 2, 4.5, 0.5] },
-    { name: 'fold', color: 'darkGrey', on: 'spine', capsule: [7, -3.9, 7, 3.5, 0.5] },
+  layers: [
+    { name: 'tail', outline: false, shapes: [{ name: 'tail', bone: 'tail', r: 0.45, color: 'outline', marks: [[1, 'outline', 0.8]] }] },
+    {
+      name: 'far legs',
+      far: true,
+      hits: true,
+      shapes: [{ name: 'hindFar', bone: 'hindFar', r: 1.35 }, { name: 'frontFar', bone: 'frontFar', r: 1.35 }],
+    },
+    {
+      name: 'body',
+      join: true,
+      hits: true,
+      shapes: [
+        { name: 'torso', bone: 'spine', r: 5, ends: 4 },
+        { name: 'head', on: 'head', capsule: [-2.5, -1, 3, 1.4, 3] },
+        { name: 'ear', bone: 'ear', base: [[-1.2, 0.2], [1.2, -0.2]], smooth: 0.4 },
+        { name: 'earFar', bone: 'earFar', base: [[-1.2, 0.2], [1.2, -0.2]], smooth: 0.4 },
+        { name: 'hindNear', bone: 'hindNear', r: 1.5, smooth: 0.5 },
+        { name: 'frontNear', bone: 'frontNear', r: 1.5, smooth: 0.5 },
+      ],
+      paint: [
+        { name: 'fold', color: 'darkGrey', on: 'spine', capsule: [2, -4.5, 2, 4.5, 0.5] },
+        { name: 'fold', color: 'darkGrey', on: 'spine', capsule: [7, -3.9, 7, 3.5, 0.5] },
+      ],
+    },
+    {
+      name: 'horns',
+      color: 'beige',
+      shapes: [{ on: 'head', triangle: [[2.4, -0.6], [4.4, -6.8], [5.4, 0]] }, { on: 'head', triangle: [[0, -2], [0.8, -4.4], [2, -2]] }],
+    },
+    'face',
   ],
   legs: {
     hindFar: { on: 'hip', at: [1, 3.5], thigh: 1.75, shin: 1.75, bend: 1 },
@@ -27,18 +47,6 @@ export default {
     ear: { on: 'head', ear: true, at: [-2.4, -3.6], tip: [-3.1, -7.4], stiffness: 1400, damping: 22, weight: 60 },
     earFar: { on: 'head', ear: true, at: [0.1, -3], tip: [-0.6, -6.8], stiffness: 1400, damping: 22, weight: 60 },
   },
-  back: [
-    { name: 'tail', bone: 'tail', r: 0.45, color: 'outline', marks: [[1, 'outline', 0.8]], outline: false },
-    { name: 'hindFar', bone: 'hindFar', r: 1.35 },
-    { name: 'frontFar', bone: 'frontFar', r: 1.35 },
-  ],
-  top: [
-    {
-      name: 'horns',
-      color: 'beige',
-      shapes: [{ on: 'head', triangle: [[2.4, -0.6], [4.4, -6.8], [5.4, 0]] }, { on: 'head', triangle: [[0, -2], [0.8, -4.4], [2, -2]] }],
-    },
-  ],
   face: { eye: [-0.4, -1], nose: [5.6, 1.6] },
   moves: {
     run: {

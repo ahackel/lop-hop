@@ -1,23 +1,38 @@
 // fox: an asset (see asset.js), written by the editor; data only
 export default {
-  format: 3,
+  format: 4,
   name: 'fox',
   fur: 'orange',
   joints: { hip: [9, 11.8], chest: [15, 11.8], head: [19.8, 8.6] },
-  shapes: [
-    { name: 'torso', bone: 'spine', r: 3.5, ends: 3.5 },
-    { name: 'chest', on: 'chest', ellipse: [1.5, 0.2, 2.6, 3] },
-    { name: 'head', on: 'head', ellipse: [0, 0, 3.5, 3.2] },
-    { name: 'snout', on: 'head', capsule: [1.2, 1.4, 4.8, 2, 1.3] },
-    { name: 'earA', bone: 'earA', base: [[-1.3, 0.55], [1.3, -0.55]], tipColor: 'brown', smooth: 0.4 },
-    { name: 'earB', bone: 'earB', base: [[-1.2, -0.55], [1.2, 0.55]], tipColor: 'brown', smooth: 0.4 },
-    { name: 'hindNear', bone: 'hindNear', r: 0.9, smooth: 0.5 },
-    { name: 'frontNear', bone: 'frontNear', r: 0.9, smooth: 0.5 },
-  ],
-  paint: [
-    { name: 'belly', color: 'white', on: 'spine', ellipse: [4, 2.8, 5, 1.1] },
-    { name: 'chest', color: 'white', on: 'chest', ellipse: [2.6, 1.2, 1.8, 2] },
-    { name: 'jaw', color: 'white', on: 'head', ellipse: [2.8, 2.5, 2.2, 0.9] },
+  layers: [
+    { name: 'tail', shapes: [{ name: 'tail', bone: 'tail', r: [1.6, 2.1], marks: [[1.15, 'white', 1.8]] }] },
+    {
+      name: 'far legs',
+      far: true,
+      hits: true,
+      shapes: [{ name: 'hindFar', bone: 'hindFar', r: 0.8 }, { name: 'frontFar', bone: 'frontFar', r: 0.8 }],
+    },
+    {
+      name: 'body',
+      join: true,
+      hits: true,
+      shapes: [
+        { name: 'torso', bone: 'spine', r: 3.5, ends: 3.5 },
+        { name: 'chest', on: 'chest', ellipse: [1.5, 0.2, 2.6, 3] },
+        { name: 'head', on: 'head', ellipse: [0, 0, 3.5, 3.2] },
+        { name: 'snout', on: 'head', capsule: [1.2, 1.4, 4.8, 2, 1.3] },
+        { name: 'earA', bone: 'earA', base: [[-1.3, 0.55], [1.3, -0.55]], tipColor: 'brown', smooth: 0.4 },
+        { name: 'earB', bone: 'earB', base: [[-1.2, -0.55], [1.2, 0.55]], tipColor: 'brown', smooth: 0.4 },
+        { name: 'hindNear', bone: 'hindNear', r: 0.9, smooth: 0.5 },
+        { name: 'frontNear', bone: 'frontNear', r: 0.9, smooth: 0.5 },
+      ],
+      paint: [
+        { name: 'belly', color: 'white', on: 'spine', ellipse: [4, 2.8, 5, 1.1] },
+        { name: 'chest', color: 'white', on: 'chest', ellipse: [2.6, 1.2, 1.8, 2] },
+        { name: 'jaw', color: 'white', on: 'head', ellipse: [2.8, 2.5, 2.2, 0.9] },
+      ],
+    },
+    'face',
   ],
   socks: 'brown',
   legs: {
@@ -31,11 +46,6 @@ export default {
     earA: { on: 'head', ear: true, at: [-1.1, -2.85], tip: [-1.9, -7], stiffness: 1400, damping: 22, weight: 60 },
     earB: { on: 'head', ear: true, at: [1.6, -2.75], tip: [2, -7.1], stiffness: 1400, damping: 22, weight: 60 },
   },
-  back: [
-    { name: 'tail', bone: 'tail', r: [1.6, 2.1], marks: [[1.15, 'white', 1.8]] },
-    { name: 'hindFar', bone: 'hindFar', r: 0.8 },
-    { name: 'frontFar', bone: 'frontFar', r: 0.8 },
-  ],
   face: { eye: [0.7, -1.1], nose: [5.2, 1.4] },
   moves: {
     run: {

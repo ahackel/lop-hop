@@ -1,16 +1,32 @@
 // rabbit: an asset (see asset.js), written by the editor; data only
 export default {
-  format: 3,
+  format: 4,
   name: 'rabbit',
   fur: 'white',
   joints: { hip: [7, 13.5], chest: [12, 13.5], head: [15.5, 9] },
-  shapes: [
-    { name: 'torso', bone: 'spine', r: 5, ends: 4.5 },
-    { name: 'haunch', on: 'hip', ellipse: [0.5, 1.5, 5, 4] },
-    { name: 'head', on: 'head', ellipse: [0, 0, 4.5, 4.5] },
-    { name: 'muzzle', on: 'head', ellipse: [3.5, 1.8, 2.5, 2.2] },
-    { name: 'hindNear', bone: 'hindNear', r: 1.3, smooth: 0.5 },
-    { name: 'frontNear', bone: 'frontNear', r: 1.2, smooth: 0.5 },
+  layers: [
+    { name: 'tail', shapes: [{ name: 'tail', bone: 'tail', r: 1.9 }] },
+    {
+      name: 'far legs',
+      far: true,
+      hits: true,
+      shapes: [{ name: 'hindFar', bone: 'hindFar', r: 1.2 }, { name: 'frontFar', bone: 'frontFar', r: 1.1 }],
+    },
+    {
+      name: 'body',
+      join: true,
+      hits: true,
+      shapes: [
+        { name: 'torso', bone: 'spine', r: 5, ends: 4.5 },
+        { name: 'haunch', on: 'hip', ellipse: [0.5, 1.5, 5, 4] },
+        { name: 'head', on: 'head', ellipse: [0, 0, 4.5, 4.5] },
+        { name: 'muzzle', on: 'head', ellipse: [3.5, 1.8, 2.5, 2.2] },
+        { name: 'hindNear', bone: 'hindNear', r: 1.3, smooth: 0.5 },
+        { name: 'frontNear', bone: 'frontNear', r: 1.2, smooth: 0.5 },
+      ],
+    },
+    { name: 'ear', shapes: [{ name: 'ear', bone: 'ear', r: 1.4, end: 1.2, color: 'beige' }] },
+    'face',
   ],
   dots: [{ name: 'blush', on: 'head', at: [2.5, 2], color: 'pink' }],
   legs: {
@@ -23,8 +39,6 @@ export default {
     tail: { on: 'hip', at: [-4.5, 2.1], angle: 1.2, links: 1, length: 0.5, stiffness: 900, damping: 16, weight: 80 },
     ear: { on: 'head', at: [-2, -3], angle: 3.123, links: 2, length: 5.3, stiffness: 240, damping: 8, weight: 140 },
   },
-  back: [{ name: 'tail', bone: 'tail', r: 1.9 }, { name: 'hindFar', bone: 'hindFar', r: 1.2 }, { name: 'frontFar', bone: 'frontFar', r: 1.1 }],
-  top: [{ name: 'ear', bone: 'ear', r: 1.4, end: 1.2, color: 'beige' }],
   face: {
     eye: [1.5, -1],
     nose: [4.5, 1],
@@ -34,22 +48,28 @@ export default {
   },
   front: {
     joints: { hip: [13, 15], chest: [13, 12], head: [13, 9] },
-    shapes: [
-      { name: 'body', ellipse: [13.5, 15.6, 5.2, 4] },
-      { name: 'head', on: 'head', ellipse: [0.5, 0, 5.4, 4.4] },
-      { name: 'footL', ellipse: [9.8, 18.4, 2.3, 1.1] },
-      { name: 'footR', ellipse: [17.2, 18.4, 2.3, 1.1] },
+    layers: [
+      {
+        name: 'body',
+        join: true,
+        hits: true,
+        shapes: [
+          { name: 'body', ellipse: [13.5, 15.6, 5.2, 4] },
+          { name: 'head', on: 'head', ellipse: [0.5, 0, 5.4, 4.4] },
+          { name: 'footL', ellipse: [9.8, 18.4, 2.3, 1.1] },
+          { name: 'footR', ellipse: [17.2, 18.4, 2.3, 1.1] },
+        ],
+      },
+      { shapes: [{ ellipse: [11, 18.5, 1.1, 0.9] }, { ellipse: [16, 18.5, 1.1, 0.9] }] },
+      { name: 'earL', shapes: [{ name: 'earL', bone: 'earL', r: 1.4, end: 2, color: 'beige' }] },
+      { name: 'earR', shapes: [{ name: 'earR', bone: 'earR', r: 1.4, end: 2, color: 'beige' }] },
+      'face',
     ],
     chains: {
       earL: { on: 'head', at: [-3, -3.4], angle: 2.3, links: 2, length: 7, curl: -0.6 },
       earR: { on: 'head', at: [4, -3.4], angle: -2.3, links: 2, length: 7, curl: 0.6 },
     },
     face: { eyes: [[-2, -0.5], [2, -0.5]], nose: [0, 1.5], noseColor: 'pink' },
-    top: [
-      { shapes: [{ ellipse: [11, 18.5, 1.1, 0.9] }, { ellipse: [16, 18.5, 1.1, 0.9] }] },
-      { name: 'earL', bone: 'earL', r: 1.4, end: 2, color: 'beige' },
-      { name: 'earR', bone: 'earR', r: 1.4, end: 2, color: 'beige' },
-    ],
   },
   moves: {
     run: {

@@ -1,20 +1,35 @@
 // bear: an asset (see asset.js), written by the editor; data only
 export default {
-  format: 3,
+  format: 4,
   name: 'bear',
   fur: 'brown',
   joints: { hip: [7.5, 11.5], chest: [14.5, 11.5], head: [19, 9.3] },
-  shapes: [
-    { name: 'torso', bone: 'spine', r: 5, ends: 4 },
-    { name: 'hump', on: 'spine', ellipse: [5, -3.3, 4.5, 3.5] },
-    { name: 'head', on: 'head', ellipse: [0, 0, 3.7, 3.5] },
-    { name: 'snout', on: 'head', ellipse: [3.4, 1.3, 1.9, 1.5] },
-    { name: 'ear', on: 'head', ellipse: [-2.2, -3.5, 1.4, 1.4] },
-    { name: 'ear', on: 'head', ellipse: [0.8, -3.7, 1.3, 1.3] },
-    { name: 'hindNear', bone: 'hindNear', r: 1.5, smooth: 0.5 },
-    { name: 'frontNear', bone: 'frontNear', r: 1.5, smooth: 0.5 },
+  layers: [
+    { name: 'tail', shapes: [{ name: 'tail', bone: 'tail', r: 1.2 }] },
+    {
+      name: 'far legs',
+      far: true,
+      hits: true,
+      shapes: [{ name: 'hindFar', bone: 'hindFar', r: 1.35 }, { name: 'frontFar', bone: 'frontFar', r: 1.35 }],
+    },
+    {
+      name: 'body',
+      join: true,
+      hits: true,
+      shapes: [
+        { name: 'torso', bone: 'spine', r: 5, ends: 4 },
+        { name: 'hump', on: 'spine', ellipse: [5, -3.3, 4.5, 3.5] },
+        { name: 'head', on: 'head', ellipse: [0, 0, 3.7, 3.5] },
+        { name: 'snout', on: 'head', ellipse: [3.4, 1.3, 1.9, 1.5] },
+        { name: 'ear', on: 'head', ellipse: [-2.2, -3.5, 1.4, 1.4] },
+        { name: 'ear', on: 'head', ellipse: [0.8, -3.7, 1.3, 1.3] },
+        { name: 'hindNear', bone: 'hindNear', r: 1.5, smooth: 0.5 },
+        { name: 'frontNear', bone: 'frontNear', r: 1.5, smooth: 0.5 },
+      ],
+      paint: [{ name: 'snout', color: 'sand', on: 'head', ellipse: [3.4, 1.3, 1.9, 1.5] }],
+    },
+    'face',
   ],
-  paint: [{ name: 'snout', color: 'sand', on: 'head', ellipse: [3.4, 1.3, 1.9, 1.5] }],
   legs: {
     hindFar: { on: 'hip', at: [1, 3], thigh: 2, shin: 2, bend: 1 },
     frontFar: { on: 'chest', at: [1, 3], thigh: 2, shin: 2, bend: -1 },
@@ -22,7 +37,6 @@ export default {
     frontNear: { on: 'chest', at: [0.5, 3], thigh: 2, shin: 2, bend: -1 },
   },
   chains: { tail: { on: 'hip', at: [-4, -1.9], angle: 1, links: 1, length: 0.6, stiffness: 600, damping: 14, weight: 60 } },
-  back: [{ name: 'tail', bone: 'tail', r: 1.2 }, { name: 'hindFar', bone: 'hindFar', r: 1.35 }, { name: 'frontFar', bone: 'frontFar', r: 1.35 }],
   face: { eye: [1, -0.9], nose: [5.2, 0.9] },
   moves: {
     run: {

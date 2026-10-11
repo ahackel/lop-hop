@@ -1,15 +1,36 @@
 // skunk: an asset (see asset.js), written by the editor; data only
 export default {
-  format: 3,
+  format: 4,
   name: 'skunk',
   fur: 'charcoal',
   joints: { hip: [8, 11.2], chest: [13, 11.2], head: [18.8, 12.6] },
-  shapes: [
-    { name: 'torso', bone: 'spine', r: 7.2, ends: 4 },
-    { name: 'hindNear', bone: 'hindNear', r: 0.9, smooth: 0.5 },
-    { name: 'frontNear', bone: 'frontNear', r: 0.9, smooth: 0.5 },
+  layers: [
+    { name: 'tail', shapes: [{ name: 'tail', bone: 'tail', r: [2.3, 2.5], marks: [[0.95, 'white', 1.5]] }] },
+    {
+      name: 'far legs',
+      far: true,
+      hits: true,
+      shapes: [{ name: 'hindFar', bone: 'hindFar', r: 0.8 }, { name: 'frontFar', bone: 'frontFar', r: 0.8 }],
+    },
+    {
+      name: 'body',
+      join: true,
+      hits: true,
+      shapes: [
+        { name: 'torso', bone: 'spine', r: 7.2, ends: 4 },
+        { name: 'hindNear', bone: 'hindNear', r: 0.9, smooth: 0.5 },
+        { name: 'frontNear', bone: 'frontNear', r: 0.9, smooth: 0.5 },
+      ],
+      paint: [{ name: 'stripe', color: 'white', on: 'spine', capsule: [8, -4.7, -1.5, -5.6, 0.9] }],
+    },
+    {
+      name: 'head',
+      color: 'charcoal',
+      shapes: [{ on: 'head', ellipse: [0, 0, 3.3, 3] }, { on: 'head', ellipse: [3, 1.2, 1.8, 1.2] }, { on: 'head', ellipse: [-1.6, -2.8, 1, 1] }],
+      paint: [{ color: 'white', on: 'head', capsule: [1.8, -1.4, -1.2, -2.8, 0.7] }],
+    },
+    'face',
   ],
-  paint: [{ name: 'stripe', color: 'white', on: 'spine', capsule: [8, -4.7, -1.5, -5.6, 0.9] }],
   legs: {
     hindFar: { on: 'hip', at: [1, 4.3], thigh: 1.6, shin: 1.6, bend: 1 },
     frontFar: { on: 'chest', at: [2, 4.3], thigh: 1.6, shin: 1.6, bend: -1 },
@@ -17,19 +38,6 @@ export default {
     frontNear: { on: 'chest', at: [1.5, 4.3], thigh: 1.6, shin: 1.6, bend: -1 },
   },
   chains: { tail: { on: 'hip', at: [-2, -1.2], angle: 0.48, links: 3, length: 7.6, curl: 0.5, stiffness: 600, damping: 22, weight: 50 } },
-  back: [
-    { name: 'tail', bone: 'tail', r: [2.3, 2.5], marks: [[0.95, 'white', 1.5]] },
-    { name: 'hindFar', bone: 'hindFar', r: 0.8 },
-    { name: 'frontFar', bone: 'frontFar', r: 0.8 },
-  ],
-  top: [
-    {
-      name: 'head',
-      color: 'charcoal',
-      shapes: [{ on: 'head', ellipse: [0, 0, 3.3, 3] }, { on: 'head', ellipse: [3, 1.2, 1.8, 1.2] }, { on: 'head', ellipse: [-1.6, -2.8, 1, 1] }],
-      paint: [{ color: 'white', on: 'head', capsule: [1.8, -1.4, -1.2, -2.8, 0.7] }],
-    },
-  ],
   face: { eye: [0.7, -0.6], nose: [4.6, 1] },
   moves: {
     run: {

@@ -7,7 +7,7 @@ import paletteFile from '../assets/palette.js';
 import { $, el } from './dom.js';
 import { inspect } from './inspector.js';
 import { listParts } from './lists.js';
-import { cast, castOf, setCast } from './palette.js';
+import { castOf, setCast } from './palette.js';
 import { current } from './parts.js';
 import * as sandbox from './play.js';
 import { pv } from './preview.js';
@@ -26,7 +26,6 @@ export const nice = (c) => (c ? c.replace(/[A-Z]/g, (m) => ` ${m.toLowerCase()}`
 export const paletteDirty = () => JSON.stringify(palette) !== savedPalette;
 export const COLOR_KEYS = ['color', 'fur', 'tipColor', 'noseColor', 'socks'];
 export const GEOMS = ['ellipse', 'capsule', 'box', 'triangle'];
-export const LAYERS = { back: 'behind', shapes: 'body', paint: 'paint', top: 'on top' };
 export const swatch = (name) => PALETTES.day[NAMED[name]] || 'transparent';
 export const files = {}, builds = {}, saved = {}, histories = {}; // (each animal's file as loaded, its build as edited; saved: as in its file, null: no file yet)
 const fileOf = (k) => `assets/${k}.js`; // (an animal's build: its file, see asset.js)
@@ -51,25 +50,31 @@ const touched = () => [base, ...(skin ? [kind] : [])].filter(dirty); // (the fil
 // wolf's) makes that one again too
 const assetOf = (k) => toAsset(k, builds[k], files[k]);
 export const rigFor = (k) => rigOf(k === base ? shown(assetOf(k)) : assetOf(k), files[k].of && (files[k].of === base ? shown(assetOf(files[k].of)) : assetOf(files[k].of)));
-// what is hidden (its row's eye: the editor's only, never saved) left out of what is drawn: a shape (one on a bone: the bone
-// not drawn), a marking
+// what is hidden (its row's eye: the editor's only, never saved) left out of what is drawn: a group, a shape (one on a
+// bone: the bone not drawn), a marking, spikes, a dot. By what it is (dragged elsewhere, still hidden); an undo finds
+// it again where it was (see restore)
+export const isGroup = (G) => !!G && typeof G === 'object';
 export const hidden = new Set();
-export const keyOf = (s) => [s.type, s.list, s.i, s.j, s.name].filter((x) => x !== undefined).join(':');
 function shown(rig) {
   if (!hidden.size) return rig;
-  const r = { ...rig };
-  for (const list of ['back', 'shapes', 'paint', 'dots']) if (r[list]) r[list] = r[list].filter((_, i) => !hidden.has(`item:${list}:${i}`));
-  if (r.top) r.top = r.top.map((t, i) => (hidden.has(`item:top:${i}`) ? null : t.bone ? t : { ...t, shapes: t.shapes.filter((_, j) => !hidden.has(`item:top:${i}:${j}`)) })).filter((t) => t && (t.bone || t.shapes.length)); // (a group, or shapes in it)
-  if (hidden.has('spikes')) delete r.spikes;
+  const r = { ...rig }, keep = (list) => list.filter((x) => !hidden.has(x));
+  if (r.layers) r.layers = keep(r.layers).map((G) => (isGroup(G) ? { ...G, shapes: keep(G.shapes), ...(G.paint && { paint: keep(G.paint) }), ...(hidden.has(G.spikes) && { spikes: undefined }) } : G));
+  if (r.dots) r.dots = keep(r.dots);
   return r;
 }
-// a list's items moved about (to: where the one at i is now, -1: gone): what is hidden goes with them
-export function rehide(list, to) {
-  const was = [...hidden].filter((k) => k.startsWith(`item:${list}:`));
-  for (const k of was) hidden.delete(k);
-  for (const k of was) { const [, , i, ...rest] = k.split(':'), j = to(+i); if (j >= 0) hidden.add(['item', list, j, ...rest].join(':')); }
+// where a hidden thing is in the build, and what is there now
+function pathOf(o) {
+  if (build.dots?.includes(o)) return ['dots', build.dots.indexOf(o)];
+  for (const [g, G] of (build.layers || []).entries()) {
+    if (!isGroup(G)) continue;
+    if (G === o) return [g];
+    if (G.spikes === o) return [g, 'spikes'];
+    for (const k of ['shapes', 'paint']) if (G[k]?.includes(o)) return [g, k, G[k].indexOf(o)];
+  }
+  return null;
 }
-export function hide(s) { const k = keyOf(s); if (!hidden.delete(k)) hidden.add(k); rebuild(); listParts(); draw(); }
+const atPath = (q) => (q[0] === 'dots' ? build.dots?.[q[1]] : q.reduce((o, k) => o?.[k], build.layers));
+export function hide(o) { if (!hidden.delete(o)) hidden.add(o); rebuild(); listParts(); draw(); }
 export function rebuild() {
   setRig(base, rigFor(base));
   for (const k of skinsOf(base)) setRig(k, rigFor(k));
@@ -87,8 +92,11 @@ export function remember() { const h = hist(); h.past.push(snapshot()); if (h.pa
 function restore(json) {
   const was = JSON.parse(json), into = (o, v) => { for (const k of Object.keys(o)) delete o[k]; Object.assign(o, v); };
   if (view.mode === 'game') { into(palette, was); setPalette(palette); refresh(); status(); return; }
+  const keep = [...hidden].map(pathOf).filter(Boolean);
   into(build, was.build);
   if (skin && was.skin) into(skin, was.skin);
+  hidden.clear();
+  for (const q of keep) { const o = atPath(q); if (o) hidden.add(o); }
   changed();
   if (!current()) sel = { type: view.move === 'edit' ? 'rig' : 'frame' }; // (the part picked: gone with what was undone)
   refresh();

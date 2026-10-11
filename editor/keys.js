@@ -1,18 +1,19 @@
 // The keyboard (see editor.js): what each key does, shown with ?
 import { $, el } from './dom.js';
 import { inspect } from './inspector.js';
-import { itemDo, listParts, startRename } from './lists.js';
+import { itemDo } from './layers.js';
+import { listParts, startRename } from './lists.js';
 import { popup, unpop } from './palette.js';
 import { current, plus, times } from './parts.js';
 import { draw, editing } from './stage.js';
-import { changed, gameToggle, hidden, hide, keyOf, place, rebuild, redo, remember, save, sel, setMode, undo, view, setSel } from './state.js';
+import { changed, gameToggle, hidden, hide, place, rebuild, redo, remember, save, sel, setMode, undo, view, setSel } from './state.js';
 import { frames, setPlay, timeline } from './timeline.js';
 
 // the keyboard: what each key does (shown with ?), by when it works
 const KEYS = [
   ['Everywhere', [['⌘Z', 'Undo'], ['⇧⌘Z', 'Redo'], ['⌘S', 'Save'], ['1 2 3', 'Setup, Animate, Play'], ['4', 'Game settings (the palette), and back'], ['?', 'These shortcuts'], ['Esc', 'Pick nothing (close a popup)']]],
   ['Parts', [['Tab  ⇧Tab', 'The next part in the lists, the one before'], ['← → ↑ ↓', 'Move the part picked a tenth of a pixel (in a move: its key at the frame)'], ['⇧ + arrows', 'A whole pixel'],
-    ['⌘D', 'Copy the shape picked'], ['⌫', 'Delete the shape picked'], ['[  ]', 'Drawn earlier, later'], ['H', 'Hide or show the part picked'], ['Enter', 'Rename the shape picked (or double-click it)'], ['⌥H', 'Show everything hidden']]],
+    ['⌘D', 'Copy the shape or group picked'], ['⌫', 'Delete the shape or group picked'], ['[  ]', 'Drawn earlier, later'], ['H', 'Hide or show the part picked'], ['Enter', 'Rename the shape or group picked (or double-click it)'], ['⌥H', 'Show everything hidden']]],
   ['Animate', [['Space', 'Play the move, stop'], [',  .', 'A frame back, on'], ['← →', 'A frame back, on (nothing picked)'], ['Home  End', 'The first frame, the last']]],
   ['The stage', [['B', 'Bones'], ['A', 'All handles'], ['O', 'Onion skin'], ['P', 'Screen pixels (Setup)'], ['S', 'Shading']]],
 ];
@@ -23,13 +24,14 @@ const KEYS = [
   $('keys').onclick = (e) => { if (e.target === $('keys')) $('keys').hidden = true; };
   $('keysButton').onclick = () => { $('keys').hidden = !$('keys').hidden; };
 }
+const LISTED = ['item', 'paint', 'dot', 'group']; // (in the shapes' list: copied, deleted, moved up or down, renamed)
 const flip = (id) => { const b = $(id); b.checked = !b.checked; b.dispatchEvent(new Event('change')); };
 // the part picked moved by d (in the world: as the screen shows it): its middle (a shape), else its handle (a joint, a
 // leg's root, a dot; in a move: a key at the frame). Keys held down: one undo for the lot
 let nudged = 0;
 function nudge(d) {
   const p = current();
-  if (!p || !editing() || hidden.has(keyOf(p.sel))) return false;
+  if (!p || !editing() || p.off) return false;
   const movers = p.handles.filter((h) => h.move), hs = movers.length ? movers : p.handles.filter((h) => h.anchor).slice(0, 1);
   if (!hs.length) return false;
   const now = performance.now();
@@ -58,7 +60,7 @@ document.addEventListener('keydown', (e) => {
   if (cmd && low === 's') { take(); save(); return; }
   if (typing || e.altKey && low !== 'h' && k !== 'Dead' && e.code !== 'KeyH') return;
   if (cmd) {
-    if (low === 'd' && sel.type === 'item' && view.move === 'edit' && view.mode === 'setup') { take(); itemDo('copy'); }
+    if (low === 'd' && LISTED.includes(sel.type) && view.move === 'edit' && view.mode === 'setup') { take(); itemDo('copy'); }
     return;
   }
   if (k === '?') { take(); $('keysButton').click(); return; }
@@ -71,11 +73,11 @@ document.addEventListener('keydown', (e) => {
   if (low === 'o' && view.mode === 'animate') { take(); flip('onion'); return; }
   if (low === 'p' && view.mode === 'setup') { take(); flip('fine'); return; }
   if (e.code === 'KeyH' && e.altKey) { take(); hidden.clear(); rebuild(); listParts(); draw(); return; }
-  if (low === 'h' && ['item', 'spikes'].includes(sel.type) && view.move === 'edit') { take(); hide(sel); return; }
+  if (low === 'h' && [...LISTED, 'spikes'].includes(sel.type) && view.move === 'edit') { take(); hide(current().obj); return; }
   if (k === 'Tab') { take(); nextPart(e.shiftKey ? -1 : 1); return; }
-  if (k === 'Enter' && sel.type === 'item' && view.move === 'edit' && view.mode === 'setup') { take(); startRename(sel); return; }
-  if ((k === 'Delete' || k === 'Backspace') && sel.type === 'item') { take(); itemDo('delete'); return; }
-  if ((k === '[' || k === ']') && sel.type === 'item') { take(); itemDo('move', k === '[' ? -1 : 1); return; }
+  if (k === 'Enter' && LISTED.includes(sel.type) && view.move === 'edit' && view.mode === 'setup') { take(); startRename(sel); return; }
+  if ((k === 'Delete' || k === 'Backspace') && LISTED.includes(sel.type)) { take(); itemDo('delete'); return; }
+  if ((k === '[' || k === ']') && [...LISTED, 'face'].includes(sel.type)) { take(); itemDo('move', k === '[' ? -1 : 1); return; }
   if (k === 'Escape') { setSel({ type: view.move === 'edit' ? 'rig' : 'frame' }); listParts(); inspect(); draw(); return; }
   if (view.mode === 'animate') {
     if (k === ' ') { take(); $('play').click(); return; }

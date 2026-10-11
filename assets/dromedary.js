@@ -1,20 +1,36 @@
 // dromedary: an asset (see asset.js), written by the editor; data only
 export default {
-  format: 3,
+  format: 4,
   name: 'dromedary',
   fur: 'camel',
   joints: { hip: [7, 9.6], chest: [13, 9.6], head: [20.6, 4.6] },
-  shapes: [
-    { name: 'torso', bone: 'spine', r: 3.8, ends: 3 },
-    { name: 'hump', on: 'spine', triangle: [[-0.8, -2.4], [3.2, -6.6], [7, -2.4]] },
-    { name: 'neck', on: 'chest', capsule: [1.6, -0.2, 5.8, -3.4, 1.3], smooth: 0.5 },
-    { name: 'head', on: 'head', capsule: [-0.8, 0, 2.6, 0.8, 1.5] },
-    { name: 'lip', on: 'head', ellipse: [2.6, 2, 1.1, 0.8] },
-    { name: 'ear', bone: 'ear', base: [[-0.6, 0.1], [0.6, -0.1]], smooth: 0.4 },
-    { name: 'hindNear', bone: 'hindNear', r: 0.75, smooth: 0.5 },
-    { name: 'frontNear', bone: 'frontNear', r: 0.75, smooth: 0.5 },
+  layers: [
+    { name: 'tail', outline: false, shapes: [{ name: 'tail', bone: 'tail', r: 0.45, color: 'outline', marks: [[1, 'ochre', 1]] }] },
+    {
+      name: 'far legs',
+      far: true,
+      hits: true,
+      shapes: [{ name: 'hindFar', bone: 'hindFar', r: 0.65 }, { name: 'frontFar', bone: 'frontFar', r: 0.65 }],
+    },
+    {
+      name: 'body',
+      join: true,
+      hits: true,
+      shapes: [
+        { name: 'torso', bone: 'spine', r: 3.8, ends: 3 },
+        { name: 'hump', on: 'spine', triangle: [[-0.8, -2.4], [3.2, -6.6], [7, -2.4]] },
+        { name: 'neck', on: 'chest', capsule: [1.6, -0.2, 5.8, -3.4, 1.3], smooth: 0.5 },
+        { name: 'head', on: 'head', capsule: [-0.8, 0, 2.6, 0.8, 1.5] },
+        { name: 'lip', on: 'head', ellipse: [2.6, 2, 1.1, 0.8] },
+        { name: 'ear', bone: 'ear', base: [[-0.6, 0.1], [0.6, -0.1]], smooth: 0.4 },
+        { name: 'hindNear', bone: 'hindNear', r: 0.75, smooth: 0.5 },
+        { name: 'frontNear', bone: 'frontNear', r: 0.75, smooth: 0.5 },
+      ],
+      paint: [{ name: 'muzzle', color: 'ochre', on: 'head', ellipse: [3.4, 1, 0.9, 1.6] }],
+    },
+    { name: 'hump', shapes: [{ name: 'hump', bone: 'hump', r: [1.5, 0.6], marks: [[0.7, 'ochre', 1.4]], grows: true }] },
+    'face',
   ],
-  paint: [{ name: 'muzzle', color: 'ochre', on: 'head', ellipse: [3.4, 1, 0.9, 1.6] }],
   dots: [{ name: 'nostril', on: 'head', at: [3.5, 0] }],
   socks: 'ochre',
   legs: {
@@ -28,12 +44,6 @@ export default {
     hump: { on: 'hip', at: [3.2, -5.2], angle: 0, links: 2, length: 2.4, stiffness: 3000, damping: 20, weight: 10 },
     ear: { on: 'head', ear: true, at: [-1, -1.3], tip: [-1.6, -3], stiffness: 1400, damping: 22, weight: 60 },
   },
-  back: [
-    { name: 'tail', bone: 'tail', r: 0.45, color: 'outline', marks: [[1, 'ochre', 1]], outline: false },
-    { name: 'hindFar', bone: 'hindFar', r: 0.65 },
-    { name: 'frontFar', bone: 'frontFar', r: 0.65 },
-  ],
-  top: [{ name: 'hump', bone: 'hump', r: [1.5, 0.6], marks: [[0.7, 'ochre', 1.4]], joined: true }],
   face: { eye: [0.4, -0.6] },
   moves: {
     run: {

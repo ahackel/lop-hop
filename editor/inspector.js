@@ -2,11 +2,11 @@
 import { $, el, iconBtn } from './dom.js';
 import { faceFrames } from './face.js';
 import { inspectPlay } from './handling.js';
-import { addChild, addShapeOn, itemDo, listParts, rename } from './lists.js';
+import { SWITCHES, addPaint, addShape, bodyIndex, itemDo, layers, moveTo, rename, setSpikes, switchOn, toggle } from './layers.js';
+import { listParts } from './lists.js';
 import { colorPick, inspectPalette } from './palette.js';
-import { BONE_LAYERS, boneDefaults, boneKind, current, middleOf, parts, repivot, shapeOn, withDefaults } from './parts.js';
-import { draw } from './stage.js';
-import { COLOR_KEYS, GEOMS, LAYERS, base, build, builds, changed, choose, commit, editable, kind, nice, paints, refresh, remember, sel, skin, skinsOf, status, view, setSel } from './state.js';
+import { boneDefaults, current, middleOf, parts, repivot, withDefaults } from './parts.js';
+import { COLOR_KEYS, GEOMS, base, build, builds, changed, choose, commit, editable, isGroup, kind, nice, paints, refresh, remember, sel, skin, skinsOf, status, view, setSel } from './state.js';
 import { inspectMove, timeline } from './timeline.js';
 
 export function inspect() {
@@ -15,45 +15,76 @@ export function inspect() {
   if (!editable()) { box.append(el('p', { className: 'note', textContent: `The ${kind} has no bones.` })); return; }
   if (view.mode === 'play') { inspectPlay(box); return; }
   if (view.move !== 'edit') { inspectMove(box); return; }
-  const p = current() || parts()[0], o = p.obj;
+  const p = current() || parts()[0], o = p.obj, t = sel.type;
   const title = el('h2', {}, ...(p.color ? [el('span', { className: 'sw', style: `width:12px;height:12px;border-radius:3px;background:${p.color}` })] : []), el('span', { textContent: p.label }));
   box.append(title);
-  if (sel.type === 'item') {
+  if (['item', 'paint', 'dot', 'group'].includes(t)) {
     const acts = el('span', { className: 'acts' });
     for (const [ic, what, arg, tip] of [['up', 'move', -1, 'Drawn earlier ( [ )'], ['down', 'move', 1, 'Drawn later ( ] )'], ['copy', 'copy', 0, 'Copy (⌘D)'], ['trash', 'delete', 0, 'Delete (⌫)']]) acts.append(iconBtn(ic, '', { title: tip, onclick: () => itemDo(what, arg) }));
     title.append(acts);
     const name = el('input', { type: 'text', value: o.name || '', placeholder: p.label, onchange: () => rename(sel, o, name.value) }), head = [field('name', name, 'Its name (Enter, or double-click its row): a move uses it by it')];
-    if (sel.list !== 'dots' && sel.j === undefined) {
-      const layer = el('select', { onchange: () => itemDo('layer', layer.value) }), may = o.bone ? BONE_LAYERS[boneKind(o)] || [sel.list] : Object.keys(LAYERS).filter((k) => k !== 'back');
-      for (const [k, t] of Object.entries(LAYERS)) if (may.includes(k)) layer.append(el('option', { value: k, textContent: t, selected: k === sel.list }));
-      head.push(field('layer', layer, { back: 'Behind: behind the body, outlined on its own (a far leg: in the far tone, counts for hits)', shapes: 'Body: joined into it, outlined, counts for hits', paint: 'Paint: colors the body', top: 'On top: outlined, over the body, no hits' }[sel.list]));
+    if (t === 'item' || t === 'paint') { // (its group: another one, picked here or dragged to in the list)
+      const into = el('select', { onchange: () => moveTo(sel, +into.value) });
+      layers().forEach((G, g) => { if (isGroup(G)) into.append(el('option', { value: g, textContent: G.name || `group ${g + 1}`, selected: g === sel.g })); });
+      head.push(field('group', into, t === 'item' ? 'The group it is drawn in (see the list: how each is drawn)' : 'The group it marks: only where that is'));
     }
-    box.append(section('Layer', head));
+    if (t === 'item') head.push(field('on', attach(o), 'What it is on: a joint (in its frame; the box: none), or a bone (drawn along it, as the pose has it)'));
+    box.append(section(t === 'group' ? 'Group' : 'Shape', head));
   }
-  if (sel.type === 'joint') { box.append(field('place', nums(o, sel.name))); return; }
-  if (sel.type === 'item' && o.bone) { fields(withDefaults(o, boneDefaults(o, sel.list)), box, ['name']); return; } // (a shape on a bone: all it can be)
-  if (sel.type === 'item' && sel.list === 'top' && sel.j === undefined) { groupFields(o, box); return; }
-  const skip = sel.type === 'rig' ? ['joints', 'back', 'shapes', 'paint', 'top', 'dots', 'legs', 'chains', 'face', 'spikes', 'moves', 'handling', 'recolor']
-    : sel.type === 'item' ? ['name', ...(sel.j !== undefined ? ['on'] : [])] : []; // (a shape in a group: on its group's joint)
-  fields(o, box, sel.type === 'face' ? ['frames'] : skip);
-  if (sel.type === 'face') faceFrames(box);
-  if (sel.type === 'rig') rootMore(box);
-  if (sel.type === 'leg' || sel.type === 'chain') { itsShape(box); farSide(box); }
+  if (t === 'joint') { box.append(field('place', nums(o, sel.name))); return; }
+  if (t === 'group') { groupFields(o, box); return; }
+  if (t === 'item' && o.bone) { fields(withDefaults(o, boneDefaults(o)), box, ['name', 'bone']); return; } // (a shape on a bone: all it can be)
+  if (t === 'item') { fields(withDefaults(o, { color: undefined }), box, ['name', 'on']); return; }
+  const skip = t === 'rig' ? ['joints', 'layers', 'dots', 'legs', 'chains', 'face', 'moves', 'handling', 'recolor'] : t === 'paint' || t === 'dot' ? ['name'] : [];
+  fields(o, box, t === 'face' ? ['frames'] : skip);
+  if (t === 'face') faceFrames(box);
+  if (t === 'rig') rootMore(box);
+  if (t === 'leg' || t === 'chain') farSide(box);
 }
-// a group: its color, its joint (all its shapes'), its pivot and turn, the rest; its shapes: added here, each picked in
-// the list or on the stage
-function groupFields(t, box) {
-  const on = el('select', { onchange: () => commit(() => { for (const s of t.shapes) { if (on.value) s.on = on.value; else delete s.on; } listParts(); }) });
-  for (const c of ['', 'spine', 'hip', 'chest', 'head']) on.append(el('option', { value: c, textContent: c || 'the box', selected: c === (t.shapes[0]?.on || '') }));
-  const at = t.at || [0, 0];
-  box.append(section('Place', [field('on', on, 'The joint all its shapes are on'),
-    field('pivot', stack(at.map((v, j) => numIn(v, (x) => { const q = (t.at || [0, 0]).slice(); q[j] = x; t.at = q; }, { label: 'xy'[j] }))), 'Drag the pivot: the group moves. ⌥-drag: the pivot alone.'),
-    field('angle', numIn(t.angle || 0, (x) => { if (x) t.angle = x; else delete t.angle; }, { min: -3.14, max: 3.14, step: 0.01 }), 'Its shapes turned about the pivot'),
-    el('div', { className: 'keys' }, iconBtn('pivot', 'Pivot to the middle', { title: 'The pivot in the middle of its shapes; they stay where they are', onclick: () => { commit(() => repivot(t, middleOf(t))); inspect(); } }))]));
-  box.append(section('Look', [field('color', colorPick(t.color, (c) => { commit(() => { t.color = c; }); listParts(); inspect(); }))]));
-  box.append(section('Shapes', [el('div', { className: 'keys' }, iconBtn('plus', 'Add a shape', { title: 'A copy of its last shape, moved a little', onclick: () => addChild(sel.i) }))],
-    'Its shapes: each picked in the list (under it) or on the stage'));
-  fields(t, box, ['name', 'color', 'shapes', 'at', 'angle']);
+// what a shape is on: a joint (in its frame; the box: none) or a bone (drawn along it: its shape the bone's, as it is
+// when it was on one, see boneDefaults; off one again: an ellipse)
+const BONE_KEYS = ['bone', 'r', 'ends', 'round', 'foot', 'end', 'marks', 'grows', 'base', 'tipColor', 'tipSize'];
+const boneOf = (b) => (b === 'spine' ? 'spine' : build.legs?.[b] ? 'leg' : build.chains?.[b]?.ear ? 'ear' : 'tail');
+function attach(o) {
+  const now = o.bone ? `bone:${o.bone}` : `on:${o.on || ''}`, opt = (v, label) => el('option', { value: v, textContent: label, selected: v === now });
+  const input = el('select', { onchange: () => { const [how, n] = input.value.split(':'); commit(() => reattach(o, how, n)); listParts(); inspect(); } });
+  input.append(el('optgroup', { label: 'a joint' }, opt('on:', 'the box'), ...['spine', 'hip', 'chest', 'head'].map((j) => opt(`on:${j}`, j))),
+    el('optgroup', { label: 'a bone (drawn along it)' }, opt('bone:spine', 'spine (the torso)'), ...[...Object.keys(build.legs || {}), ...Object.keys(build.chains || {})].map((n) => opt(`bone:${n}`, n))));
+  return input;
+}
+function reattach(o, how, n) {
+  if (how === 'on') {
+    if (o.bone) { for (const k of BONE_KEYS) delete o[k]; o.ellipse = [0, 0, 2, 1.5]; }
+    if (n) o.on = n; else delete o.on;
+    return;
+  }
+  if (!o.bone) { for (const g of GEOMS) delete o[g]; delete o.on; } else if (boneOf(o.bone) !== boneOf(n)) for (const k of BONE_KEYS) delete o[k];
+  o.bone = n;
+  const k = boneOf(n);
+  if (k === 'spine') { o.r ??= 3; o.ends ??= 2; } else if (k === 'ear') o.base ??= [[-1.2, 0.5], [1.2, -0.5]]; else o.r ??= 1;
+}
+// a group: how it is drawn (its switches), its color; on no bone, its joint (all its shapes'), its pivot and turn; its
+// shapes, paint and spikes added here, each picked in the list or on the stage
+function groupFields(G, box) {
+  const g = sel.g;
+  box.append(section('Drawn', SWITCHES.map(([k, , yes, no, label]) => field(label, el('input', { type: 'checkbox', checked: switchOn(G, k), onchange: () => toggle(g, k) }), `${yes}. Off: ${no}`)), 'How the group is drawn: as one, in the order of the list'));
+  if (G.shapes.length && !G.shapes.some((s) => s.bone)) {
+    const on = el('select', { onchange: () => { commit(() => { for (const s of G.shapes) { if (on.value) s.on = on.value; else delete s.on; } }); listParts(); } });
+    for (const c of ['', 'spine', 'hip', 'chest', 'head']) on.append(el('option', { value: c, textContent: c || 'the box', selected: c === (G.shapes[0]?.on || '') }));
+    const at = G.at || [0, 0];
+    box.append(section('Place', [field('on', on, 'The joint all its shapes are on'),
+      field('pivot', stack(at.map((v, j) => numIn(v, (x) => { const q = (G.at || [0, 0]).slice(); q[j] = x; G.at = q; }, { label: 'xy'[j] }))), 'Drag the pivot: the group moves. ⌥-drag: the pivot alone.'),
+      field('angle', numIn(G.angle || 0, (x) => { if (x) G.angle = x; else delete G.angle; }, { min: -3.14, max: 3.14, step: 0.01 }), 'Its shapes turned about the pivot'),
+      el('div', { className: 'keys' }, iconBtn('pivot', 'Pivot to the middle', { title: 'The pivot in the middle of its shapes; they stay where they are', onclick: () => { commit(() => repivot(G, middleOf(G))); inspect(); } }))]));
+  }
+  const color = el('span', { className: 'keys' }, colorPick(G.color || build.fur, (c) => { commit(() => { if (c === build.fur) delete G.color; else G.color = c; }); listParts(); inspect(); }));
+  box.append(section('Look', [field('color', color, 'Its color (its shapes’ own where they have one); the fur’s if none')]));
+  box.append(section('Shapes', [el('div', { className: 'keys' },
+    iconBtn('plus', 'Shape', { title: 'A shape in it: a copy of its last, moved a little', onclick: () => addShape(g) }),
+    iconBtn('plus', 'Paint', { title: 'A marking on it: a shape in a color, only where the group is', onclick: () => addPaint(g) }),
+    G.spikes ? iconBtn('x', 'Spikes', { title: 'No spikes', onclick: () => setSpikes(g, false) }) : iconBtn('plus', 'Spikes', { title: 'Spikes where it bristles: ticks out of its outline (specks inside)', onclick: () => setSpikes(g, true) }))],
+    'Its shapes, markings and spikes: each picked in the list (under it) or on the stage'));
+  fields(G, box, ['name', 'color', 'shapes', 'at', 'angle', 'paint', 'spikes', ...SWITCHES.map(([k]) => k)]);
 }
 // a setting: its name, what sets it (what it is: the tooltip, not a note under it). A number's name drags it, as its own
 // does (see numIn)
@@ -68,7 +99,7 @@ const SECTIONS = ['Place', 'Shape', 'Look', 'Motion', 'More'];
 const SECTION_OF = {
   bone: 'Place', base: 'Shape', round: 'Shape', outline: 'Look', on: 'Place', at: 'Place', tip: 'Place', ear: 'Place', eye: 'Place', eyes: 'Place', nose: 'Place', mouth: 'Place', angle: 'Place', bend: 'Place',
   thigh: 'Shape', shin: 'Shape', length: 'Shape', links: 'Shape', curl: 'Shape', r: 'Shape', ends: 'Shape', capsule: 'Shape', foot: 'Shape', smooth: 'Shape', end: 'Shape', tipSize: 'Shape', box: 'Shape',
-  color: 'Look', fur: 'Look', noseColor: 'Look', tipColor: 'Look', socks: 'Look', speck: 'Look', far: 'Look', front: 'Look', joined: 'Look', overEye: 'Look', line: 'Look', marks: 'Look',
+  color: 'Look', fur: 'Look', noseColor: 'Look', tipColor: 'Look', socks: 'Look', speck: 'Look', marks: 'Look', grows: 'Look',
   stiffness: 'Motion', damping: 'Motion', weight: 'Motion',
 };
 const sectionOf = (k) => (GEOMS.includes(k) ? 'Shape' : SECTION_OF[k] || 'More');
@@ -84,7 +115,10 @@ function fields(o, box, skip, flat = false) {
     if (skip.includes(k)) continue;
     const v = o[k];
     let input;
-    if (COLOR_KEYS.includes(k)) input = colorPick(v, (c) => { commit(() => { o[k] = c; }); listParts(); inspect(); });
+    if (COLOR_KEYS.includes(k)) { // (a shape's own color, an ear's tip: none, as it may be)
+      input = el('span', { className: 'keys' }, colorPick(v, (c) => { commit(() => { o[k] = c; }); listParts(); inspect(); }));
+      if (v && sel.type === 'item' && (k === 'color' || k === 'tipColor')) input.append(iconBtn('x', '', { title: 'None', onclick: () => { commit(() => { delete o[k]; }); listParts(); inspect(); } }));
+    }
     else if (k === 'foot') { // (a flat foot: its size; none: a round paw)
       input = v ? el('div', { className: 'keys' }, nums(o, k, null, ['rx', 'ry']), iconBtn('x', '', { title: 'No flat foot: a round paw', onclick: () => { commit(() => { delete o.foot; }); inspect(); } }))
         : el('input', { type: 'checkbox', title: 'A flat foot', onchange: () => { commit(() => { o.foot = [1.3, 0.6]; }); inspect(); } });
@@ -201,24 +235,23 @@ const round3 = (v) => +v.toFixed(3);
 const by = (q, d) => [round3(q[0] + d[0]), round3(q[1] + d[1])];
 const farName = (n, list) => { const f = /Near/.test(n) ? n.replace('Near', 'Far') : `${n}Far`; return list[f] ? null : f; };
 function after(o, at, name, v) { const out = {}; for (const k in o) { out[k] = o[k]; if (k === at) out[name] = v; } for (const k of Object.keys(o)) delete o[k]; Object.assign(o, out); }
+const farGroups = () => layers().filter((G) => isGroup(G) && G.far);
+const shapesOn = (bone) => layers().filter(isGroup).flatMap((G) => G.shapes.map((s, i) => ({ s, i, arr: G.shapes }))).filter((x) => x.s.bone === bone);
 function eachPose(fn) { for (const [name, m] of Object.entries(build.moves || {})) { fn(m, name); for (const k of m.keys || []) fn(k, name); } } // (a gait's own pose, and each key of a clip)
-// a bone's shape (what is drawn on it): picked from the bone; none, one made (as the others are)
-function itsShape(box) {
-  if (view.move !== 'edit') return;
-  const n = sel.name, on = shapeOn(n);
-  if (on) { box.append(section('Shape', [el('div', { className: 'keys' }, el('button', { textContent: `${on.s.name || n} (${LAYERS[on.list]})`, title: 'The shape on this bone: what is drawn of it', onclick: () => { setSel({ type: 'item', list: on.list, i: on.i }); listParts(); inspect(); draw(); } }))])); return; }
-  box.append(section('Shape', [el('div', { className: 'keys' }, iconBtn('plus', 'Its shape', { title: 'Nothing is drawn on this bone: a shape on it', onclick: () => addShapeOn(n) }))], 'Nothing is drawn on this bone'));
-}
 function farSide(box) {
   if (view.move !== 'edit') return;
   if (sel.type === 'leg') {
-    const n = sel.name, L = build.legs[n], behind = (m) => (build.back || []).some((x) => x.bone === m), f = !behind(n) && farName(n, build.legs), twin = Object.keys(build.legs).some((m) => m !== n && behind(m) && build.legs[m].on === L.on);
+    const n = sel.name, L = build.legs[n], behind = (m) => farGroups().some((G) => G.shapes.some((x) => x.bone === m)), f = !behind(n) && farName(n, build.legs), twin = Object.keys(build.legs).some((m) => m !== n && behind(m) && build.legs[m].on === L.on);
     if (!f || twin) return;
     box.append(el('div', { className: 'group' }, el('span', { textContent: 'Far side' })), el('button', { textContent: `+ Far leg (${f})`, title: 'A leg behind this one, as the cat has them: a pixel forward, a little thinner, in every move', onclick: () => {
       commit(() => {
         after(build.legs, n, f, { ...JSON.parse(JSON.stringify(L)), at: by(L.at, FAR_LEG) });
-        const near = shapeOn(n)?.s; // (its shape behind the body, a little thinner)
-        if (near) { const far = { ...JSON.parse(JSON.stringify(near)), name: f, bone: f, r: round3(Math.max(0.3, (near.r ?? 1) - 0.1)) }; delete far.smooth; (build.back ||= []).push(far); }
+        const near = shapesOn(n)[0]?.s; // (its shape in the far legs' group, a little thinner; none: one made, before the body)
+        if (near) {
+          const far = { ...JSON.parse(JSON.stringify(near)), name: f, bone: f, r: round3(Math.max(0.3, (near.r ?? 1) - 0.1)) }, into = farGroups().find((G) => G.shapes.some((x) => build.legs[x.bone]));
+          delete far.smooth;
+          if (into) into.shapes.push(far); else layers().splice(Math.max(0, bodyIndex()), 0, { name: 'far legs', far: true, hits: true, shapes: [far] });
+        }
         eachPose((p, move) => {
           for (const part of ['paws', 'roots']) if (p[part]?.[n]) after(p[part], n, f, by(p[part][n], FAR_LEG));
           const g = p.gait?.legs?.[n];
@@ -234,8 +267,7 @@ function farSide(box) {
     box.append(el('div', { className: 'group' }, el('span', { textContent: 'Far side' })), el('button', { textContent: `+ Far ear (${f})`, title: 'The other ear, behind this one, as the squirrel has it: on along the head, a little lower, in every move', onclick: () => {
       commit(() => {
         after(build.chains, n, f, { ...JSON.parse(JSON.stringify(c)), at: by(c.at, FAR_EAR), tip: by(c.tip, FAR_EAR) });
-        const near = shapeOn(n);
-        if (near) build[near.list].splice(near.i + 1, 0, { ...JSON.parse(JSON.stringify(near.s)), name: f, bone: f });
+        for (const near of shapesOn(n).reverse()) near.arr.splice(near.i + 1, 0, { ...JSON.parse(JSON.stringify(near.s)), name: f, bone: f }); // (beside each of its own)
         eachPose((p) => { const t = p.chains?.[n]; if (t) after(p.chains, n, f, { ...t, ...(t.tip && { tip: by(t.tip, FAR_EAR) }) }); });
         setSel({ type: 'chain', name: f });
       });

@@ -6,7 +6,7 @@ import { field, inspect, numIn, numName, stack } from './inspector.js';
 import { listParts } from './lists.js';
 import { current, poseParts, spineShape } from './parts.js';
 import { draw } from './stage.js';
-import { P, animated, build, commit, editable, kind, lastMove, place, refresh, sel, view, setLastMove, setSel } from './state.js';
+import { P, animated, build, commit, editable, kind, place, refresh, sel, view, setLastMove, setSel } from './state.js';
 
 // a move (see asset.js): a clip (keys over its frames: a handle dragged sets a key at the frame shown, what it changes
 // going from one key to the next by the first's ease) or a gait (each frame worked out from its settings: to tune)

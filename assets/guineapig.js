@@ -1,21 +1,36 @@
 // guineapig: an asset (see asset.js), written by the editor; data only
 export default {
-  format: 3,
+  format: 4,
   name: 'guineapig',
   fur: 'white',
   joints: { hip: [8, 11.3], chest: [14, 11.3], head: [18.4, 10.4] },
-  shapes: [
-    { name: 'torso', bone: 'spine', r: 6.5, ends: 4.4 },
-    { name: 'head', on: 'head', ellipse: [0, 0, 4.6, 4.4] },
-    { name: 'muzzle', on: 'head', ellipse: [3.2, 1.4, 2.4, 2.2] },
-    { name: 'hindNear', bone: 'hindNear', r: 0.9, smooth: 0.5 },
-    { name: 'frontNear', bone: 'frontNear', r: 0.9, smooth: 0.5 },
-  ],
-  paint: [
-    { name: 'rump', color: 'tan', on: 'spine', ellipse: [-3.5, 0, 4.5, 6] },
-    { name: 'saddle', color: 'charcoal', on: 'spine', ellipse: [4.2, -4.4, 3, 3] },
-    { name: 'head', color: 'tan', on: 'head', ellipse: [-0.6, -0.8, 4, 3.8] },
-    { name: 'blaze', color: 'white', on: 'head', capsule: [3.4, -4.4, 4.2, 1.5, 0.9] },
+  layers: [
+    {
+      name: 'far legs',
+      far: true,
+      hits: true,
+      shapes: [{ name: 'hindFar', bone: 'hindFar', r: 0.8 }, { name: 'frontFar', bone: 'frontFar', r: 0.8 }],
+    },
+    {
+      name: 'body',
+      join: true,
+      hits: true,
+      shapes: [
+        { name: 'torso', bone: 'spine', r: 6.5, ends: 4.4 },
+        { name: 'head', on: 'head', ellipse: [0, 0, 4.6, 4.4] },
+        { name: 'muzzle', on: 'head', ellipse: [3.2, 1.4, 2.4, 2.2] },
+        { name: 'hindNear', bone: 'hindNear', r: 0.9, smooth: 0.5 },
+        { name: 'frontNear', bone: 'frontNear', r: 0.9, smooth: 0.5 },
+      ],
+      paint: [
+        { name: 'rump', color: 'tan', on: 'spine', ellipse: [-3.5, 0, 4.5, 6] },
+        { name: 'saddle', color: 'charcoal', on: 'spine', ellipse: [4.2, -4.4, 3, 3] },
+        { name: 'head', color: 'tan', on: 'head', ellipse: [-0.6, -0.8, 4, 3.8] },
+        { name: 'blaze', color: 'white', on: 'head', capsule: [3.4, -4.4, 4.2, 1.5, 0.9] },
+      ],
+    },
+    { name: 'ear', color: 'pink', shapes: [{ on: 'head', ellipse: [-1.8, -3.9, 1.5, 1.2] }] },
+    'face',
   ],
   legs: {
     hindFar: { on: 'hip', at: [1, 5.4], thigh: 1, shin: 1, bend: 1 },
@@ -24,8 +39,6 @@ export default {
     frontNear: { on: 'chest', at: [1, 5.4], thigh: 1, shin: 1, bend: -1 },
   },
   chains: {},
-  back: [{ name: 'hindFar', bone: 'hindFar', r: 0.8 }, { name: 'frontFar', bone: 'frontFar', r: 0.8 }],
-  top: [{ name: 'ear', color: 'pink', shapes: [{ on: 'head', ellipse: [-1.8, -3.9, 1.5, 1.2] }] }],
   face: { eye: [1, -1.2], nose: [5.4, 1], noseColor: 'pink' },
   moves: {
     run: {

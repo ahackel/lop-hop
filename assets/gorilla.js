@@ -1,21 +1,36 @@
 // gorilla: an asset (see asset.js), written by the editor; data only
 export default {
-  format: 3,
+  format: 4,
   name: 'gorilla',
   fur: 'charcoal',
   joints: { hip: [7.5, 11.2], chest: [13.5, 9], head: [18.6, 8.4] },
-  shapes: [
-    { name: 'torso', bone: 'spine', r: 4.2, ends: 2.6 },
-    { name: 'shoulders', on: 'chest', ellipse: [0.4, -0.4, 4.4, 4.6] },
-    { name: 'head', on: 'head', ellipse: [0.8, 0.2, 4.1, 4.1] },
-    { name: 'crest', on: 'head', ellipse: [-0.6, -2.8, 2.6, 2] },
-    { name: 'jaw', on: 'head', ellipse: [2.6, 2.2, 2.4, 2] },
-    { name: 'hindNear', bone: 'hindNear', r: 1.25, smooth: 0.5 },
-    { name: 'frontNear', bone: 'frontNear', r: 1.35, foot: [1.3, 0.8], smooth: 0.5 },
-  ],
-  paint: [
-    { name: 'silver', color: 'blueGrey', on: 'spine', ellipse: [1.2, -2.4, 4.4, 2.2] },
-    { name: 'face', color: 'grey', on: 'head', ellipse: [2.8, 1.2, 2.4, 2.8] },
+  layers: [
+    {
+      name: 'far legs',
+      far: true,
+      hits: true,
+      shapes: [{ name: 'hindFar', bone: 'hindFar', r: 1.1 }, { name: 'frontFar', bone: 'frontFar', r: 1.2, foot: [1.2, 0.8] }],
+    },
+    {
+      name: 'body',
+      join: true,
+      hits: true,
+      shapes: [
+        { name: 'torso', bone: 'spine', r: 4.2, ends: 2.6 },
+        { name: 'shoulders', on: 'chest', ellipse: [0.4, -0.4, 4.4, 4.6] },
+        { name: 'head', on: 'head', ellipse: [0.8, 0.2, 4.1, 4.1] },
+        { name: 'crest', on: 'head', ellipse: [-0.6, -2.8, 2.6, 2] },
+        { name: 'jaw', on: 'head', ellipse: [2.6, 2.2, 2.4, 2] },
+        { name: 'hindNear', bone: 'hindNear', r: 1.25, smooth: 0.5 },
+        { name: 'frontNear', bone: 'frontNear', r: 1.35, foot: [1.3, 0.8], smooth: 0.5 },
+      ],
+      paint: [
+        { name: 'silver', color: 'blueGrey', on: 'spine', ellipse: [1.2, -2.4, 4.4, 2.2] },
+        { name: 'face', color: 'grey', on: 'head', ellipse: [2.8, 1.2, 2.4, 2.8] },
+      ],
+    },
+    { name: 'brow', color: 'charcoal', shapes: [{ on: 'head', capsule: [0.8, -1.6, 4.2, -1.3, 0.75] }] },
+    'face',
   ],
   dots: [{ name: 'nostril', on: 'head', at: [4.2, 1.4] }],
   legs: {
@@ -25,8 +40,6 @@ export default {
     frontNear: { on: 'chest', at: [0.2, 3.4], thigh: 3.2, shin: 3.2, bend: 1 },
   },
   chains: {},
-  back: [{ name: 'hindFar', bone: 'hindFar', r: 1.1 }, { name: 'frontFar', bone: 'frontFar', r: 1.2, foot: [1.2, 0.8] }],
-  top: [{ name: 'brow', color: 'charcoal', shapes: [{ on: 'head', capsule: [0.8, -1.6, 4.2, -1.3, 0.75] }] }],
   face: { eye: [2.6, -0.4] },
   moves: {
     run: {

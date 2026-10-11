@@ -375,28 +375,41 @@ const balls = [0, 1, 2, 3].map((f) => {
 // a tail can reach out of the box. One made from another (of: the wolf, the fox's) is that one's, with its own over it
 const FILES = { rabbit, guineapig, cat, dog, pig, fox, hedgehog, squirrel, otter, skunk, wolf, boar, bear, yak, ostrich, cheetah, dromedary, rhino, gorilla, elephant, dino };
 const rawRig = (asset, of = FILES[asset.of]) => (of ? { ...rawRig(of), ...toBuild(asset) } : { ...toBuild(asset), poses: asset.moves || {} });
-export const rigOf = (asset, of = FILES[asset.of]) => onBones(rawRig(asset, of));
-// the shapes on bones (see asset.js: the torso on the spine, a leg's, a tail's, an ear's), as drawRig draws them: the
-// torso, and each leg's and chain's look on it (a leg behind the body: a far one; a chain on top: in front of it). A bone
-// with no shape on it is not drawn; the chains are drawn in the order of their shapes
+export const rigOf = (asset, of = FILES[asset.of]) => onLayers(rawRig(asset, of));
+// its look (see asset.js): one list of groups, back to front, each drawn as one, and 'face' (where the face is drawn).
+// The body: the first group joined into one that hits, whose own shapes, paint and spikes a pose changes (see
+// layersAt). The torso: the first shape on the spine (a move's torso changes it)
 const defined = (o) => { for (const k in o) if (o[k] === undefined) delete o[k]; return o; };
-function onBones(b) {
-  const r = { ...b, legs: {}, chains: {}, torso: { r: 0, none: true } }, order = [];
-  for (const n in b.legs) r.legs[n] = { ...b.legs[n], r: 0 };
-  const look = (s, where) => {
-    if (s.bone === 'spine') { r.torso = defined({ r: s.r, ends: s.ends, capsule: s.round }); return; }
-    const L = b.legs?.[s.bone], c = b.chains?.[s.bone];
-    if (L) r.legs[s.bone] = defined({ ...L, r: s.r, smooth: s.smooth, foot: s.foot, far: where === 'back' || undefined });
-    else if (c?.ear) { r.chains[s.bone] = defined({ ...c, ear: (s.base || [[0, 0], [0, 0]]).map(([x, y]) => [c.at[0] + x, c.at[1] + y]), smooth: s.smooth, tipColor: s.tipColor, tipSize: s.tipSize }); order.push(s.bone); }
-    else if (c) { r.chains[s.bone] = defined({ ...c, r: s.r, end: s.end, color: s.color, marks: s.marks, line: s.outline === false || undefined, far: s.far, joined: s.joined, overEye: s.overEye, front: where === 'top' || undefined }); order.push(s.bone); }
-  };
-  for (const [list, where] of [['back', 'back'], ['shapes', 'body'], ['top', 'top']]) if (b[list]) r[list] = b[list].filter((s) => !s.bone || look(s, where));
-  const chains = {};
-  for (const n of order) chains[n] = r.chains[n];
-  for (const n in b.chains) if (!chains[n]) chains[n] = { ...b.chains[n], unseen: true, ...(b.chains[n].ear && { ear: [b.chains[n].at, b.chains[n].at] }) }; // (none on it: moves, not drawn)
-  r.chains = chains;
-  if (b.front) r.front = onBones(b.front);
+const isGroup = (g) => !!g && typeof g === 'object';
+const bodyOf = (layers) => layers.find((g) => isGroup(g) && g.join && g.hits);
+function onLayers(b) {
+  const r = { ...b, layers: b.layers || [], torso: { r: 0, none: true } };
+  const spine = r.layers.filter(isGroup).flatMap((g) => g.shapes).find((s) => s.bone === 'spine');
+  if (spine) r.torso = defined({ r: spine.r, ends: spine.ends, capsule: spine.round });
+  if (b.front) r.front = onLayers(b.front);
   return r;
+}
+// a body's shapes in a pose: its own (on no bone), then the pose's (ownShapes: the pose's alone, in their place); those
+// on bones where they are
+function withPose(list, p) {
+  if (!p.shapes && !p.ownShapes) return list;
+  const out = [], last = list.reduce((a, s, i) => (s.bone ? a : i), -1);
+  list.forEach((s, i) => { if (s.bone || !p.ownShapes) out.push(s); if (i === last) out.push(...(p.shapes || [])); });
+  if (last < 0) out.push(...(p.shapes || []));
+  return out;
+}
+const bodyShapes = (rig, p) => withPose(bodyOf(rig.layers)?.shapes || [], p);
+// the groups as a pose has them: the body's shapes, paint and spikes; the pose's own groups (top) after the body and the
+// groups on no bone that follow it
+function layersAt(rig, p) {
+  const body = bodyOf(rig.layers);
+  let out = rig.layers.map((g) => (g === body ? { ...g, shapes: withPose(g.shapes, p), paint: p.paint || g.paint, spikes: p.spikes || g.spikes, body: true } : g));
+  if (p.top?.length) {
+    let at = out.findIndex((g) => g.body);
+    out.forEach((g, i) => { if (i > at && isGroup(g) && !g.shapes.some((s) => s.bone)) at = i; });
+    out = [...out.slice(0, at + 1), ...p.top, ...out.slice(at + 1)];
+  }
+  return out;
 }
 const RIGS = Object.fromEntries(Object.entries(FILES).map(([k, a]) => [k, rigOf(a)]));
 
@@ -547,7 +560,8 @@ function clipPose(m, f) {
   return pose;
 }
 // a pose's shapes, paint and top, with the build's own put in where one is used by name ({ use: its name, move: [dx, dy]
-// (all of it moved), and what of it is other}): the build's as it is now
+// (all of it moved), and what of it is other}): the build's as it is now (shapes: the body's own, paint: the body's,
+// top: its groups)
 const SHIFT = { ellipse: [0], capsule: [0, 2], box: [0, 2] };
 const shifted = (s, [dx, dy]) => {
   const o = { ...s };
@@ -560,7 +574,7 @@ function using(rig, p) {
   let out = p;
   for (const list of ['shapes', 'paint', 'top']) {
     if (!p[list]?.some((x) => x.use)) continue;
-    const own = rig[list] || [];
+    const body = bodyOf(rig.layers), own = list === 'shapes' ? (body?.shapes || []).filter((s) => !s.bone) : list === 'paint' ? body?.paint || [] : rig.layers.filter(isGroup);
     out = { ...out, [list]: p[list].map((x) => {
       if (!x.use) return x;
       const { use, move, ...other } = x, s = { ...own.find((y) => y.name === use), ...other };
@@ -597,12 +611,12 @@ function squashPose(rig, p, s) {
   return { ...p, joints: { hip: down(J.hip, 1), chest: down(J.chest, 0.8), head: down(J.head, 0.5) }, torso: t.r > 0 ? { ...t, r: t.r - 0.35 * s, ends: t.ends + 0.4 * s } : t };
 }
 
-// a chain at rest in a pose: its root, its direction, its links (an ear: one, from the middle of its base to its tip)
+// a chain at rest in a pose: its root, its direction, its links (an ear: one, from its root to its tip)
 function chainRest(rig, P, name) {
-  const c = { links: 1, curl: 0, r: 1, ...rig.chains[name], ...P.p.chains?.[name] }, f = P.F[c.on];
+  const c = { links: 1, curl: 0, ...rig.chains[name], ...P.p.chains?.[name] }, f = P.F[c.on];
   if (c.ear) {
-    const base = c.ear.map((q) => toWorld(f, q)), root = mix(base[0], base[1], 0.5), to = minus(toWorld(f, c.tip), root);
-    return { ...c, base, root, dir: unit(to), length: Math.hypot(to[0], to[1]) };
+    const root = toWorld(f, c.at), to = minus(toWorld(f, c.tip), root);
+    return { ...c, root, dir: unit(to), length: Math.hypot(to[0], to[1]) };
   }
   return { ...c, root: c.root || toWorld(f, c.at), dir: turn([0, -1], f.a - c.angle) };
 }
@@ -764,22 +778,23 @@ function rigFrame(kind, pose, frame, blink, body, scale = 1, look = null, n = gr
   return s;
 }
 
-// draw a rig in a pose, back to front: soft chains (a tail), the far legs, the body (torso, shapes, ears,
-// near legs, joined smoothly), the markings on it (paint; spikes; socks; dark ear tips), the near paws outlined over the
-// belly (over: lying low), things on top (top: horns, fangs, a head over a round body, outlined), chains in front (front:
-// lop ears), single pixels (dots), the face. The collision mask: the far legs and the body. (recolor: one palette name
-// for another, everywhere: the wolf is a grey fox)
+// draw a rig in a pose: its groups back to front (see layersAt), each as one: its shapes filled in its color (a shape's
+// own color where it is), joined smoothly into one (join) or not, outlined round all of it (outline: false, not), its
+// paint on it (clipped to it), a chain's marks, an ear's tip. The body's: its spikes, the legs' socks (wherever the
+// legs show), then the paws lying low (over: outlined over it). A chain that grows out of the body: no outline over the
+// body where it starts. At 'face': the single pixels (dots), the face, everything before it recolored (recolor: one
+// palette name for another: the wolf is a grey fox). The collision mask: the groups that hit, and the paws lying low; the
+// far tone: the far groups where nothing nearer that hits covers them
 function drawRig(rig, P, blink, chains, S = 1, [dx, dy] = [0, 0], floor = Math.round((FOOT + 1) * S), settle = false) {
   const { p, F, torso } = P, k = rig.smooth ?? 1, fur = NAMED[rig.fur];
   // a shape with its frame (its turn worked out once), its box in the box's coordinates, and how much nearer than its
   // distance that box may be (an ellipse's distance is short of the true one off its long axis): see near
-  const placedIn = (s, group) => { // (group: one on top it is in, see groupFrame)
+  const placedIn = (s, group) => { // (group: one with a pivot it is in, see groupFrame)
     const f = group ? groupFrame(group, s) : s.on ? F[s.on] : F.box, [a, b, c, d] = extent(s), q = [[a, b], [c, b], [a, d], [c, d]].map((v) => toWorld(f, v));
     const e = s.ellipse && Math.min(s.ellipse[2], s.ellipse[3]) / Math.max(s.ellipse[2], s.ellipse[3]);
     return { s, f, cos: f ? Math.cos(f.a) : 1, sin: f ? Math.sin(f.a) : 0, k: e || 1,
       box: [Math.min(...q.map((v) => v[0])), Math.min(...q.map((v) => v[1])), Math.max(...q.map((v) => v[0])), Math.max(...q.map((v) => v[1]))] };
   };
-  const placed = (s) => placedIn(s, null);
   const sd = (b, x, y) => { // (as toLocal does it)
     if (!b.f) return sdShape(b.s, x, y);
     const dx = x - b.f.o[0], dy = y - b.f.o[1];
@@ -789,54 +804,61 @@ function drawRig(rig, P, blink, chains, S = 1, [dx, dy] = [0, 0], floor = Math.r
     Math.max(...caps.map((c) => Math.max(c[0], c[2]) + c[4])), Math.max(...caps.map((c) => Math.max(c[1], c[3]) + c[4]))];
   const join = (...boxes) => (boxes.length ? [Math.min(...boxes.map((b) => b[0])), Math.min(...boxes.map((b) => b[1])), Math.max(...boxes.map((b) => b[2])), Math.max(...boxes.map((b) => b[3]))] : [0, 0, 0, 0]);
   const ovalBox = (ellipse) => extent({ ellipse }), triBox = (triangle) => extent({ triangle });
-  const body = [...(p.ownShapes ? [] : rig.shapes || []), ...(p.shapes || [])].map(placed); // (ownShapes: the pose's alone)
-  if (torso.r > 0) { // the torso: along the spine from the hip to the chest, reaching past both (an ellipse, or a capsule)
-    const len = Math.hypot(P.J.chest[0] - P.J.hip[0], P.J.chest[1] - P.J.hip[1]), half = len / 2;
-    body.unshift(placed(torso.capsule ? { on: 'spine', capsule: [-torso.ends, 0, len + torso.ends, 0, torso.r] } : { on: 'spine', ellipse: [half, 0, half + torso.ends, torso.r] }));
-  }
-  const legs = Object.entries(rig.legs || {}).filter(([, L]) => L.r > 0).map(([name, L]) => { // (r 0: no shape on it)
-    const root = p.roots?.[name] || toWorld(F[L.on], L.at), [knee, paw] = reach(root, p.paws[name], L.thigh, L.shin, L.bend);
-    const pad = p.pad && !L.far ? [paw[0], paw[1] + 0.3, ...p.pad] : L.foot ? [paw[0] + L.foot[0] - 0.8, paw[1] + 0.3, ...L.foot] : null; // a paw flat on the ground (a foot: always)
-    const parts = [[...root, ...knee, L.r], [...knee, ...paw, L.r]];
-    return { far: L.far, r: L.r, smooth: L.smooth ?? 1, parts, pad, sock: [...mix(knee, paw, 0.35), ...paw, L.r], box: pad ? join(boxOf(parts), ovalBox(pad)) : boxOf(parts),
-      k: pad ? Math.min(pad[2], pad[3]) / Math.max(pad[2], pad[3]) : 1 };
-  });
-  const legSd = (L, x, y) => Math.min(sdCapsule(x, y, L.parts[0]), sdCapsule(x, y, L.parts[1]), L.pad ? sdEllipse(x, y, L.pad) : Infinity);
-  const over = legs.filter((L) => L.pad && p.over); // (near paws drawn over the body, outlined: where they would hide in it)
-  const soft = [], front = [], ears = [];
-  for (const name in rig.chains) {
-    const c = { ...rig.chains[name], ...p.chains?.[name] }, pts = chains[name];
-    if (c.unseen) continue; // (no shape on it)
-    if (c.ear) { const [a, b] = chainRest(rig, P, name).base; ears.push({ tri: [a, pts[1], b], tip: pts[1], c }); continue; }
-    const r = (i) => (Array.isArray(c.r) ? c.r[0] + ((c.r[1] - c.r[0]) * i) / Math.max(1, pts.length - 2) : c.r ?? 1);
-    const parts = pts.slice(1).map((q, i) => [...pts[i], ...q, r(i)]), last = pts[pts.length - 1];
-    if (c.end) parts.push([...last, ...last, c.end]); // a round end (a lop ear's spoon, a cotton tail)
-    const along = (t) => { // a point t along the chain (past its end: on along its last link)
-      const n = pts.length - 1, u = clamp(t * n, 0, n), i = Math.min(n - 1, Math.floor(u));
-      return mix(pts[i], pts[i + 1], u - i);
-    };
-    (c.front ? front : soft).push({ far: c.far, joined: c.joined, line: c.line, overEye: c.overEye, color: NAMED[c.color] || fur, parts, marks: (c.marks || []).map(([t, color, mr]) => [along(t), NAMED[color], mr]) });
-  }
-  // a group on top: its shapes (and paint) placed from its pivot (at, in their joint's frame), turned by its angle
-  const groupFrame = (t, s) => {
+  const groupFrame = (t, s) => { // a group's frame for one of its shapes: its pivot (at) in the shape's joint's frame, turned by its angle
     const b = (s.on ? F[s.on] : F.box) || { o: [0, 0], a: 0, flip: 1 };
     return { o: toWorld(b, t.at || [0, 0]), a: b.a + (t.angle || 0) * b.flip, flip: b.flip };
   };
-  const tops = [...(rig.top || []), ...(p.top || [])].map((t) => {
-    const grp = t.at || t.angle ? t : null; // (none: its shapes as they are)
-    return { color: NAMED[t.color] || fur, shapes: t.shapes.map((s) => placedIn(s, grp)), paint: (t.paint || []).map((s) => placedIn(s, grp)) };
-  });
+  const anyCap = (parts) => (x, y) => { let d = Infinity; for (let i = 0; i < parts.length; i++) d = Math.min(d, sdCapsule(x, y, parts[i])); return d; };
+  // each shape as it is drawn: its distance (d), its box, how near that box may be (near), how smoothly it joins (smooth)
+  // and its color; what a leg, a chain or an ear has more (its parts, its pad and sock; its marks; its tip)
+  let firstSpine = true;
+  const itemOf = (s, G) => {
+    const grp = G.at || G.angle ? G : null, color = s.color && NAMED[s.color];
+    if (s.bone === 'spine') { // the torso: along the spine from the hip to the chest, reaching past both (an ellipse, or a capsule)
+      const t = firstSpine ? torso : { r: s.r, ends: s.ends, capsule: s.round, ...p.torso };
+      firstSpine = false;
+      if (!(t.r > 0)) return null;
+      const len = Math.hypot(P.J.chest[0] - P.J.hip[0], P.J.chest[1] - P.J.hip[1]), half = len / 2;
+      const b = placedIn(t.capsule ? { on: 'spine', capsule: [-t.ends, 0, len + t.ends, 0, t.r] } : { on: 'spine', ellipse: [half, 0, half + t.ends, t.r] }, null);
+      return { d: (x, y) => sd(b, x, y), box: b.box, near: b.k, smooth: s.smooth ?? 1, color };
+    }
+    const L = s.bone && rig.legs?.[s.bone], c = s.bone && rig.chains?.[s.bone];
+    if (L) { // a leg: reaching its paw (its root as the pose has it), a paw flat on the ground (lying low; a foot: always)
+      if (!(s.r > 0)) return null;
+      const root = p.roots?.[s.bone] || toWorld(F[L.on], L.at), [knee, paw] = reach(root, p.paws[s.bone], L.thigh, L.shin, L.bend);
+      const pad = p.pad && !G.far ? [paw[0], paw[1] + 0.3, ...p.pad] : s.foot ? [paw[0] + s.foot[0] - 0.8, paw[1] + 0.3, ...s.foot] : null;
+      const parts = [[...root, ...knee, s.r], [...knee, ...paw, s.r]];
+      return { d: (x, y) => Math.min(sdCapsule(x, y, parts[0]), sdCapsule(x, y, parts[1]), pad ? sdEllipse(x, y, pad) : Infinity), box: pad ? join(boxOf(parts), ovalBox(pad)) : boxOf(parts),
+        near: pad ? Math.min(pad[2], pad[3]) / Math.max(pad[2], pad[3]) : 1, smooth: s.smooth ?? 1, color, pad, sock: [...mix(knee, paw, 0.35), ...paw, s.r] };
+    }
+    const pts = c && chains[s.bone];
+    if (pts && c.ear) { // an ear: from its base (on the head, about its root) to its tip (as the body swings it)
+      const f = F[c.on], base = (s.base || [[0, 0], [0, 0]]).map((q) => toWorld(f, plus(c.at, q))), tri = [base[0], pts[1], base[1]];
+      return { d: (x, y) => sdTriangle(x, y, tri), box: triBox(tri), near: 1, smooth: s.smooth ?? 1, color, tri, tip: pts[1], tipColor: s.tipColor, tipSize: s.tipSize };
+    }
+    if (pts) { // a chain: its links, thick (r: or at the root and at the tip), a round end
+      const r = (i) => (Array.isArray(s.r) ? s.r[0] + ((s.r[1] - s.r[0]) * i) / Math.max(1, pts.length - 2) : s.r ?? 1);
+      const parts = pts.slice(1).map((q, i) => [...pts[i], ...q, r(i)]), last = pts[pts.length - 1];
+      if (s.end) parts.push([...last, ...last, s.end]); // a round end (a lop ear's spoon, a cotton tail)
+      const along = (t) => { // a point t along the chain (past its end: on along its last link)
+        const n = pts.length - 1, u = clamp(t * n, 0, n), i = Math.min(n - 1, Math.floor(u));
+        return mix(pts[i], pts[i + 1], u - i);
+      };
+      return { d: anyCap(parts), box: boxOf(parts), near: 1, smooth: s.smooth ?? 1, color, parts, grows: s.grows, marks: (s.marks || []).map(([t, mc, mr]) => [along(t), NAMED[mc], mr]) };
+    }
+    if (s.bone) return null; // (a bone it has not)
+    const b = placedIn(s, grp);
+    return { d: (x, y) => sd(b, x, y), box: b.box, near: b.k, smooth: s.smooth ?? 1, color };
+  };
+  const layers = layersAt(rig, p).map((G) => (isGroup(G) ? { G, items: G.shapes.map((s) => itemOf(s, G)).filter(Boolean) } : G));
+  const groups = layers.filter(isGroup), legs = groups.flatMap((l) => l.items.filter((it) => it.sock));
+  const over = p.over ? legs.filter((it) => it.pad) : []; // (the paws drawn over the body, outlined: where they would hide in it)
   const dots = (p.dots || rig.dots || []).map((d) => [toWorld(d.on ? F[d.on] : F.box, d.at), NAMED[d.color] || OUT]);
 
   // the frame's bounds: every shape's box (turned with its frame), one more pixel for the outline
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   const fit = ([x, y], r = 0) => { x0 = Math.min(x0, x - r); y0 = Math.min(y0, y - r); x1 = Math.max(x1, x + r); y1 = Math.max(y1, y + r); };
-  const fitShape = ({ box: [a, b, c, d] }) => { fit([a, b]); fit([c, d]); }; // (its box, turned: see placed)
-  body.forEach(fitShape);
-  for (const t of tops) t.shapes.forEach(fitShape);
-  for (const L of [...legs, ...soft, ...front]) for (const [ax, ay, bx, by, r] of L.parts) { fit([ax, ay], r); fit([bx, by], r); }
-  for (const L of legs) if (L.pad) { fit([L.pad[0] - L.pad[2], L.pad[1] - L.pad[3]]); fit([L.pad[0] + L.pad[2], L.pad[1] + L.pad[3]]); }
-  for (const e of ears) for (const q of e.tri) fit(q);
+  for (const l of groups) for (const it of l.items) { fit([it.box[0], it.box[1]]); fit([it.box[2], it.box[3]]); }
   for (const [q] of dots) fit(q);
   // drawn S times bigger (the giant dino: its shapes finer, its outline still one pixel); nothing below the feet's row
   // (the ground). (ox, oy: in the bigger pixels)
@@ -846,87 +868,92 @@ function drawRig(rig, P, blink, chains, S = 1, [dx, dy] = [0, 0], floor = Math.r
   const at = (b) => [Math.floor(b[0] * S) - ox - 1, Math.floor(b[1] * S) - oy - 1, Math.ceil(b[2] * S) - ox + 2, Math.ceil(b[3] * S) - oy + 2]; // (a box: its pixels)
   const any = (list, d) => (x, y) => { for (let i = 0; i < list.length; i++) if (d(list[i], x, y) <= 0) return 0; return 1; }; // (inside any of them)
   const n = Math.round(S), pixel = { dot: (x, y, c) => { for (let a = 0; a < n; a++) for (let b = 0; b < n; b++) g.dot(Math.round(x) * S - ox + a, Math.round(y) * S - oy + b, c); } }; // (a dot: S by S)
-  const chain = (t) => {
-    const m = g.layer(inside(any(t.parts, (c, x, y) => sdCapsule(x, y, c))), t.color, t.line ? 0 : OUT, at(boxOf(t.parts))); // (line: a thin one, not outlined)
-    for (const [[mx, my], color, r] of t.marks) {
-      if (r) g.paint(inside((x, y) => Math.hypot(x - mx, y - my) - r), color, m, at([mx - r, my - r, mx + r, my + r]));
-      else pixel.dot(mx, my, color);
-    }
-    return m;
-  };
-
-  const farChains = soft.map(chain).filter((m, i) => soft[i].far); // (far: on the far side, as the far legs: see styled)
-  const farLegs = legs.filter((L) => L.far);
-  const farMask = g.layer(inside(any(farLegs, (L, x, y) => legSd(L, x, y))), fur, OUT, at(join(...farLegs.map((L) => L.box))));
-  // the body: its shapes, ears and near legs joined smoothly, one after another. A part too far off to change it is
-  // passed over (smin leaves it as it is when the part is at least its smoothing further), and once a point is inside,
-  // it stays so (smin only ever takes away)
-  const joined = [...body.map((b) => ({ d: (x, y) => sd(b, x, y), box: b.box, near: b.k, k: k * (b.s.smooth ?? 1) })),
-    ...ears.map((e) => ({ d: (x, y) => sdTriangle(x, y, e.tri), box: triBox(e.tri), near: 1, k: k * (e.c.smooth ?? 1) })),
-    ...legs.filter((L) => !L.far).map((L) => ({ d: (x, y) => legSd(L, x, y), box: L.box, near: L.k, k: k * L.smooth }))];
-  const bodyMask = g.layer(inside((x, y) => {
-    let d = Infinity;
-    for (let i = 0; i < joined.length; i++) {
-      const j = joined[i], b = j.box, dx = b[0] > x ? b[0] - x : x > b[2] ? x - b[2] : 0, dy = b[1] > y ? b[1] - y : y > b[3] ? y - b[3] : 0, far = d + j.k;
-      if ((dx * dx + dy * dy) * j.near * j.near >= far * far) continue; // (at most this near: its box's distance, see placed)
-      d = smin(d, j.d(x, y), j.k);
-      if (d <= 0) return d;
-    }
-    return d;
-  }), fur, OUT);
-  for (const m of p.paint || rig.paint || []) { const q = placed(m); g.paint(inside((x, y) => sd(q, x, y)), NAMED[m.color], bodyMask, at(q.box)); }
-  const spk = p.spikes || rig.spikes; // spikes or bristles where the region holds, specks inside
-  if (spk) { // (as spikes() does, but placed by the box, not the frame's grid: they stay put as frames change size)
-    const region = placed(spk), where = (x, y) => sd(region, (x + ox + 0.5) / S, (y + oy + 0.5) / S) <= 0, ticks = [], { w } = g;
-    for (let y = 1; y < g.h - 1; y++) for (let x = 1; x < w - 1; x++) {
-      const i = y * w + x;
-      if (bodyMask[i] || g.px[i] !== OUT || !where(x, y) || (((x + ox + (y + oy) * 2) % 3) + 3) % 3) continue;
-      for (const [dx, dy] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) if (bodyMask[(y + dy) * w + x + dx]) ticks.push([x - dx, y - dy]);
-    }
-    for (const [x, y] of ticks) if (!g.get(x, y)) g.dot(x, y, OUT);
-    if (spk.speck) for (let i = 0; i < bodyMask.length; i++) {
-      const x = i % w, y = Math.floor(i / w), X = x + ox, Y = y + oy;
-      if (bodyMask[i] && where(x, y) && (((((Y * 26 + X) * 37) % 17) + 17) % 17) % 5 === 0) g.px[i] = NAMED[spk.speck]; // (as in the 26 wide box)
-    }
-  }
-  if (rig.socks) { const socks = legs.map((L) => L.sock); g.paint(inside(any(socks, (c, x, y) => sdCapsule(x, y, c))), NAMED[rig.socks], union(farMask, bodyMask), at(boxOf(socks))); }
-  for (const e of ears) if (e.c.tipColor) g.paint(inside((x, y) => Math.max(sdTriangle(x, y, e.tri), Math.hypot(x - e.tip[0], y - e.tip[1]) - (e.c.tipSize || 2))), NAMED[e.c.tipColor], bodyMask, at(triBox(e.tri)));
-  const overMask = over.length ? g.layer(inside(any(over, (L, x, y) => sdEllipse(x, y, L.pad))), fur, OUT, at(join(...over.map((L) => ovalBox(L.pad))))) : farMask.map(() => 0);
-  for (const t of tops) {
-    const m = g.layer(inside(any(t.shapes, (b, x, y) => sd(b, x, y))), t.color, OUT, at(join(...t.shapes.map((b) => b.box))));
-    for (const q of t.paint) g.paint(inside((x, y) => sd(q, x, y)), NAMED[q.s.color], m, at(q.box));
-  }
-  const under = front.length ? g.px.slice() : null;
-  front.filter((t) => !t.overEye).forEach(chain);
-  // a chain in front that grows out of the body (joined: the elephant's trunk): no outline over the body where it starts
-  for (const t of front.filter((t) => t.joined)) {
-    const [ax, ay, , , r] = t.parts[0], cx = ax * S - ox, cy = ay * S - oy, R = (r + 2) * S;
-    for (let y = Math.max(0, Math.floor(cy - R)); y < Math.min(g.h, cy + R); y++) for (let x = Math.max(0, Math.floor(cx - R)); x < Math.min(g.w, cx + R); x++) {
-      const i = y * g.w + x;
-      if (bodyMask[i] && g.px[i] === OUT && under[i] !== OUT && Math.hypot(x + 0.5 - cx, y + 0.5 - cy) < R) g.px[i] = under[i];
-    }
-  }
   const marks = new Uint8Array(g.w * g.h), face = { dot: (x, y, c) => { // (the face's dark pixels: kept as they are in any look, see styled)
     pixel.dot(x, y, c);
     for (let a = 0; a < n; a++) for (let b = 0; b < n; b++) { const X = Math.round(x) * S - ox + a, Y = Math.round(y) * S - oy + b; if (X >= 0 && Y >= 0 && X < g.w && Y < g.h) marks[Math.round(Y) * g.w + Math.round(X)] = 1; }
   } };
-  for (const [[x, y], c] of dots) face.dot(x, y, c);
-  if (rig.recolor) { const to = {}; for (const a in rig.recolor) to[NAMED[a]] = NAMED[rig.recolor[a]]; for (let i = 0; i < g.px.length; i++) g.px[i] = to[g.px[i]] ?? g.px[i]; }
   const head = rig.face, both = (head.eyes || [head.eye]).map((q) => toWorld(F.head, q)), eye = mix(both[0], both[both.length - 1], 0.5); // (eyes: two, seen from the front)
   // its eyes' and mouth's frames: each pixel of one a pixel of the sprite (n by n, drawn bigger), from where its anchor goes
   const pin = ([x, y]) => [Math.round(Math.round(x) * S - ox), Math.round(Math.round(y) * S - oy)];
   const put = (X, Y, c) => { if (X >= 0 && Y >= 0 && X < g.w && Y < g.h) { g.px[Y * g.w + X] = c; marks[Y * g.w + X] = 1; } };
-  const look = p.eye || 'open', eyeFrame = faceFrame(head, 'eye', blink && look === 'open' ? 'blink' : look);
-  for (const q of both) faceDraw(put, eyeFrame, pin(q), n);
-  if (head.nose) { const nose = toWorld(F.head, head.nose); face.dot(nose[0], nose[1], NAMED[head.noseColor] || OUT); }
   const mouth = head.mouth && toWorld(F.head, head.mouth);
-  if (mouth) faceDraw(put, faceFrame(head, 'mouth', p.mouth || 'shut'), pin(mouth), n);
+  const drawFace = () => {
+    for (const [[x, y], c] of dots) face.dot(x, y, c);
+    if (rig.recolor) { const to = {}; for (const a in rig.recolor) to[NAMED[a]] = NAMED[rig.recolor[a]]; for (let i = 0; i < g.px.length; i++) g.px[i] = to[g.px[i]] ?? g.px[i]; }
+    const look = p.eye || 'open', eyeFrame = faceFrame(head, 'eye', blink && look === 'open' ? 'blink' : look);
+    for (const q of both) faceDraw(put, eyeFrame, pin(q), n);
+    if (head.nose) { const nose = toWorld(F.head, head.nose); face.dot(nose[0], nose[1], NAMED[head.noseColor] || OUT); }
+    if (mouth) faceDraw(put, faceFrame(head, 'mouth', p.mouth || 'shut'), pin(mouth), n);
+  };
+
+  const hits = [], fars = [], nearHits = [];
+  let bodyMask = null, overMask = null, faced = false;
+  for (const l of layers) {
+    if (l === 'face') { drawFace(); faced = true; continue; }
+    if (!isGroup(l) || !l.items.length) continue;
+    const { G, items } = l, color = NAMED[G.color] || fur, line = G.outline === false ? 0 : OUT;
+    const under = items.some((it) => it.grows) ? g.px.slice() : null;
+    let m;
+    if (G.join) { // joined smoothly, one after another. A part too far off to change it is passed over (smin leaves it as it is
+      // when the part is at least its smoothing further), and once a point is inside, it stays so (smin only ever takes away)
+      const joined = items.map((it) => ({ d: it.d, box: it.box, near: it.near, k: k * it.smooth }));
+      m = g.layer(inside((x, y) => {
+        let d = Infinity;
+        for (let i = 0; i < joined.length; i++) {
+          const j = joined[i], b = j.box, ddx = b[0] > x ? b[0] - x : x > b[2] ? x - b[2] : 0, ddy = b[1] > y ? b[1] - y : y > b[3] ? y - b[3] : 0, far = d + j.k;
+          if ((ddx * ddx + ddy * ddy) * j.near * j.near >= far * far) continue; // (at most this near: its box's distance, see placed)
+          d = smin(d, j.d(x, y), j.k);
+          if (d <= 0) return d;
+        }
+        return d;
+      }), color, line);
+    } else m = g.layer(inside(any(items, (it, x, y) => it.d(x, y))), color, line, at(join(...items.map((it) => it.box))));
+    for (const it of items) {
+      if (it.color) g.paint(inside(it.d), it.color, m, at(it.box)); // (a shape of its own color)
+      for (const [[mx, my], mc, mr] of it.marks || []) {
+        if (mr) g.paint(inside((x, y) => Math.hypot(x - mx, y - my) - mr), mc, m, at([mx - mr, my - mr, mx + mr, my + mr]));
+        else pixel.dot(mx, my, mc);
+      }
+    }
+    for (const s of G.paint || []) { const q = placedIn(s, G.at || G.angle ? G : null); g.paint(inside((x, y) => sd(q, x, y)), NAMED[s.color], m, at(q.box)); }
+    if (G.hits) hits.push(m);
+    if (G.far) fars.push(m); else if (G.hits) nearHits.push(m);
+    if (G.body) {
+      bodyMask = m;
+      const spk = G.spikes; // spikes or bristles where the region holds, specks inside
+      if (spk) { // (as spikes() does, but placed by the box, not the frame's grid: they stay put as frames change size)
+        const region = placedIn(spk, null), where = (x, y) => sd(region, (x + ox + 0.5) / S, (y + oy + 0.5) / S) <= 0, ticks = [], { w } = g;
+        for (let y = 1; y < g.h - 1; y++) for (let x = 1; x < w - 1; x++) {
+          const i = y * w + x;
+          if (m[i] || g.px[i] !== OUT || !where(x, y) || (((x + ox + (y + oy) * 2) % 3) + 3) % 3) continue;
+          for (const [ddx, ddy] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) if (m[(y + ddy) * w + x + ddx]) ticks.push([x - ddx, y - ddy]);
+        }
+        for (const [x, y] of ticks) if (!g.get(x, y)) g.dot(x, y, OUT);
+        if (spk.speck) for (let i = 0; i < m.length; i++) {
+          const x = i % w, y = Math.floor(i / w), X = x + ox, Y = y + oy;
+          if (m[i] && where(x, y) && (((((Y * 26 + X) * 37) % 17) + 17) % 17) % 5 === 0) g.px[i] = NAMED[spk.speck]; // (as in the 26 wide box)
+        }
+      }
+      if (rig.socks && legs.length) { const socks = legs.map((it) => it.sock); g.paint(inside(any(socks, (c, x, y) => sdCapsule(x, y, c))), NAMED[rig.socks], union(m, ...hits), at(boxOf(socks))); }
+    }
+    for (const it of items) if (it.tipColor) g.paint(inside((x, y) => Math.max(sdTriangle(x, y, it.tri), Math.hypot(x - it.tip[0], y - it.tip[1]) - (it.tipSize || 2))), NAMED[it.tipColor], m, at(triBox(it.tri)));
+    if (G.body && over.length) overMask = g.layer(inside(any(over, (it, x, y) => sdEllipse(x, y, it.pad))), fur, OUT, at(join(...over.map((it) => ovalBox(it.pad)))));
+    // a chain that grows out of the body (the elephant's trunk): no outline over the body where it starts
+    if (under && bodyMask) for (const it of items.filter((x) => x.grows)) {
+      const [ax, ay, , , r] = it.parts[0], cx = ax * S - ox, cy = ay * S - oy, R = (r + 2) * S;
+      for (let y = Math.max(0, Math.floor(cy - R)); y < Math.min(g.h, cy + R); y++) for (let x = Math.max(0, Math.floor(cx - R)); x < Math.min(g.w, cx + R); x++) {
+        const i = y * g.w + x;
+        if (bodyMask[i] && g.px[i] === OUT && under[i] !== OUT && Math.hypot(x + 0.5 - cx, y + 0.5 - cy) < R) g.px[i] = under[i];
+      }
+    }
+  }
+  if (!faced) drawFace();
   const faceAt = { eye: pin(both[0]), ...(mouth && { mouth: pin(mouth) }) }; // (where its frames go, in the sprite: for the editor)
-  front.filter((t) => t.overEye).forEach(chain); // (over the eye too: the pig's lop ear)
+  overMask ||= new Uint8Array(g.w * g.h);
   // (dx, dy: moved, grown from where its feet touch the ground: see rigFrame. settle: grown, a row short of the ground
   // only by rounding, it is set down on it)
-  let mask = union(farMask, bodyMask, overMask), down = 0;
-  let far = farLegs.length || farChains.length ? union(farMask, ...farChains).map((v, i) => (v && !bodyMask[i] && !overMask[i] ? 1 : 0)) : null; // (the far legs where they show: see styled)
+  let mask = union(overMask, ...hits), down = 0;
+  let far = fars.length ? union(...fars).map((v, i) => (v && !overMask[i] && !nearHits.some((h) => h[i]) ? 1 : 0)) : null; // (the far legs where they show: see styled)
   if (settle && g.h > 1 && oy + dy + g.h === floor && !g.px.subarray((g.h - 1) * g.w).some(Boolean) && g.px.subarray((g.h - 2) * g.w, (g.h - 1) * g.w).some(Boolean)) {
     down = 1;
     const cut = new Grid(g.w, g.h - 1); cut.px.set(g.px.subarray(0, cut.px.length));
@@ -1095,7 +1122,7 @@ function reachPosed(kind, tx, ty, amount = 1, look = 1, sniff = 0) {
   const lift = Math.round(Math.max(0, reachLeft) * up * stands * 2) / 2, by = [0, -lift];
   const rot = (q) => plus(plus(piv, turn(minus(q, piv), a)), by), q2 = (q) => q.map((v) => Math.round(v * 2) / 2);
   const hip = q2(rot(J.hip)), body = rot(J.chest), neck = minus(J.head, J.chest), rest = Math.hypot(neck[0], neck[1]);
-  const necked = [...(base.ownShapes ? [] : rig.shapes || []), ...(base.shapes || [])].some((x) => x.name === 'neck' && x.on === 'chest');
+  const necked = bodyShapes(rig, base).some((x) => x.name === 'neck' && x.on === 'chest');
   const near = necked ? rot(J.head) : plus(body, turn(neck, -0.6 * a)); // (the head kept over the chest as it turns up; one on a neck, at its end)
   const low = trunk ? 0 : Math.round(clamp((y - near[1]) / 8, 0, 1) * clamp(1 - (x - near[0] - 6) / 20, 0, 1) * amount * 4) / 4; // (low and near: bending down)
   const chest = q2(plus(body, [0.5 * low, 1.5 * low]));

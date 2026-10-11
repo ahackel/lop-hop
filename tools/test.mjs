@@ -122,7 +122,7 @@ for (const k of Object.keys(ANIMALS)) {
     const url = new URL(`../assets/${k}.js`, import.meta.url);
     if (!existsSync(url)) { off.push(`${k} (none)`); continue; }
     const { default: a } = await import(url);
-    if (a.format !== 3 || a.name !== k || formatAsset(a) !== readFileSync(url, 'utf8')) off.push(k);
+    if (a.format !== 4 || a.name !== k || formatAsset(a) !== readFileSync(url, 'utf8')) off.push(k);
   }
   ok(!off.length, `every animal's build is in its file, in the editor's format${off.length ? ` — npm run rigs: ${off}` : ''}`);
 }

@@ -1,25 +1,40 @@
 // boar: an asset (see asset.js), written by the editor; data only
 export default {
-  format: 3,
+  format: 4,
   name: 'boar',
   fur: 'darkBrown',
   joints: { hip: [8, 11.8], chest: [15, 11.8], head: [18.3, 11.2] },
-  shapes: [
-    { name: 'earFar', bone: 'earFar', base: [[-0.6, -0.1], [1, 0.4]], tipColor: 'deepBrown', tipSize: 9, smooth: 0.4 },
-    { name: 'torso', bone: 'spine', r: 4.8, ends: 3.8 },
-    { name: 'head', on: 'head', ellipse: [0, 0, 3.9, 3.8] },
-    { name: 'snout', on: 'head', triangle: [[2.2, -1.6], [1.5, 3.8], [8.2, 3]] },
-    { name: 'ear', bone: 'ear', base: [[-1, 0.7], [1.4, -0.35]], tipColor: 'deepBrown', tipSize: 9, smooth: 0.4 },
-    { name: 'hindNear', bone: 'hindNear', r: 0.5, smooth: 0.5 },
-    { name: 'frontNear', bone: 'frontNear', r: 0.664, smooth: 0.5 },
+  layers: [
+    { name: 'tail', outline: false, shapes: [{ name: 'tail', bone: 'tail', r: 0.45, color: 'outline' }] },
+    {
+      name: 'far legs',
+      far: true,
+      hits: true,
+      shapes: [{ name: 'hindFar', bone: 'hindFar', r: 0.393 }, { name: 'frontFar', bone: 'frontFar', r: 0.529 }],
+    },
+    {
+      name: 'body',
+      join: true,
+      hits: true,
+      shapes: [
+        { name: 'torso', bone: 'spine', r: 4.8, ends: 3.8 },
+        { name: 'head', on: 'head', ellipse: [0, 0, 3.9, 3.8] },
+        { name: 'snout', on: 'head', triangle: [[2.2, -1.6], [1.5, 3.8], [8.2, 3]] },
+        { name: 'earFar', bone: 'earFar', base: [[-0.6, -0.1], [1, 0.4]], tipColor: 'deepBrown', tipSize: 9, smooth: 0.4 },
+        { name: 'ear', bone: 'ear', base: [[-1, 0.7], [1.4, -0.35]], tipColor: 'deepBrown', tipSize: 9, smooth: 0.4 },
+        { name: 'hindNear', bone: 'hindNear', r: 0.5, smooth: 0.5 },
+        { name: 'frontNear', bone: 'frontNear', r: 0.664, smooth: 0.5 },
+      ],
+      paint: [{ name: 'snout', color: 'mauve', on: 'head', triangle: [[5.6, 0.4], [5.6, 3.4], [8.8, 2.4]] }],
+      spikes: { on: 'spine', box: [-9.4, -10.9, 6, 0.7] },
+    },
+    'face',
   ],
-  paint: [{ name: 'snout', color: 'mauve', on: 'head', triangle: [[5.6, 0.4], [5.6, 3.4], [8.8, 2.4]] }],
   dots: [
     { name: 'nostril', on: 'head', at: [6.1, 2.9] },
     { name: 'tusk', on: 'head', at: [3.8, 1.6], color: 'white' },
     { name: 'tusk', on: 'head', at: [3.7, 2.9], color: 'white' },
   ],
-  spikes: { on: 'spine', box: [-9.4, -10.9, 6, 0.7] },
   legs: {
     hindFar: { on: 'hip', at: [1, 4], thigh: 1.45, shin: 1.45, bend: 1 },
     frontFar: { on: 'chest', at: [0.5, 3.7], thigh: 1.6, shin: 1.6, bend: -1 },
@@ -31,11 +46,6 @@ export default {
     ear: { on: 'head', ear: true, at: [-1.5, -3.35], tip: [-2.2, -6.6], stiffness: 1400, damping: 22, weight: 60 },
     earFar: { on: 'head', ear: true, at: [0.3, -4.2], tip: [1.4, -6.4], stiffness: 1400, damping: 22, weight: 60 },
   },
-  back: [
-    { name: 'tail', bone: 'tail', r: 0.45, color: 'outline', outline: false },
-    { name: 'hindFar', bone: 'hindFar', r: 0.393 },
-    { name: 'frontFar', bone: 'frontFar', r: 0.529 },
-  ],
   face: { eye: [0.5, -1.3] },
   moves: {
     run: {
