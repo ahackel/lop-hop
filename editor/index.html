@@ -9,6 +9,8 @@
   :root {
     --bg: #f4f2ec; --panel: #fffdf8; --line: #ddd8cc; --ink: #2f2d29; --dim: #8a857a; --accent: #d9632b; --accent-soft: #fbe3d6;
     --sel: #2b7bd9; --stage: #fbfaf6;
+    /* the chevron of the lists (select) and of the panels' titles */
+    --chev: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M2 3.5l3 3 3-3' fill='none' stroke='%238f8a80' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
     font: 13px/1.4 system-ui, -apple-system, sans-serif; color: var(--ink);
   }
   @media (prefers-color-scheme: dark) {
@@ -27,8 +29,10 @@
   button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
   button:disabled { opacity: 0.45; cursor: default; }
   select, input[type=number], input[type=text] { background: var(--panel); border: 1px solid var(--line); border-radius: 5px; padding: 3px 5px; }
+  select { -webkit-appearance: none; appearance: none; padding-right: 20px; background: var(--panel) var(--chev) no-repeat right 5px center / 10px; }
   input[type=number] { width: 62px; }
   #status { color: var(--dim); margin-left: auto; }
+  .skinPick, .toggle { display: flex; gap: 5px; align-items: center; color: var(--dim); }
   .modes { display: inline-flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
   .modes button { border: 0; border-radius: 0; padding: 4px 12px; }
   .modes button + button { border-left: 1px solid var(--line); }
@@ -41,8 +45,19 @@
   main { flex: 1; min-height: 0; display: grid; grid-template-columns: 230px minmax(0, 1fr) 320px; gap: 12px; padding: 12px 16px; }
   #left, #center, #right { display: flex; flex-direction: column; gap: 12px; min-height: 0; min-width: 0; }
   .panel { display: flex; flex-direction: column; min-height: 0; flex: 1; }
-  .panel > .title { padding: 8px 10px 4px; font-weight: 600; display: flex; gap: 6px; align-items: baseline; border-bottom: 1px solid var(--line); }
-  .panel > .title span { color: var(--dim); font-weight: normal; font-size: 11px; }
+  /* a panel's title: click it to fold the panel away (and back); what the panel is: its tooltip */
+  .card > .title { padding: 7px 10px 6px; font-weight: 600; display: flex; gap: 6px; align-items: center; border-bottom: 1px solid var(--line); cursor: pointer; user-select: none; }
+  .card > .title::before { content: ''; width: 10px; height: 10px; flex: none; background: var(--chev) center / 10px no-repeat; transition: transform 0.12s; }
+  .card.collapsed > .title { border-bottom: 0; }
+  .card.collapsed > .title::before { transform: rotate(-90deg); }
+  .card.collapsed > :not(.title) { display: none !important; }
+  .panel.collapsed { flex: none; }
+  /* the inspector folds sideways: to a strip at the right, its title down it */
+  main.rightFolded { grid-template-columns: 230px minmax(0, 1fr) auto; }
+  #inspectorCard > .title::before { transform: rotate(-90deg); }
+  #inspectorCard.collapsed { flex: 1; }
+  #inspectorCard.collapsed > .title { writing-mode: vertical-rl; height: 100%; padding: 10px 7px; }
+  #inspectorCard.collapsed > .title::before { transform: rotate(90deg); }
   .scroll { overflow: auto; min-height: 0; flex: 1; padding: 4px 0; }
   .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
   #stageWrap { padding: 8px; flex: 1; min-height: 0; display: flex; flex-direction: column; }
@@ -101,11 +116,13 @@
   .faceGrid { display: block; width: 198px; height: 198px; margin: 6px 0; border-radius: 4px; cursor: crosshair; touch-action: none; image-rendering: pixelated; }
   button.ink { width: 24px; height: 24px; padding: 0; }
   button.ink.on { box-shadow: 0 0 0 2px var(--sel); }
-  #previewCard { padding: 8px; flex: none; }
+  #previewCard { flex: none; }
+  #previewCard > :not(.title) { margin: 8px; }
   #preview { display: block; height: min(15vh, 170px); width: auto; max-width: 100%; margin: 0 auto; image-rendering: pixelated; border-radius: 4px; }
   @media (max-width: 1000px), (max-height: 560px) { /* too small to fit: the page scrolls */
     html, body { height: auto; } body { overflow: auto; }
-    main { grid-template-columns: 1fr; }
+    main, main.rightFolded { grid-template-columns: 1fr; }
+    #inspectorCard.collapsed > .title { writing-mode: horizontal-tb; height: auto; padding: 7px 10px 6px; }
     .panel, #inspector { max-height: 50vh; }
     #stageBox { height: 62vw; flex: none; }
   }
@@ -114,7 +131,8 @@
 <body>
 <header>
   <h1>Lop Hop Editor</h1>
-  <select id="kind" aria-label="Animal"></select>
+  <select id="kind" aria-label="Animal" title="The animal"></select>
+  <label class="skinPick" title="Its skin: the animal itself, or one made from it with its colors swapped">skin <select id="skin" aria-label="Skin"></select></label>
   <span class="modes" id="modes">
     <button data-mode="setup" title="Its bones and shapes: the build every move is made from">Setup</button>
     <button data-mode="animate" title="Its moves: keys over frames, or a gait's settings">Animate</button>
@@ -124,12 +142,13 @@
   <button id="redo" title="Redo (⇧⌘Z)">Redo</button>
   <button id="revert" title="Back to the file as it was loaded">Revert</button>
   <button id="save" class="primary" title="Save into its file, assets/… (⌘S)">Save</button>
+  <label class="toggle" title="Off: the sprites' own colors, outlined in black (?style=outlined in the game)"><input id="shading" type="checkbox" checked> Shading</label>
   <span id="status"></span>
 </header>
 <main>
   <aside id="left">
-    <div class="card panel"><div class="title" id="bonesTitle">Bones <span>the skeleton: what moves</span></div><div class="scroll" id="bones"></div></div>
-    <div class="card panel"><div class="title">Shapes <span>on the bones, back to front</span></div><div class="scroll" id="shapes"></div></div>
+    <div class="card panel" id="bonesCard"><div class="title" id="bonesTitle" title="The skeleton: what moves">Bones</div><div class="scroll" id="bones"></div></div>
+    <div class="card panel" id="shapesCard"><div class="title" title="On the bones, back to front">Shapes</div><div class="scroll" id="shapes"></div></div>
   </aside>
   <section id="center">
   <div class="card" id="stageWrap">
@@ -141,11 +160,11 @@
       <label class="setup animate"><input id="allHandles" type="checkbox" checked> All handles</label>
       <label class="play" title="Everything at a quarter speed"><input id="slow" type="checkbox"> Slow motion</label>
       <button class="play" id="replay" title="The animal back in its place, as it was">Reset</button>
-      <label title="Off: the sprites' own colors, outlined in black (?style=outlined in the game)"><input id="shading" type="checkbox" checked> Shading</label>
     </div>
     <div id="timeline"></div>
   </div>
   <div class="card" id="previewCard">
+    <div class="title" title="In the game’s scene">Preview</div>
     <canvas id="preview"></canvas>
     <div class="bar">
       <label>Move <select id="act"><option>run</option><option>jump</option><option>duck</option><option>idle</option><option>hurt</option><option>ko</option></select></label>
@@ -156,7 +175,7 @@
   </div>
   </section>
   <aside id="right">
-    <div class="card" id="inspector"></div>
+    <div class="card panel" id="inspectorCard"><div class="title" title="The part picked">Inspector</div><div id="inspector"></div></div>
   </aside>
 </main>
 <script type="module" src="editor.js"></script>

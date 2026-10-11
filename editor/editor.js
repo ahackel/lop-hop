@@ -10,8 +10,10 @@ import { ANIMALS, PALETTES, COLOR, FOOT, GROUND, W, H, animal, setRig, rigParts,
 import { toBuild, toAsset } from '../asset.js';
 import * as sandbox from './play.js';
 
+const GAME_ANIMALS = { ...ANIMALS }; // (the game's animals: the others are made here, see the end)
+
 const { toWorld, toLocal, sdShape, NAMED } = rigParts;
-const KINDS = Object.keys(ANIMALS);
+const KINDS = []; // (every animal with a file: the game's, and any made here, not in the game yet)
 const COLORS = Object.keys(NAMED);
 const COLOR_KEYS = ['color', 'fur', 'tipColor', 'noseColor', 'socks'];
 const GEOMS = ['ellipse', 'capsule', 'box', 'triangle'];
@@ -25,17 +27,24 @@ const swatch = (name) => PALETTES.day[NAMED[name]] || 'transparent';
 const X0 = -12, Y0 = -9, VW = 50, VH = 31;
 let Z = 16;
 
-const files = {}, builds = {}, saved = {}, histories = {}; // (each animal's file as loaded, its build as edited)
+const files = {}, builds = {}, saved = {}, histories = {}; // (each animal's file as loaded, its build as edited; saved: as in its file, null: no file yet)
 const fileOf = (k) => `assets/${k}.js`; // (an animal's build: its file, see asset.js)
-let kind, build, P, G = [1, [0, 0]], sel = { type: 'rig' }, drag = null;
+// kind: the animal shown; base: the one it is made from, if it is a skin (the wolf: the fox), else itself. build: the
+// base's build (its bones, shapes, moves, handling: what Setup, Animate and Play edit, for its skins too); skin: the
+// skin's own (its colors swapped), or null
+let kind, base, build, skin = null, P, G = [1, [0, 0]], sel = { type: 'rig' }, drag = null;
+const baseOf = (k) => files[k].of || k;
+const skinsOf = (k) => KINDS.filter((o) => files[o].of === k);
+const inGame = (k) => k in GAME_ANIMALS;
 const view = { mode: 'setup', move: 'edit', frame: 0, play: false, t: 0 }; // (play: a move playing, in Animate)
 let lastMove = 'idle'; // (the move Animate shows)
 
 // ------------------------------------------------------------------------------------------------- the animal, edited
-const editable = () => !!build.joints; // (the wolf is the fox, recolored)
+const editable = () => !!build.joints;
 const hist = () => (histories[kind] ||= { past: [], future: [] });
-const snapshot = () => JSON.stringify(build);
+const snapshot = () => JSON.stringify({ build, skin });
 const dirty = (k) => JSON.stringify(builds[k]) !== saved[k];
+const touched = () => [base, ...(skin ? [kind] : [])].filter(dirty); // (the files the one shown is made from, changed)
 
 // made again from its build, as the game makes it (rigOf): drawn anew, and the frames its parts are placed in (standing:
 // the pose the build's handles edit; a move's frame: the one its handles edit). One another is made from (the fox: the
@@ -43,8 +52,8 @@ const dirty = (k) => JSON.stringify(builds[k]) !== saved[k];
 const assetOf = (k) => toAsset(k, builds[k], files[k]);
 const rigFor = (k) => rigOf(assetOf(k), files[k].of && assetOf(files[k].of));
 function rebuild() {
-  setRig(kind, rigFor(kind));
-  for (const k of KINDS) if (files[k].of === kind) setRig(k, rigFor(k));
+  setRig(base, rigFor(base));
+  for (const k of skinsOf(base)) setRig(k, rigFor(k));
   place();
 }
 function place() {
@@ -57,17 +66,18 @@ function refresh() { listParts(); inspect(); timeline(); draw(); }
 function commit(fn) { remember(); fn(); changed(); timeline(); }
 function remember() { const h = hist(); h.past.push(snapshot()); if (h.past.length > 300) h.past.shift(); h.future = []; }
 function restore(json) {
-  for (const k of Object.keys(build)) delete build[k];
-  Object.assign(build, JSON.parse(json));
+  const was = JSON.parse(json), into = (o, v) => { for (const k of Object.keys(o)) delete o[k]; Object.assign(o, v); };
+  into(build, was.build);
+  if (skin && was.skin) into(skin, was.skin);
   changed(); refresh();
 }
 function undo() { const h = hist(); if (h.past.length) { h.future.push(snapshot()); restore(h.past.pop()); } }
 function redo() { const h = hist(); if (h.future.length) { h.past.push(snapshot()); restore(h.future.pop()); } }
 
 function choose(k) {
-  kind = k; build = builds[k]; sel = { type: view.move === 'edit' ? 'rig' : 'frame' };
+  kind = k; base = baseOf(k); build = builds[base]; skin = k === base ? null : builds[k]; sel = { type: view.move === 'edit' ? 'rig' : 'frame' };
   pv.body = {};
-  $('kind').value = k;
+  fillKinds();
   const url = new URL(location.href); url.searchParams.set('animal', k); window.history.replaceState(null, '', url);
   fillMoves(); rebuild(); sandbox.reset(k); refresh(); status();
 }
@@ -83,17 +93,22 @@ const animated = () => (rigParts.move(kind, lastMove) ? lastMove : rigParts.move
 for (const b of $('modes').children) b.onclick = () => setMode(b.dataset.mode);
 
 function status() {
-  const s = $('status'), others = KINDS.filter((k) => k !== kind && dirty(k));
-  s.className = dirty(kind) || others.length ? 'dirty' : '';
-  s.textContent = (dirty(kind) ? `unsaved changes in ${fileOf(kind)}` : fileOf(kind)) + (others.length ? ` · also unsaved: ${others.join(', ')}` : '');
+  const s = $('status'), mine = touched(), others = KINDS.filter((k) => k !== kind && k !== base && dirty(k)), files = [base, ...(skin ? [kind] : [])].map(fileOf).join(' + ');
+  s.className = mine.length || others.length ? 'dirty' : '';
+  s.textContent = (mine.length ? `unsaved changes in ${mine.map(fileOf).join(', ')}` : files) + (inGame(kind) ? '' : ' · not in the game yet') + (others.length ? ` · also unsaved: ${others.join(', ')}` : '');
   $('undo').disabled = !hist().past.length; $('redo').disabled = !hist().future.length;
-  $('revert').disabled = $('save').disabled = !dirty(kind);
+  $('revert').disabled = $('save').disabled = !mine.length;
 }
 
+// saved into its files: the base's, the skin's (each only if changed; a new one: its file made)
 async function save() {
-  const res = await fetch('/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind, build }) }).catch(() => null);
-  if (res?.ok) { saved[kind] = snapshot(); status(); $('status').textContent = await res.text(); }
-  else { $('status').className = 'dirty'; $('status').textContent = `not saved: ${res ? await res.text() : 'is the dev server running? (npm run dev)'}`; }
+  let said = [];
+  for (const k of touched()) {
+    const res = await fetch('/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: k, build: builds[k], of: files[k].of }) }).catch(() => null);
+    if (!res?.ok) { $('status').className = 'dirty'; $('status').textContent = `not saved: ${res ? await res.text() : 'is the dev server running? (npm run dev)'}`; return; }
+    saved[k] = JSON.stringify(builds[k]); said.push(await res.text());
+  }
+  status(); if (said.length) $('status').textContent = said.join(' · ');
 }
 
 // ------------------------------------------------------------------------------------------------------- the parts
@@ -345,9 +360,10 @@ const DRAWN = ['Body shapes', 'Paint', 'Spikes', 'On top', 'Dots', 'Face']; // (
 function listParts() {
   const bones = $('bones'), shapes = $('shapes'), note = (box, text) => box.append(el('p', { className: 'note', style: 'padding:0 10px', textContent: text }));
   bones.textContent = shapes.textContent = '';
-  $('bonesTitle').innerHTML = view.mode === 'play' ? 'Play <span>what to try on the stage</span>' : 'Bones <span>the skeleton: what moves</span>';
+  const bt = $('bonesTitle'), playing = view.mode === 'play';
+  bt.textContent = playing ? 'Play' : 'Bones'; bt.title = playing ? 'What to try on the stage' : 'The skeleton: what moves';
   if (view.mode === 'play') { playHelp(bones); note(shapes, 'Shapes are set in Setup.'); return; }
-  if (!editable()) { note(bones, `The ${kind} is the fox, recolored.`); return; }
+  if (!editable()) { note(bones, `The ${kind} has no bones.`); return; }
   if (view.move !== 'edit' && kindOf(view.move) !== 'clip') { note(bones, ABOUT[kindOf(view.move)]); return; }
   const all = parts(), row = (p, depth, what) => {
     const r = el('div', { className: `row${same(p.sel, sel) ? ' on' : ''}`, style: `padding-left:${10 + depth * 12}px` },
@@ -409,7 +425,7 @@ function itemDo(what, arg) {
 // --------------------------------------------------------------------------------------------------- the inspector
 function inspect() {
   const box = $('inspector'); box.textContent = '';
-  if (!editable()) { box.append(el('p', { className: 'note', textContent: 'The wolf is made from the fox: its shapes are the fox’s, its colors swapped, and it is handled as the fox is. Edit the fox.' })); return; }
+  if (!editable()) { box.append(el('p', { className: 'note', textContent: `The ${kind} has no bones.` })); return; }
   if (view.mode === 'play') { inspectPlay(box); return; }
   if (view.move !== 'edit') { inspectMove(box); return; }
   const p = current() || parts()[0], o = p.obj;
@@ -427,9 +443,11 @@ function inspect() {
   }
   if (sel.type === 'joint') { box.append(field('place', nums(o, sel.name))); return; }
   if (sel.type === 'rig') { box.append(el('p', { className: 'note', textContent: 'Pick a part in the list or on the stage. The root: the animal itself.' })); }
-  const skip = sel.type === 'rig' ? ['joints', 'shapes', 'paint', 'top', 'dots', 'legs', 'chains', 'face', 'spikes', 'moves', 'handling'] : sel.list === 'top' ? ['shapes'] : [];
+  const skip = sel.type === 'rig' ? ['joints', 'shapes', 'paint', 'top', 'dots', 'legs', 'chains', 'face', 'spikes', 'moves', 'handling', 'recolor'] : sel.list === 'top' ? ['shapes'] : [];
   fields(o, box, sel.type === 'face' ? ['frames'] : skip);
   if (sel.type === 'face') faceFrames(box);
+  if (sel.type === 'rig') rootMore(box);
+  if (sel.type === 'leg' || sel.type === 'chain') farSide(box);
   if (sel.type === 'item' && sel.list === 'top') o.shapes.forEach((s, i) => { box.append(el('div', { className: 'group', textContent: `shape ${i + 1}` })); fields(s, box, []); });
 }
 function field(label, input, note) {
@@ -722,6 +740,76 @@ function inspectGait(box) {
   }
 }
 
+// ------------------------------------------------------------------------------------------------- skins and helpers
+// the root: for a skin, what it is made from and its colors swapped (its own: all a skin has); for an animal, its skins
+function rootMore(box) {
+  if (skin) {
+    box.append(el('div', { className: 'group' }, el('span', { textContent: 'Skin' })),
+      el('p', { className: 'note', textContent: `A skin of the ${base}: its bones, shapes, moves and handling are the ${base}’s (editing them changes both). Its own: its colors, one for another.` }));
+    recolors(box, skin);
+    return;
+  }
+  box.append(el('div', { className: 'group' }, el('span', { textContent: 'Skins' })));
+  const list = skinsOf(base);
+  if (!list.length) box.append(el('p', { className: 'note', textContent: 'None yet: a skin is this animal with its colors swapped (the wolf: the fox in grey).' }));
+  for (const k of list) box.append(el('div', { className: 'row', onclick: () => choose(k) }, el('span', { textContent: k }), el('span', { className: 'what', textContent: Object.entries(builds[k].recolor || {}).map(([a, b]) => `${a.toLowerCase()} → ${b.toLowerCase()}`).join(', ') })));
+  box.append(el('div', { className: 'keys' },
+    el('button', { textContent: '+ New skin…', onclick: () => { $('skin').value = '+'; $('skin').onchange(); } }),
+    el('button', { textContent: '+ New animal from this…', title: 'A new animal: a copy of this one, to change as it likes (in the editor only, till the game is given it)', onclick: () => { $('kind').value = '+'; $('kind').onchange(); } })));
+  if (build.recolor) { box.append(el('div', { className: 'group' }, el('span', { textContent: 'Colors swapped' }))); recolors(box, build); }
+}
+// colors swapped, one for another, everywhere (o.recolor): those the animal has first
+function recolors(box, o) {
+  const has = [...new Set((JSON.stringify(build).match(/"[A-Z_]+"/g) || []).map((x) => x.slice(1, -1)).filter((c) => COLORS.includes(c)))];
+  const order = [...has, ...COLORS.filter((c) => !has.includes(c))];
+  const pick = (value, on) => { const p = el('select', { onchange: () => on(p.value) }); p.style.borderLeft = `14px solid ${swatch(value)}`; for (const c of order) p.append(el('option', { value: c, textContent: c.toLowerCase().replace(/_/g, ' '), selected: c === value })); return p; };
+  const map = o.recolor || {}, put = (fn) => { commit(() => { const m = { ...o.recolor }; fn(m); if (Object.keys(m).length) o.recolor = m; else delete o.recolor; }); inspect(); };
+  for (const [from, to] of Object.entries(map)) {
+    const rename = (f) => put((m) => { const out = {}; for (const [a, b] of Object.entries(m)) out[a === from ? f : a] = b; for (const k of Object.keys(m)) delete m[k]; Object.assign(m, out); });
+    box.append(field('', el('span', { className: 'nums' }, pick(from, rename), el('span', { textContent: '→' }), pick(to, (t) => put((m) => { m[from] = t; })), el('button', { textContent: '✕', title: 'Not swapped', onclick: () => put((m) => { delete m[from]; }) }))));
+  }
+  const free = has.find((c) => !(c in map));
+  box.append(el('button', { textContent: '+ Swap a color', disabled: !free, onclick: () => put((m) => { m[free] = free; }) }));
+}
+// the far side, as the cat has it: a far leg (a pixel forward, a little thinner, a tenth later in its stride, half a
+// stride in the crawl: posed in every move as its near one is, to tune from there), a far ear where an ear stands up (on along the head, a little lower)
+const FAR_EAR = [2.5, 0.6], FAR_LEG = [1, 0];
+const round3 = (v) => +v.toFixed(3);
+const by = (q, d) => [round3(q[0] + d[0]), round3(q[1] + d[1])];
+const farName = (n, list) => { const f = /Near/.test(n) ? n.replace('Near', 'Far') : `${n}Far`; return list[f] ? null : f; };
+function after(o, at, name, v) { const out = {}; for (const k in o) { out[k] = o[k]; if (k === at) out[name] = v; } for (const k of Object.keys(o)) delete o[k]; Object.assign(o, out); }
+function eachPose(fn) { for (const [name, m] of Object.entries(build.moves || {})) { fn(m, name); for (const k of m.keys || []) fn(k, name); } } // (a gait's own pose, and each key of a clip)
+function farSide(box) {
+  if (view.move !== 'edit') return;
+  if (sel.type === 'leg') {
+    const n = sel.name, L = build.legs[n], f = !L.far && farName(n, build.legs), twin = Object.values(build.legs).some((o) => o !== L && o.far && o.on === L.on);
+    if (!f || twin) return;
+    box.append(el('div', { className: 'group' }, el('span', { textContent: 'Far side' })), el('button', { textContent: `+ Far leg (${f})`, title: 'A leg behind this one, as the cat has them: a pixel forward, a little thinner, in every move', onclick: () => {
+      commit(() => {
+        after(build.legs, n, f, { ...JSON.parse(JSON.stringify(L)), at: by(L.at, FAR_LEG), r: round3(Math.max(0.3, L.r - 0.1)), far: true });
+        eachPose((p, move) => {
+          for (const part of ['paws', 'roots']) if (p[part]?.[n]) after(p[part], n, f, by(p[part][n], FAR_LEG));
+          const g = p.gait?.legs?.[n];
+          if (g) after(p.gait.legs, n, f, Array.isArray(g) ? [round3((g[0] + (move === 'duck' ? 0.5 : 0.1)) % 1), g[1]] : JSON.parse(JSON.stringify(g)));
+        });
+        sel = { type: 'leg', name: f };
+      });
+      refresh();
+    } }));
+  } else {
+    const n = sel.name, c = build.chains[n], ears = Object.values(build.chains).filter((o) => o.ear && o.on === c.on), f = c.ear && ears.length === 1 && farName(n, build.chains);
+    if (!f) return;
+    box.append(el('div', { className: 'group' }, el('span', { textContent: 'Far side' })), el('button', { textContent: `+ Far ear (${f})`, title: 'The other ear, behind this one, as the squirrel has it: on along the head, a little lower, in every move', onclick: () => {
+      commit(() => {
+        after(build.chains, n, f, { ...JSON.parse(JSON.stringify(c)), ear: c.ear.map((q) => by(q, FAR_EAR)), tip: by(c.tip, FAR_EAR) });
+        eachPose((p) => { const t = p.chains?.[n]; if (t) after(p.chains, n, f, { ...t, ...(t.tip && { tip: by(t.tip, FAR_EAR) }) }); });
+        sel = { type: 'chain', name: f };
+      });
+      refresh();
+    } }));
+  }
+}
+
 // ---------------------------------------------------------------------------------------------- the face's frames
 // its eye's and its mouth's pictures, drawn pixel by pixel (see FACE_FRAMES in art.js): a frame picked, drawn on a grid
 // over the animal's own pixels around it (faded), its anchor (the face's point) in the middle; what is drawn goes into
@@ -842,6 +930,7 @@ function setHandling(g, k, v) {
 }
 function inspectPlay(box) {
   box.append(el('h2', { textContent: `Handling the ${ANIMALS[kind].name.toLowerCase()}` }));
+  if (skin) box.append(el('p', { className: 'note', textContent: `A skin of the ${base}: handled as the ${base} is (changing it changes both).` }));
   const own = (g, k) => build.handling?.[g]?.[k] !== undefined;
   for (const [g, [title, specs]] of Object.entries(HANDLED)) {
     const head = el('div', { className: `group${build.handling?.[g] ? ' own' : ''}` }, el('span', { textContent: title }));
@@ -929,9 +1018,59 @@ function drawPreview() {
 }
 
 // --------------------------------------------------------------------------------------------------------- start
-$('kind').onchange = () => choose($('kind').value);
+// the panels, folded away or not (as they were left: kept in this browser); the inspector folds sideways
+const FOLDED = 'lophop.editor.folded';
+let folded = []; try { folded = JSON.parse(localStorage.getItem(FOLDED)) || []; } catch { /* (none kept) */ }
+const sideways = () => document.querySelector('main').classList.toggle('rightFolded', $('inspectorCard').classList.contains('collapsed'));
+for (const t of document.querySelectorAll('.card > .title')) {
+  const card = t.parentElement;
+  card.classList.toggle('collapsed', folded.includes(card.id));
+  t.onclick = () => {
+    card.classList.toggle('collapsed'); sideways();
+    folded = [...document.querySelectorAll('.card.collapsed')].map((c) => c.id);
+    try { localStorage.setItem(FOLDED, JSON.stringify(folded)); } catch { /* (not kept) */ }
+  };
+}
+sideways();
+// the animal (one made from no other) and its skin (default: itself; or one made from it, its colors swapped); each
+// list's last: a new one (an animal: a copy of the one shown, skin and all; a skin: of it, colors as they are)
+function fillKinds() {
+  const a = $('kind'), sk = $('skin');
+  a.textContent = sk.textContent = '';
+  for (const k of KINDS.filter((o) => !files[o].of)) a.append(el('option', { value: k, textContent: `${ANIMALS[k].name.toLowerCase()}${inGame(k) ? '' : ' (not in the game)'}` }));
+  a.append(el('option', { value: '+', textContent: '+ new animal from this…' }));
+  sk.append(el('option', { value: base, textContent: 'default' }));
+  for (const k of skinsOf(base)) sk.append(el('option', { value: k, textContent: `${k}${inGame(k) ? '' : ' (not in the game)'}` }));
+  sk.append(el('option', { value: '+', textContent: '+ new skin…' }));
+  a.value = base; sk.value = kind;
+}
+const named = (what) => { // (a name for a new one: lower case letters, not taken)
+  const n = prompt(`A name for the new ${what} (lower case letters)`)?.trim().toLowerCase();
+  if (!n) return null;
+  if (!/^[a-z]+$/.test(n) || files[n]) { alert(files[n] ? `There is a ${n} already.` : 'Only the letters a to z.'); return null; }
+  return n;
+};
+function create(k, b, of) {
+  files[k] = { format: 2, name: k, ...(of && { of }) }; builds[k] = b; saved[k] = null; KINDS.push(k);
+  ANIMALS[k] = { ...ANIMALS[of || base], name: k.toUpperCase() };
+  setRig(k, rigFor(k));
+  choose(k); status();
+}
+$('kind').onchange = () => {
+  if ($('kind').value !== '+') { choose($('kind').value); return; }
+  const n = named('animal');
+  if (!n) { fillKinds(); return; }
+  const b = JSON.parse(JSON.stringify(build));
+  if (skin?.recolor) b.recolor = { ...b.recolor, ...skin.recolor }; // (the skin shown: its colors its own)
+  create(n, b);
+};
+$('skin').onchange = () => {
+  if ($('skin').value !== '+') { choose($('skin').value); return; }
+  const n = named('skin');
+  if (n) create(n, { recolor: {} }, base); else fillKinds();
+};
 $('undo').onclick = undo; $('redo').onclick = redo; $('save').onclick = save;
-$('revert').onclick = () => { remember(); restore(saved[kind]); };
+$('revert').onclick = () => { remember(); restore(JSON.stringify({ build: saved[base] ? JSON.parse(saved[base]) : build, skin: skin && saved[kind] ? JSON.parse(saved[kind]) : skin })); };
 document.addEventListener('keydown', (e) => {
   const typing = /INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName);
   const cmd = e.metaKey || e.ctrlKey;
@@ -949,12 +1088,16 @@ document.addEventListener('keydown', (e) => {
 window.addEventListener('beforeunload', (e) => { if (KINDS.some((k) => builds[k] && dirty(k))) e.preventDefault(); });
 new ResizeObserver(() => kind && draw()).observe($('stageBox')); // (the window, or the timeline under it, changing)
 
-for (const k of KINDS) {
+// every file in assets/ (as the dev server lists them; without it, the game's), the game's first; one not in the game
+// yet is given what the game knows of the one it is made from
+const listed = await fetch('/assets.json').then((r) => r.json()).catch(() => Object.keys(GAME_ANIMALS));
+for (const k of [...Object.keys(GAME_ANIMALS), ...listed.filter((k) => !(k in GAME_ANIMALS)).sort()]) {
   files[k] = (await import(`../assets/${k}.js`)).default;
   builds[k] = JSON.parse(JSON.stringify(toBuild(files[k]))); // (its own copy: the game's stays as loaded till it is made again)
   saved[k] = JSON.stringify(builds[k]);
-  $('kind').append(el('option', { value: k, textContent: ANIMALS[k].name.toLowerCase() }));
+  KINDS.push(k);
 }
+for (const k of KINDS) if (!ANIMALS[k]) { ANIMALS[k] = { ...ANIMALS[baseOf(k)] || ANIMALS.cat, name: k.toUpperCase() }; setRig(k, rigFor(k)); }
 const asked = new URLSearchParams(location.search).get('animal');
 await choose(KINDS.includes(asked) ? asked : 'cat');
 setMode(['setup', 'animate', 'play'].includes(new URLSearchParams(location.search).get('mode')) ? new URLSearchParams(location.search).get('mode') : 'setup');

@@ -1,7 +1,7 @@
 // Minimal static dev server. Sends no-store so the browser never runs stale engine code
 // (AudioWorklet module imports are cached aggressively and survive normal reloads). The editor (editor/) saves through it:
-// POST /save {kind, build} writes an animal's build into its file, assets/<kind>.js (see asset.js and
-// tools/rig-format.js). The game sends its runs to it: POST /runs [run, …] adds those not there yet to data/runs.jsonl
+// POST /save {kind, build, of} writes an animal's build into its file, assets/<kind>.js (see asset.js and
+// tools/rig-format.js; a new one: made from of, if it is a skin), GET /assets.json lists the files there. The game sends its runs to it: POST /runs [run, …] adds those not there yet to data/runs.jsonl
 // (a run a line; see the runs in game.js), which the balance page reads (tools/balance.html).
 import http from 'node:http';
 import fs from 'node:fs/promises';
@@ -21,10 +21,10 @@ const TYPES = {
 async function save(req, res) {
   let body = '';
   for await (const chunk of req) body += chunk;
-  const { kind, build } = JSON.parse(body);
-  if (!/^[a-z]+$/.test(kind) || kind === 'kit' || !build || typeof build !== 'object') throw new Error('which animal?');
-  const file = path.join(root, 'assets', `${kind}.js`); // (of: kept, see toAsset)
-  const { default: was } = await import(`${pathToFileURL(file).href}?at=${Date.now()}`);
+  const { kind, build, of } = JSON.parse(body);
+  if (!/^[a-z]+$/.test(kind) || !build || typeof build !== 'object' || (of !== undefined && !/^[a-z]+$/.test(of))) throw new Error('which animal?');
+  const file = path.join(root, 'assets', `${kind}.js`); // (of: kept, see toAsset; a new one's: as sent)
+  const was = (await import(`${pathToFileURL(file).href}?at=${Date.now()}`).catch(() => null))?.default || (of ? { of } : {});
   await fs.writeFile(file, formatAsset(toAsset(kind, build, was)));
   res.writeHead(200, { 'Content-Type': 'text/plain' }).end(`saved assets/${kind}.js`);
 }
@@ -41,8 +41,14 @@ async function runs(req, res) {
   res.writeHead(200, { 'Content-Type': 'text/plain' }).end(`${fresh.length} new`);
 }
 
+// the assets there (for the editor: the animals not in the game yet too)
+async function assets(req, res) {
+  const names = (await fs.readdir(path.join(root, 'assets'))).filter((f) => /^[a-z]+\.js$/.test(f)).map((f) => f.slice(0, -3));
+  res.writeHead(200, { 'Content-Type': TYPES['.json'], 'Cache-Control': 'no-store' }).end(JSON.stringify(names));
+}
+
 http.createServer(async (req, res) => {
-  const act = req.method === 'POST' && { '/save': save, '/runs': runs }[req.url];
+  const act = req.method === 'POST' ? { '/save': save, '/runs': runs }[req.url] : req.method === 'GET' && { '/assets.json': assets }[req.url];
   if (act) {
     try { await act(req, res); } catch (e) { res.writeHead(400, { 'Content-Type': 'text/plain' }).end(String(e.message || e)); }
     return;

@@ -2,7 +2,8 @@
 // makes and saves, and the game draws and moves. The first kind: an animal, as a rig (see the rigs in art.js).
 //
 // format 2, an animal (2D, from the side; x forward, y down, in the 26 × 20 box, its feet on row 19):
-//   format, name; of: the animal it is made from (the wolf: the fox's, its own over it: recolored)
+//   format, name; of: the animal it is made from, a skin of it (the wolf: the fox's, its own over it: recolored; the
+//                editor makes one, and edits it with the one it is made from)
 //   fur          its color (a palette name: see NAMED in art.js), as every color is
 //   joints       the bones down the spine: hip, chest, head, places in the box. The spine runs from the hip to the chest
 //   torso        r (how thick), ends (how far past the hip and the chest), capsule (round ends): along the spine; r 0: none
