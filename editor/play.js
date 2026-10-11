@@ -204,7 +204,11 @@ export function draw(stage, Z) {
   ctx.fillStyle = pal[COLOR.FAINT];
   for (let x = 0; x < PW; x++) { const h = hill(x + 40); ctx.fillRect(x, Math.round(G - h), 1, Math.round(h)); }
   ctx.fillStyle = pal[COLOR.INK]; ctx.fillRect(0, G, PW, 1);
-  const facing = (sp, x, y) => { if (!s.faceL) return sp.draw(ctx, x, y, pal); ctx.save(); ctx.translate(2 * x + 26, 0); ctx.scale(-1, 1); sp.draw(ctx, x, y, pal); ctx.restore(); };
+  const facing = (sp, x, y) => { // (turned round: mirrored about it, on a whole pixel, or its pixels blur)
+    if (!s.faceL) return sp.draw(ctx, x, y, pal);
+    const X = Math.round(x);
+    ctx.save(); ctx.translate(2 * X + 26, 0); ctx.scale(-1, 1); sp.draw(ctx, X, y, pal); ctx.restore();
+  };
   const blink = blinking(s.t), d = s.dropped, g = s.held || d;
   if (d?.landed) { // flat as it lands, then up again
     const q = handling(k).dropped.squash * d.hard * Math.max(0, d.squash / d.squashFor);
