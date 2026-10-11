@@ -46,31 +46,6 @@ export default {
     mouth: [4, 3],
     frames: { mouth: { shut: { at: [0, 0], rows: ['.'] }, open: { at: [1, 0], rows: ['x', 'x'] }, happy: { at: [0, 0], rows: ['.'] } } },
   },
-  front: {
-    joints: { hip: [13, 15], chest: [13, 12], head: [13, 9] },
-    layers: [
-      {
-        name: 'body',
-        join: true,
-        hits: true,
-        shapes: [
-          { name: 'body', ellipse: [13.5, 15.6, 5.2, 4] },
-          { name: 'head', on: 'head', ellipse: [0.5, 0, 5.4, 4.4] },
-          { name: 'footL', ellipse: [9.8, 18.4, 2.3, 1.1] },
-          { name: 'footR', ellipse: [17.2, 18.4, 2.3, 1.1] },
-        ],
-      },
-      { shapes: [{ ellipse: [11, 18.5, 1.1, 0.9] }, { ellipse: [16, 18.5, 1.1, 0.9] }] },
-      { name: 'earL', shapes: [{ name: 'earL', bone: 'earL', along: 'capsule', r: 1.4, end: 2, color: 'beige' }] },
-      { name: 'earR', shapes: [{ name: 'earR', bone: 'earR', along: 'capsule', r: 1.4, end: 2, color: 'beige' }] },
-      'face',
-    ],
-    chains: {
-      earL: { on: 'head', at: [-3, -3.4], angle: 2.3, links: 2, length: 7, curl: -0.6 },
-      earR: { on: 'head', at: [4, -3.4], angle: -2.3, links: 2, length: 7, curl: 0.6 },
-    },
-    face: { eyes: [[-2, -0.5], [2, -0.5]], nose: [0, 1.5], noseColor: 'pink' },
-  },
   moves: {
     run: {
       gait: {

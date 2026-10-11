@@ -131,7 +131,7 @@ export function field(label, input, note) {
 // the inspector in sections, as Figma has it: each setting in the one it belongs to, in this order
 const SECTIONS = ['Place', 'Shape', 'Look', 'Motion', 'More'];
 const SECTION_OF = {
-  bone: 'Place', base: 'Shape', round: 'Shape', outline: 'Look', on: 'Place', at: 'Place', tip: 'Place', ear: 'Place', eye: 'Place', eyes: 'Place', nose: 'Place', mouth: 'Place', angle: 'Place', bend: 'Place',
+  bone: 'Place', base: 'Shape', round: 'Shape', outline: 'Look', on: 'Place', at: 'Place', tip: 'Place', ear: 'Place', eye: 'Place', nose: 'Place', mouth: 'Place', angle: 'Place', bend: 'Place',
   thigh: 'Shape', shin: 'Shape', length: 'Shape', links: 'Shape', curl: 'Shape', r: 'Shape', ends: 'Shape', capsule: 'Shape', foot: 'Shape', smooth: 'Shape', end: 'Shape', tipSize: 'Shape', box: 'Shape',
   color: 'Look', fur: 'Look', noseColor: 'Look', tipColor: 'Look', socks: 'Look', speck: 'Look', marks: 'Look', grows: 'Look',
   stiffness: 'Motion', damping: 'Motion', weight: 'Motion',

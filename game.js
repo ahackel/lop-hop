@@ -17,7 +17,7 @@ import { StardriftPlayer, openSongZip } from './engine/src/index.js'; // (by pat
 import { songFor } from './music.js';
 import { W, H, GROUND, PALETTES, COLOR, FOOT, ANIMALS, TRUNK, animal, moveBody, stride, bird, crow,
   FOOD, face, FACE_W, cloud, moon, heart, reaching, moveReaching, star, golden, flushed, shadow, hits, snap, setScale, idleFrame, jumpFrame, leaps, hitbox, readying,
-  JUMP, GRAVITY, hill, strides, rgb, luma, holdUp, swing, moveHung, hung, hangDepth, heldAt, petted, handling, made, front, hasFront, setStyle } from './art.js';
+  JUMP, GRAVITY, hill, strides, rgb, luma, holdUp, swing, moveHung, hung, hangDepth, heldAt, petted, handling, made, setStyle } from './art.js';
 import { GLYPHS, text, textWidth } from './font.js';
 import { ICONS, PAD_ICONS } from './icons.js';
 import { course, pace, topSpeed, drain, hardness, nightAt, random, seedOf, chaserOf, SCORE_PER_PX, CROWS_FROM, FAST_FROM, CHASE } from './level.js';
@@ -997,8 +997,6 @@ function drawBoard(pal) {
   (board.credits ? drawCredits : drawScores)(pal);
   if (gained && state === 'ko' && !board.credits) help(t('end.unlocked', { name: nameOf(gained) }), pal, pal[COLOR.ORANGE]); // (after a run: see hud)
   if (!sit) return;
-  const tn = turning('sit', kind, sit.on ? sit.dir : 1), sst = stride(kind, sit.phase);
-  if (tn) return drawTurn(kind, tn, Math.round(sit.x), GROUND - FOOT - (sit.on ? sst.lift : 0), pal, blinking()); // (turning round)
   if (!sit.on) return animal(kind, 'idle', idleFrame(kind, blinkT), { blink: blinking() }).draw(ctx, Math.round(sit.x), GROUND - FOOT, pal);
   const st = stride(kind, sit.phase), x = Math.round(sit.x); // running there (the way it goes)
   if (sit.dir < 0) { ctx.save(); ctx.translate(2 * x + 26, 0); ctx.scale(-1, 1); }
@@ -1779,20 +1777,6 @@ function toCome(pal) {
     animal(c, 'idle', 0).draw(ctx, x, GROUND - FOOT, shadow(pal, COLOR.DIM));
   }
 }
-// turning round: an animal with a front (see front in art.js) is seen from the front a moment (TURN_SECS) as it turns
-// from facing one way (dir: 1 right, -1 left) to the other; one without turns at once. (turns: by where it is drawn, k
-// for the title's row, 'sit' for the high scores: the animal there, the way it faced last, when it turned.) → null, or
-// the turn: { u (0…1 through it), dir (the way it turns to) }
-const TURN_SECS = 0.15, turns = {};
-function turning(at, k, dir) {
-  const t = turns[at];
-  if (!t || t.k !== k) { turns[at] = { k, dir, t: -Infinity }; return null; }
-  if (t.dir !== dir) { t.dir = dir; t.t = blinkT; }
-  const since = blinkT - t.t;
-  return hasFront(k) && since < TURN_SECS ? { u: since / TURN_SECS, dir } : null;
-}
-// an animal turning round (tn: see turning), in its box at x, y: its front
-function drawTurn(k, tn, x, y, pal, blink) { front(k, { blink }).draw(ctx, x, y, pal); }
 // a padlock over an animal unlocked but not bought (see padlocked): its shackle in ink, its body golden
 const PADLOCK = ['..xxx..', '.x...x.', '.x...x.', 'xxxxxxx', 'xooooox', 'xooxoox', 'xooxoox', 'xooooox', 'xxxxxxx'];
 // an animal standing on the title (and the high scores): the one picked in front, the others
@@ -1802,13 +1786,9 @@ function standing(k, p, on, pal) {
   if (x < viewL - 26 || x > viewR) return;
   const pt = pets[k];
   ctx.globalAlpha = on ? 1 : 0.4 + 0.6 * (pt?.joy || 0); // (one petted lights up)
-  const jp = jumps[k], reaches = on && !r?.on && (chew > 0 || treatAt() || begging), turned = turning(k, k, r?.on ? r.dir : reaches && faceL ? -1 : 1);
+  const jp = jumps[k];
   if (jp) animal(k, 'jump', jumpFrame(k, jp.v / (JUMP * ANIMALS[k].jump))).draw(ctx, x, GROUND - FOOT - Math.round(jp.alt), pal); // jumping (a double tap)
   else if (grip?.duck && grip.k === k) animal(k, 'duck', 0).draw(ctx, x, GROUND - FOOT, pal); // pushed down
-  else if (turned) { // turning round (seen from the front)
-    const st = r?.on ? stride(k, r.phase) : null;
-    drawTurn(k, turned, x, GROUND - FOOT - (st ? st.lift : 0), pal, on && blinking());
-  }
   else if (on && chew > 0 && !r?.on) drawFacing(chewing(), x, GROUND - FOOT - Math.round(reach.alt), pal); // chewing a treat
   else if (on && (treatAt() || begging) && !r?.on) drawFacing(reachFor(x, treatAt() || begAt(), loose?.eat > 0.2 && !loose.far), x, GROUND - FOOT - Math.round(reach.alt), pal); // reaching for a treat (eating it; begging for one)
   else if (pt && !r?.on) petted(k, on ? idleFrame(k, blinkT) : 0, pt.joy, pt.t, pt.lean).draw(ctx, x, GROUND - FOOT, pal); // being petted

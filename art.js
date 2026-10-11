@@ -386,7 +386,6 @@ function onLayers(b) {
   const r = { ...b, layers: b.layers || [], torso: { r: 0, none: true } };
   const spine = r.layers.filter(isGroup).flatMap((g) => g.shapes).find((s) => s.bone === 'spine');
   if (spine) r.torso = defined({ r: spine.r, ends: spine.ends });
-  if (b.front) r.front = onLayers(b.front);
   return r;
 }
 // a body's shapes in a pose: its own (on no bone), then the pose's (ownShapes: the pose's alone, in their place); those
@@ -905,7 +904,7 @@ function drawRig(rig, P, blink, chains, S = 1, [dx, dy] = [0, 0], floor = Math.r
     pixel.dot(x, y, c);
     for (let a = 0; a < n; a++) for (let b = 0; b < n; b++) { const X = Math.round(x) * S - ox + a, Y = Math.round(y) * S - oy + b; if (X >= 0 && Y >= 0 && X < g.w && Y < g.h) marks[Math.round(Y) * g.w + Math.round(X)] = 1; }
   } };
-  const head = rig.face, both = (head.eyes || [head.eye]).map((q) => toWorld(F.head, q)), eye = mix(both[0], both[both.length - 1], 0.5); // (eyes: two, seen from the front)
+  const head = rig.face, eye = toWorld(F.head, head.eye);
   // its eyes' and mouth's frames: each pixel of one a pixel of the sprite (n by n, drawn bigger), from where its anchor goes
   const pin = ([x, y]) => [Math.round(Math.round(x) * S - ox), Math.round(Math.round(y) * S - oy)];
   const put = (X, Y, c) => { if (X >= 0 && Y >= 0 && X < g.w && Y < g.h) { g.px[Y * g.w + X] = c; marks[Y * g.w + X] = 1; } };
@@ -914,7 +913,7 @@ function drawRig(rig, P, blink, chains, S = 1, [dx, dy] = [0, 0], floor = Math.r
     for (const [[x, y], c] of dots) face.dot(x, y, c);
     if (rig.recolor) { const to = {}; for (const a in rig.recolor) to[NAMED[a]] = NAMED[rig.recolor[a]]; for (let i = 0; i < g.px.length; i++) g.px[i] = to[g.px[i]] ?? g.px[i]; }
     const look = p.eye || 'open', eyeFrame = faceFrame(head, 'eye', blink && look === 'open' ? 'blink' : look);
-    for (const q of both) faceDraw(put, eyeFrame, pin(q), n, head.inks);
+    faceDraw(put, eyeFrame, pin(eye), n, head.inks);
     if (head.nose) { const nose = toWorld(F.head, head.nose); face.dot(nose[0], nose[1], NAMED[head.noseColor] || OUT); }
     if (mouth) faceDraw(put, faceFrame(head, 'mouth', p.mouth || 'shut'), pin(mouth), n, head.inks);
   };
@@ -981,7 +980,7 @@ function drawRig(rig, P, blink, chains, S = 1, [dx, dy] = [0, 0], floor = Math.r
     }
   }
   if (!faced) drawFace();
-  const faceAt = { eye: pin(both[0]), ...(mouth && { mouth: pin(mouth) }) }; // (where its frames go, in the sprite: for the editor)
+  const faceAt = { eye: pin(eye), ...(mouth && { mouth: pin(mouth) }) }; // (where its frames go, in the sprite: for the editor)
   overMask ||= new Uint8Array(g.w * g.h);
   // (dx, dy: moved, grown from where its feet touch the ground: see rigFrame. settle: grown, a row short of the ground
   // only by rounding, it is set down on it)
@@ -1214,24 +1213,6 @@ export function reaching(kind, tx, ty, eating = false, amount = 1, look = 1, bod
 export function moveReaching(body, kind, tx, ty, amount, look, x, y, dt, sniff = 0) { moveBody(body, kind, 'reach', 0, x, y, 0, dt, reachPosed(kind, tx, ty, amount, look, sniff).P); }
 
 // for the editor (editor/): an edited rig swapped in (its frames drawn again), and what places its parts
-// -------------------------------------------------------------------------------------------------------- the front
-// An animal seen from the front, as it turns round (the game shows it a moment between facing one way and the other):
-// its build's front, a rig of its own (shapes in the box, no legs; chains: ears hanging either side; face: eyes, two),
-// sitting, grown as the animal is. Only the animals with one (hasFront); kept as rigFrame keeps frames. scale: drawn
-// bigger (as animal's)
-export const hasFront = (kind) => !!RIGS[kind].front;
-export function front(kind, { blink = false, scale = 1 } = {}) {
-  const key = `${kind} front ${blink} ${scale}`;
-  let s = rigFrames.get(key);
-  if (s) { rigFrames.delete(key); rigFrames.set(key, s); return s; }
-  const F = RIGS[kind].front, rig = { legs: {}, chains: {}, torso: { r: 0 }, fur: RIGS[kind].fur, ...F, face: { frames: RIGS[kind].face?.frames, inks: RIGS[kind].face?.inks, ...F.face } }; // (its face's frames and inks: the animal's, or its own)
-  const P = posedAs(rig, {}), n = SIZE[kind] || 0, [k, d] = growth(n, scale);
-  s = drawRig(rig, P, blink, chainsAt(rig, P), scale * k, d, Math.round((FOOT + 1) * scale), n > 0);
-  rigFrames.set(key, s);
-  if (rigFrames.size > 400) { const old = rigFrames.keys().next().value; rigFrames.get(old).free(); rigFrames.delete(old); }
-  return s;
-}
-
 export function setRig(kind, rig) { RIGS[kind] = rig; rigFrames.clear(); worked.clear(); tracksOf.clear(); hitboxes.clear(); delete ducks[kind]; delete depths[kind]; }
 export const rigParts = { posed: (kind, move, frame) => posed(RIGS[kind], move, frame), pose: (kind, move, frame) => poseOf(RIGS[kind], move, frame), move: (kind, name) => RIGS[kind].poses[name], moves: (kind) => Object.keys(RIGS[kind].poses), clip: (m, frame) => clipPose(m, frame), chainRest: (kind, P, name) => chainRest(RIGS[kind], P, name), onBone: (kind, P, s, first) => { const rig = RIGS[kind]; return onBone(rig, P, rig.chains?.[s.bone] ? { [s.bone]: restPoints(chainRest(rig, P, s.bone)) } : {}, s, false, first); }, growth: (kind, pose) => growth(grown(kind, pose)), reach, restPoints, toWorld, toLocal, sdShape, NAMED, faceFrame };
 

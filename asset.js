@@ -53,9 +53,6 @@
 //                hurt, ko, happy; mouth: shut, open, happy); inks: its own, any color of the palette by a letter of its
 //                own: { a: 'brown' }
 //   recolor      { name: name }: colors swapped everywhere (the wolf: a grey fox)
-//   front        seen from the front, shown a moment as it turns round (see front in art.js): a build of its own, sitting,
-//                facing out of the screen: joints, layers, dots, chains (ears hanging either side),
-//                face with eyes [[x, y] × 2] for its eye; no legs. None: it turns at once
 //   handling     how it is handled on the home screen, by the game's own code (see HANDLING in art.js: what is not here
 //                is as there; the editor's Play mode tries them): held { at (where the hand holds it, from the middle of its
 //                back), sag, tip, hang, settle, most }, squirm { fits, strength, paddle, nod }, dropped { righting, damping,
