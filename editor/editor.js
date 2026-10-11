@@ -12,6 +12,8 @@ import { ANIMALS, PALETTES, COLOR, FOOT, GROUND, W, H, animal, setRig, rigParts,
 import paletteFile from '../assets/palette.js';
 import { toBuild, toAsset } from '../asset.js';
 import * as sandbox from './play.js';
+import { html, render, nothing } from './lit/lit-html.js'; // (the lists' templates: see the lists of parts)
+import { unsafeHTML } from './lit/directives/unsafe-html.js';
 
 const GAME_ANIMALS = { ...ANIMALS }; // (the game's animals: the others are made here, see the end)
 
@@ -37,6 +39,7 @@ const ICONS = {
   revert: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
   save: '<path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/>',
   cog: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+  back: '<path d="m15 18-6-6 6-6"/>',
   keyboard: '<rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/>',
   play: '<path d="M7 4.5v15l12.5-7.5z" fill="currentColor"/>',
   pause: '<rect x="6" y="4.5" width="4" height="15" rx="1" fill="currentColor"/><rect x="14" y="4.5" width="4" height="15" rx="1" fill="currentColor"/>',
@@ -52,7 +55,17 @@ const ICONS = {
   unkey: '<path d="M12 3.5 20.5 12 12 20.5 3.5 12z"/><path d="m4 20 16-16"/>',
   eye: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>',
   eyeOff: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z"/><path d="m4 20 16-16"/>',
+  keyed: '<path d="M12 3.5 20.5 12 12 20.5 3.5 12z"/>',
+  // a layer's rules (see the lists of parts), and a shape doing otherwise
+  joined: '<path d="M8.5 6.5a5.5 5.5 0 1 0 0 11c1.6 0 2.5-.7 3.5-1.6 1 .9 1.9 1.6 3.5 1.6a5.5 5.5 0 1 0 0-11c-1.6 0-2.5.7-3.5 1.6-1-.9-1.9-1.6-3.5-1.6z"/>',
+  outlined: '<circle cx="12" cy="12" r="8" stroke-width="3"/>',
+  hits: '<path d="m4 4 4.5 4.5M20 4l-4.5 4.5M4 20l4.5-4.5M20 20l-4.5-4.5"/><circle cx="12" cy="12" r="2.5"/>',
+  clipped: '<rect x="3" y="3" width="18" height="18" rx="6" stroke-dasharray="3 3"/><circle cx="12" cy="12" r="4" fill="currentColor"/>',
+  far: '<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/>',
+  line: '<path d="M4 19c6 0 7-13 16-14"/>',
+  overEye: '<path d="M3 17s3.4-5 9-5 9 5 9 5"/><circle cx="12" cy="16" r="2"/><path d="M5 5h14"/>',
 };
+const icon = (name) => unsafeHTML(svg(name)); // (in a template)
 const svg = (name) => `<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]}</svg>`;
 // a button with an icon: its text beside it, or none (what it does: its title, its tooltip)
 function iconBtn(name, text, props = {}) {
@@ -149,7 +162,9 @@ function choose(k) {
   fillMoves(); rebuild(); sandbox.reset(k); refresh(); status();
 }
 // the mode: Setup (the build: what every move is made from), Animate (a move), Play (see play.js); Game (the game's own)
+let before = 'setup'; // (the mode Game was opened from: back to it)
 function setMode(m) {
+  if (m === 'game' && view.mode !== 'game') { before = view.mode || 'setup'; $('leaveGame').querySelector('span').textContent = `Back to the ${kind}`; }
   view.mode = m; document.body.className = m;
   for (const b of $('modes').children) b.classList.toggle('on', b.dataset.mode === m);
   $('gameMode').classList.toggle('on', m === 'game');
@@ -405,11 +420,11 @@ function parts() {
 // dragging one sets a key there (see setKey)
 function poseParts() {
   const out = [], F = P.F, turnAt = world(F.head, [5, 0]), n = frames(view.move);
-  out.push({ sel: { type: 'frame' }, group: 'Frame', label: `frame ${view.frame + 1} of ${n}${keysAt(view.frame).length ? ' ◆' : ''}`, obj: null, handles: [], lines: [] });
+  out.push({ sel: { type: 'frame' }, group: 'Frame', label: `frame ${view.frame + 1} of ${n}`, obj: null, handles: [], lines: [] });
   for (const j of Object.keys(build.joints)) {
     const handles = [{ at: P.J[j], anchor: true, joint: true, set: (p) => setKey(`joints.${j}`, roundAll(p)) }];
     if (j === 'head') handles.push({ at: turnAt, size: true, set: (p) => { const d = minus(p, P.J.head); setKey('headAngle', +Math.atan2(d[1], d[0]).toFixed(2)); } });
-    out.push({ sel: { type: 'joint', name: j }, group: 'Joints', label: j === 'head' ? 'head (the ring: its turn)' : j, obj: null, lines: j === 'head' ? [[P.J.head, turnAt]] : [], handles });
+    out.push({ sel: { type: 'joint', name: j }, group: 'Joints', label: j, ...(j === 'head' && { tip: 'The ring: its turn' }), obj: null, lines: j === 'head' ? [[P.J.head, turnAt]] : [], handles });
   }
   for (const l in build.legs) {
     out.push({ sel: { type: 'paw', name: l }, group: 'Paws', label: l, obj: null, lines: [],
@@ -541,10 +556,13 @@ function drawBones(ctx) {
 function drawHandles(ctx) {
   const all = parts(), on = current(), accent = css('--sel');
   const dot = (p, r, fill, ring) => { const [x, y] = toScreen(p); ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fillStyle = fill; ctx.fill(); ctx.lineWidth = 1.5; ctx.strokeStyle = ring; ctx.stroke(); };
-  if (on) {
-    ctx.strokeStyle = accent; ctx.lineWidth = 2;
-    for (const line of on.lines) { ctx.beginPath(); line.forEach((p, i) => { const [x, y] = toScreen(p); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.stroke(); }
+  const stroke = (line) => { ctx.beginPath(); line.forEach((p, i) => { const [x, y] = toScreen(p); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.stroke(); };
+  if (hover) { // (pointed at in the lists: a row's part, or a layer's)
+    ctx.save(); ctx.strokeStyle = accent; ctx.globalAlpha = 0.85; ctx.lineWidth = 1.5; ctx.setLineDash([4, 3]);
+    for (const p of all) if (p !== on && !hidden.has(keyOf(p.sel)) && (hover.layer ? p.group === hover.layer : hover.sels.some((s) => same(s, p.sel)))) p.lines.forEach(stroke);
+    ctx.restore();
   }
+  if (on) { ctx.strokeStyle = accent; ctx.lineWidth = 2; on.lines.forEach(stroke); }
   for (const p of all) {
     if (p === on || hidden.has(keyOf(p.sel))) continue;
     for (const h of p.handles) if (h.anchor && (h.joint || $('allHandles').checked)) dot(h.at, h.joint ? 6 : 4, h.joint ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.6)', h.joint ? '#333' : 'rgba(60,60,60,0.6)');
@@ -595,86 +613,176 @@ $('stage').addEventListener('pointerup', () => {
 });
 
 // --------------------------------------------------------------------------------------------- the lists of parts
-// two lists, as Spine has them: the bones (a tree: the root (the animal itself), hip, chest and head down the spine, each
-// joint's legs and chains under it) and the shapes hung on them, by layer in the order they are drawn, each with its bone
+// two tables, as Spine has them: the bones (a tree: the root (the animal itself), hip, chest and head down the spine, each
+// joint's legs and chains under it), each with what kind it is and the shape on it (a clip: its keys); and the shapes,
+// by layer in the order they are drawn, each with what it is on and what it is. A layer's head says what it does with
+// its shapes (its rules, as drawRig in art.js has them); a shape that does otherwise says so in its row. Pointed at, a
+// row's outline shows on the stage (a layer's head: all of its shapes'). Templates: lit-html (editor/lit)
 const BONES = ['Animal', 'Frame', 'Joints', 'Legs', 'Chains', 'Paws', 'Tails and ears'];
 const ADD = { 'Body shapes': 'shapes', Paint: 'paint', 'On top': 'top', Dots: 'dots' };
 const DRAWN = ['Behind', 'Body shapes', 'Paint', 'Spikes', 'On top', 'Dots', 'Face']; // (as drawRig in art.js draws them)
+const RULES = { // (a rule: what it means, what it means not to)
+  joined: ['Joined: its shapes melt into one silhouette', 'Not joined: each shape on its own'],
+  outlined: ['Outlined', 'Not outlined'],
+  hits: ['Collisions test it', 'Collisions don’t test it'],
+  clipped: ['Drawn only where the body is', 'Drawn where it is, on the body or not'],
+};
+const LAYER = { // (each layer's rules, and what it is)
+  Behind: [['outlined'], 'Behind the body: the tails, each outlined on its own; then the far legs, as one, in the far side’s tone (collisions test them)'],
+  'Body shapes': [['joined', 'outlined', 'hits'], 'The body: the torso, its shapes, ears and near legs, joined into one silhouette, outlined round it'],
+  Paint: [['clipped'], 'Markings in a color, on the body only'],
+  Spikes: [[], 'Where the body bristles: ticks out of its outline (specks inside)'],
+  'On top': [['outlined'], 'Over the body, each outlined: the groups, then the shapes on bones'],
+  Dots: [[], 'Single pixels'],
+  Face: [[], 'The eye, nose and mouth, over the rest'],
+};
+const TYPE_OF_BONE = { spine: 'torso', leg: 'leg', ear: 'ear', tail: 'chain' };
+const FLAGS = [ // (a shape on a bone doing otherwise than its layer: its setting, its icon, what it means)
+  ['far', 'far', 'In the far side’s tone'],
+  ['outline', 'line', 'A thin line, not outlined', (v) => v === false],
+  ['joined', 'joined', 'Grown out of the body: not outlined where it starts'],
+  ['overEye', 'overEye', 'Over the eyes too: drawn after the face'],
+];
+let renamingSel = null; // (the shape being renamed, in its row)
+let hover = null; // (what is pointed at in the lists: { sels } or { layer }; its outline on the stage, see drawHandles)
 function listParts() {
-  const bones = $('bones'), shapes = $('shapes'), note = (box, text) => box.append(el('p', { className: 'note', style: 'padding:0 10px', textContent: text }));
-  bones.textContent = shapes.textContent = '';
-  const bt = $('bonesTitle'), playing = view.mode === 'play';
-  if (view.mode === 'game') { bt.textContent = 'Palette'; bt.title = 'The game’s colors: everything is drawn in them'; listPalette(bones); return; }
+  const bones = $('bones'), shapes = $('shapes'), bt = $('bonesTitle'), playing = view.mode === 'play';
+  const note = (text) => html`<p class="note" style="padding:4px 10px">${text}</p>`;
+  const filled = (fill) => { const d = el('div'); fill(d); return d; }; // (made by el: put in as it is)
+  const show = (b, s = nothing) => { render(b, bones); render(s, shapes); };
+  if (view.mode === 'game') { bt.textContent = 'Palette'; bt.title = 'The game’s colors: everything is drawn in them'; show(html`${filled(listPalette)}`); return; }
   bt.textContent = playing ? 'Play' : 'Bones'; bt.title = playing ? 'What to try on the stage' : 'The skeleton: what moves';
-  if (view.mode === 'play') { playHelp(bones); note(shapes, 'Shapes are set in Setup.'); return; }
-  if (!editable()) { note(bones, `The ${kind} has no bones.`); return; }
-  if (view.move !== 'edit' && kindOf(view.move) !== 'clip') { note(bones, ABOUT[kindOf(view.move)]); return; }
-  const all = parts(), row = (p, depth, what, eye = false) => {
-    const off = hidden.has(keyOf(p.sel));
-    const r = el('div', { className: `row${same(p.sel, sel) ? ' on' : ''}${off ? ' hidden' : ''}`, style: `padding-left:${10 + depth * 12}px` },
-      ...(p.color ? [el('span', { className: 'sw', style: `background:${p.color}` })] : []), el('span', { textContent: p.label }), el('span', { className: 'what', textContent: what })); // (a bone: no color)
-    if (eye) {
-      const b = el('button', { className: `eye${off ? ' off' : ''}`, title: off ? 'Hidden: show it (H)' : 'Hide it, here only: not saved (H)', innerHTML: svg(off ? 'eyeOff' : 'eye') });
-      b.onclick = (e) => { e.stopPropagation(); hide(p.sel); };
-      r.append(b);
-    }
-    r.onclick = () => { if (same(p.sel, sel)) return; sel = p.sel; listParts(); inspect(); draw(); };
-    r.sel = p.sel; // (Tab goes down the rows: see the keys)
-    if (p.sel.type === 'item' && view.move === 'edit') draggable(r, p.sel);
-    return r;
-  };
-  // the bones
+  if (playing) { show(html`${filled(playHelp)}`, note('Shapes are set in Setup.')); return; }
+  if (!editable()) { show(note(`The ${kind} has no bones.`)); return; }
+  if (view.move !== 'edit' && kindOf(view.move) !== 'clip') { show(note(ABOUT[kindOf(view.move)])); return; }
+  const all = parts();
+  show(bonesTable(all), view.move === 'edit' ? shapesTable(all) : note('Shapes are set in Setup.'));
+  const input = renamingSel && shapes.querySelector('input.rename');
+  if (input && document.activeElement !== input) { input.focus(); input.select(); }
+}
+const pick = (s) => { if (same(s, sel)) return; sel = s; listParts(); inspect(); draw(); };
+const point = (h) => { hover = h; if (editing()) draw(); };
+const rowClass = (p) => `row${same(p.sel, sel) ? ' on' : ''}${hidden.has(keyOf(p.sel)) ? ' hidden' : ''}`;
+const stop = (fn) => (e) => { e.stopPropagation(); fn(e); };
+
+// the bones: name (down the tree), kind, and the shape on it (a link to it; none: + to make one); a clip's: its keys
+// (◆ here, ◇ at another frame)
+const BONE_TYPES = { rig: 'animal', frame: '', joint: 'joint', leg: 'leg', paw: 'paw' };
+const boneType = (p) => (p.sel.type === 'chain' ? (build.chains[p.sel.name]?.ear ? 'ear' : 'chain') : BONE_TYPES[p.sel.type] ?? '');
+function bonesTable(all) {
+  const bonesOf = all.filter((p) => BONES.includes(p.group)), rows = [], put = (p, depth) => rows.push([p, depth]);
   const onOf = (p) => (p.sel.type === 'leg' || p.sel.type === 'paw' ? build.legs[p.sel.name]?.on : p.sel.type === 'chain' ? build.chains[p.sel.name]?.on : null);
-  const whatOf = (p) => (p.sel.type === 'leg' ? 'leg' : p.sel.type === 'paw' ? 'paw' : p.sel.type === 'chain' ? (build.chains[p.sel.name]?.ear ? 'ear' : 'chain') : '');
-  const bonesOf = all.filter((p) => BONES.includes(p.group)), shown = new Set();
-  const put = (p, depth) => { bones.append(row(p, depth, whatOf(p))); shown.add(p); };
   for (const p of bonesOf) if (p.sel.type === 'rig' || p.sel.type === 'frame') put(p, 0);
   Object.keys(build.joints).forEach((j, d) => {
     const jp = bonesOf.find((p) => p.sel.type === 'joint' && p.sel.name === j);
     if (jp) put(jp, d + 1);
-    for (const p of bonesOf) if (!shown.has(p) && onOf(p) === j) put(p, d + 2);
+    for (const p of bonesOf) if (!rows.some(([q]) => q === p) && onOf(p) === j) put(p, d + 2);
   });
-  for (const p of bonesOf) if (!shown.has(p)) put(p, 1); // (on no joint)
-  // the shapes
-  if (view.move !== 'edit') { note(shapes, 'Shapes are set in Setup.'); return; }
-  for (const label of DRAWN) { // (a layer with nothing on it yet: to add to)
-    const on = all.filter((p) => p.group === label);
-    if (!on.length && !ADD[label]) continue;
-    const h = el('div', { className: 'group' }, el('span', { textContent: label }));
-    if (ADD[label]) h.append(iconBtn('plus', '', { title: `Add to ${label.toLowerCase()}`, onclick: () => add(ADD[label]) }));
-    shapes.append(h);
-    for (const p of on) {
-      if (p.obj?.bone) { shapes.append(row(p, 0, `on ${p.obj.bone}`, true)); continue; } // (a shape on a bone)
-      if (p.sel.list === 'top' && p.sel.j === undefined) { shapes.append(row(p, 0, `group · ${p.obj.shapes[0]?.on || 'box'}`, true)); continue; }
-      if (p.depth) { shapes.append(row(p, p.depth, geomOf(p.obj), true)); continue; }
-      const what = p.obj && geomOf(p.obj) ? `${geomOf(p.obj)}${p.obj.on ? ` · ${p.obj.on}` : ''}` : p.obj?.on || '';
-      shapes.append(row(p, 0, what, p.sel.type !== 'face'));
+  for (const p of bonesOf) if (!rows.some(([q]) => q === p)) put(p, 1); // (on no joint)
+  const clip = view.move !== 'edit';
+  const keyed = clip && new Set(pathsOf().map(rowOf)), here = clip && keysAt(view.frame).flatMap((k) => leaves(k)).map(rowOf);
+  const third = (p) => {
+    const n = p.sel.name;
+    if (clip) {
+      const at = p.sel.type === 'frame' ? here.length > 0 : here.includes(n);
+      return at ? html`<span class="key" title="A key at this frame">${icon('key')}</span>`
+        : keyed.has(n) ? html`<span class="key off" title="Keys at other frames">${icon('keyed')}</span>` : nothing;
     }
-  }
+    if (p.sel.type !== 'leg' && p.sel.type !== 'chain') return nothing;
+    const on = shapeOn(n);
+    return on ? html`<a class="link" title=${`Its shape: what is drawn of it (${LAYERS[on.list]})`} @click=${stop(() => pick({ type: 'item', list: on.list, i: on.i }))}>${on.s.name || n}</a>`
+      : html`<button class="add" title="Nothing is drawn on it: a shape on it" @click=${stop(() => addShapeOn(n))}>${icon('plus')}</button>`;
+  };
+  const its = (p) => { const on = !clip && (p.sel.type === 'leg' || p.sel.type === 'chain') && shapeOn(p.sel.name); return on ? [p.sel, { type: 'item', list: on.list, i: on.i }] : [p.sel]; };
+  return html`<table class="list bonesList" @mouseleave=${() => point(null)}>
+    <colgroup><col><col class="cKind"><col class=${clip ? 'cKey' : 'cShape'}></colgroup>
+    <thead><tr><th>Name</th><th>Kind</th><th>${clip ? 'Key' : 'Shape'}</th></tr></thead>
+    <tbody>${rows.map(([p, depth]) => html`<tr class=${rowClass(p)} .sel=${p.sel} @click=${() => pick(p.sel)} @mouseenter=${() => point({ sels: its(p) })}>
+      <td style=${`padding-left:${10 + depth * 12}px`} title=${p.tip || ''}>${p.label}</td><td class="dim">${boneType(p)}</td><td>${third(p)}</td></tr>`)}</tbody>
+  </table>`;
+}
+// a bone's shape, made as the others are: a leg's and an ear's joined into the body, a chain's behind it
+function addShapeOn(n) {
+  const leg = !!build.legs?.[n], ear = !!build.chains?.[n]?.ear, list = leg || ear ? 'shapes' : 'back';
+  const s = leg ? { name: n, bone: n, r: 1, smooth: 0.5 } : ear ? { name: n, bone: n, base: [[-1.2, 0.5], [1.2, -0.5]], smooth: 0.4 } : { name: n, bone: n, r: 1 };
+  commit(() => { (build[list] ||= []).push(s); sel = { type: 'item', list, i: build[list].length - 1 }; });
+  refresh();
 }
 
-// a shape dragged to another place in its list (the order they are drawn in: the list's, back to front), or in its group
+// the shapes: an eye (hidden on the stage, here only), name, what it is on (a joint, a bone; box: none), what it is,
+// and where it does otherwise than its layer
+function whereWhat(p) {
+  const o = p.obj;
+  if (p.sel.type === 'face') return ['head', 'face'];
+  if (o.bone) return [o.bone, TYPE_OF_BONE[boneKind(o)] || ''];
+  if (p.sel.list === 'top' && p.sel.j === undefined) return [o.shapes[0]?.on || 'box', 'group'];
+  return [o.on || 'box', p.sel.list === 'dots' ? 'dot' : geomOf(o) || ''];
+}
+function shapesTable(all) {
+  const rule = (r, has) => html`<span class=${`rule${has ? '' : ' off'}`} title=${RULES[r][has ? 0 : 1]}>${icon(r)}</span>`;
+  const layer = (label) => {
+    let on = all.filter((p) => p.group === label);
+    if (!on.length && !ADD[label]) return nothing; // (a layer with nothing on it yet: to add to)
+    const [rules, about] = LAYER[label], legs = label === 'Behind' ? on.filter((p) => boneKind(p.obj) === 'leg') : [];
+    // (as they are drawn: behind, the tails, then the far legs as one; on top, the groups, then the shapes on bones)
+    if (legs.length) on = on.filter((p) => !legs.includes(p));
+    if (label === 'On top') on = [...on.filter((p) => !p.obj.bone), ...on.filter((p) => p.obj.bone)];
+    return html`<tbody>
+      <tr class="layer" @mouseenter=${() => point({ layer: label })}><th colspan="5"><div>
+        <span title=${about}>${label}</span><span class="rules">${Object.keys(RULES).map((r) => rule(r, rules.includes(r)))}</span>
+        ${ADD[label] ? html`<button class="icon" title=${`Add to ${label.toLowerCase()}`} aria-label=${`Add to ${label.toLowerCase()}`} @click=${() => add(ADD[label])}>${icon('plus')}</button>` : nothing}
+      </div></th></tr>
+      ${on.map((p) => shapeRow(p))}
+      ${legs.length ? html`<tr class="sub" @mouseenter=${() => point({ sels: legs.map((p) => p.sel) })}><td></td>
+        <td colspan="4" title="The far legs: drawn as one shape, after the tails, in the far side’s tone; collisions test them">the far legs, as one</td></tr>
+        ${legs.map((p) => shapeRow(p, 1))}` : nothing}
+    </tbody>`;
+  };
+  return html`<table class="list shapesList" @mouseleave=${() => point(null)}>
+    <colgroup><col class="cEye"><col><col class="cOn"><col class="cType"><col class="cFlags"></colgroup>
+    <thead><tr><th></th><th>Name</th><th>On</th><th>Type</th><th></th></tr></thead>
+    ${DRAWN.map(layer)}
+  </table>`;
+}
+function shapeRow(p, depth = p.depth || 0) {
+  const o = p.obj, off = hidden.has(keyOf(p.sel)), item = p.sel.type === 'item', naming = item && renamingSel && same(renamingSel, p.sel), [on, type] = whereWhat(p);
+  const eye = p.sel.type === 'face' ? nothing
+    : html`<button class=${`eye${off ? ' off' : ''}`} title=${off ? 'Hidden: show it (H)' : 'Hide it, here only: not saved (H)'} @click=${stop(() => hide(p.sel))}>${icon(off ? 'eyeOff' : 'eye')}</button>`;
+  const name = naming
+    ? html`<input class="rename" type="text" .value=${o.name || ''} placeholder=${p.label} @click=${stop(() => {})} @dblclick=${stop(() => {})} @blur=${(e) => endRename(e.target.value)}
+        @keydown=${(e) => { e.stopPropagation(); if (e.key === 'Enter') endRename(e.target.value); if (e.key === 'Escape') endRename(null); }}>`
+    : html`<span>${p.label}</span>`;
+  const flags = o?.bone ? FLAGS.filter(([k, , , is = Boolean]) => is(o[k])).map(([, i, t]) => html`<span title=${t}>${icon(i)}</span>`) : nothing;
+  return html`<tr class=${rowClass(p)} .sel=${p.sel} draggable=${item && !naming ? 'true' : 'false'}
+      @click=${() => pick(p.sel)} @dblclick=${(e) => { if (item && !e.target.closest('.eye')) startRename(p.sel); }} @mouseenter=${() => point({ sels: [p.sel] })}
+      @dragstart=${(e) => dragStart(e, p.sel)} @dragend=${dragEnd} @dragover=${(e) => dragOver(e, p.sel)} @dragleave=${dragLeave} @drop=${(e) => dropOn(e, p.sel)}>
+    <td>${eye}</td>
+    <td><div class="name" style=${`padding-left:${depth * 12}px`}>${p.color ? html`<span class="sw" style=${`background:${p.color}`}></span>` : nothing}${name}</div></td>
+    <td class="dim">${on}</td><td class="dim">${type}</td><td class="flags">${flags}</td>
+  </tr>`;
+}
+
+// a shape dragged to another place in its list (the order they are drawn in: the list's, back to front), or in its
+// group; only among its own sort (behind: the tails, the far legs; on top: the groups, the shapes on bones)
 let dragged = null;
-const together = (a, b) => a.list === b.list && (a.j === undefined) === (b.j === undefined) && (a.j === undefined || a.i === b.i);
-function draggable(r, s) {
-  r.draggable = true;
-  const clear = () => { for (const x of $('shapes').querySelectorAll('.dropBefore, .dropAfter, .dragging')) x.classList.remove('dropBefore', 'dropAfter', 'dragging'); };
-  r.ondragstart = (e) => { dragged = s; r.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', s.list); };
-  r.ondragend = () => { dragged = null; clear(); };
-  r.ondragover = (e) => {
-    if (!dragged || !together(dragged, s)) return;
-    e.preventDefault(); e.dataTransfer.dropEffect = 'move';
-    const box = r.getBoundingClientRect(), after = e.clientY > box.top + box.height / 2;
-    for (const x of $('shapes').querySelectorAll('.dropBefore, .dropAfter')) if (x !== r) x.classList.remove('dropBefore', 'dropAfter');
-    r.classList.toggle('dropAfter', after); r.classList.toggle('dropBefore', !after);
-  };
-  r.ondragleave = () => r.classList.remove('dropBefore', 'dropAfter');
-  r.ondrop = (e) => {
-    e.preventDefault();
-    const from = dragged, after = r.classList.contains('dropAfter');
-    clear(); dragged = null;
-    if (from && together(from, s)) reorder(from, s, after);
-  };
+const sortOf = (s) => { const o = s.j === undefined && build[s.list]?.[s.i]; return s.list === 'back' ? (o && boneKind(o) === 'leg' ? 'leg' : '') : s.list === 'top' && o?.bone ? 'bone' : ''; };
+const together = (a, b) => a.list === b.list && (a.j === undefined) === (b.j === undefined) && (a.j === undefined || a.i === b.i) && sortOf(a) === sortOf(b);
+const clearDrops = () => { for (const x of $('shapes').querySelectorAll('.dropBefore, .dropAfter, .dragging')) x.classList.remove('dropBefore', 'dropAfter', 'dragging'); };
+function dragStart(e, s) { if (s.type !== 'item') { e.preventDefault(); return; } dragged = s; e.currentTarget.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', s.list); }
+function dragEnd() { dragged = null; clearDrops(); }
+function dragOver(e, s) {
+  if (!dragged || !together(dragged, s)) return;
+  e.preventDefault(); e.dataTransfer.dropEffect = 'move';
+  const r = e.currentTarget, box = r.getBoundingClientRect(), after = e.clientY > box.top + box.height / 2;
+  for (const x of $('shapes').querySelectorAll('.dropBefore, .dropAfter')) if (x !== r) x.classList.remove('dropBefore', 'dropAfter');
+  r.classList.toggle('dropAfter', after); r.classList.toggle('dropBefore', !after);
+}
+function dragLeave(e) { e.currentTarget.classList.remove('dropBefore', 'dropAfter'); }
+function dropOn(e, s) {
+  e.preventDefault();
+  const from = dragged, after = e.currentTarget.classList.contains('dropAfter');
+  clearDrops(); dragged = null;
+  if (from && together(from, s)) reorder(from, s, after);
 }
 function reorder(from, to, after) {
   const child = from.j !== undefined, arr = child ? build.top[from.i].shapes : build[from.list], a = child ? from.j : from.i;
@@ -692,17 +800,13 @@ function reorder(from, to, after) {
   listParts(); inspect();
 }
 // a shape renamed (its row double-clicked, or Enter): in place, in its row; a pose that uses it by name (use) still does
-function renaming(r, p) {
-  const label = r.children[p.color ? 1 : 0], input = el('input', { type: 'text', value: p.obj.name || '', placeholder: p.label, className: 'rename' });
-  let done = false;
-  const end = (keep) => { if (done) return; done = true; if (keep) rename(p.sel, p.obj, input.value); else listParts(); };
-  input.onkeydown = (e) => { e.stopPropagation(); if (e.key === 'Enter') end(true); if (e.key === 'Escape') end(false); };
-  input.onblur = () => end(true);
-  input.onclick = (e) => e.stopPropagation();
-  label.replaceWith(input); input.focus(); input.select();
+function startRename(s) { renamingSel = s; listParts(); }
+function endRename(value) { // (null: as it was)
+  const s = renamingSel, p = s && parts().find((q) => same(q.sel, s));
+  if (!s) return;
+  renamingSel = null;
+  if (value === null || !p) listParts(); else rename(s, p.obj, value);
 }
-// (on the list, not the row: the click before it draws the list anew; the shape picked by then is the one renamed)
-$('shapes').addEventListener('dblclick', (e) => { const r = $('shapes').querySelector('.row.on'), p = current(); if (r && p && sel.type === 'item' && !e.target.closest('.eye, input')) renaming(r, p); });
 function rename(s, o, name) {
   const to = name.trim(), was = o.name, list = s.j === undefined ? s.list : null; // (a shape in a group: used by no pose)
   if (to === (was || '')) { listParts(); return; }
@@ -1191,13 +1295,9 @@ function eachPose(fn) { for (const [name, m] of Object.entries(build.moves || {}
 // a bone's shape (what is drawn on it): picked from the bone; none, one made (as the others are)
 function itsShape(box) {
   if (view.move !== 'edit') return;
-  const n = sel.name, on = shapeOn(n), ear = sel.type === 'chain' && build.chains[n].ear;
+  const n = sel.name, on = shapeOn(n);
   if (on) { box.append(section('Shape', [el('div', { className: 'keys' }, el('button', { textContent: `${on.s.name || n} (${LAYERS[on.list]})`, title: 'The shape on this bone: what is drawn of it', onclick: () => { sel = { type: 'item', list: on.list, i: on.i }; listParts(); inspect(); draw(); } }))])); return; }
-  box.append(section('Shape', [el('div', { className: 'keys' }, iconBtn('plus', 'Its shape', { title: 'Nothing is drawn on this bone: a shape on it', onclick: () => {
-    const list = sel.type === 'leg' ? 'shapes' : ear ? 'shapes' : 'back', s = sel.type === 'leg' ? { name: n, bone: n, r: 1, smooth: 0.5 } : ear ? { name: n, bone: n, base: [[-1.2, 0.5], [1.2, -0.5]], smooth: 0.4 } : { name: n, bone: n, r: 1 };
-    commit(() => { (build[list] ||= []).push(s); sel = { type: 'item', list, i: build[list].length - 1 }; });
-    refresh();
-  } }))], 'Nothing is drawn on this bone'));
+  box.append(section('Shape', [el('div', { className: 'keys' }, iconBtn('plus', 'Its shape', { title: 'Nothing is drawn on this bone: a shape on it', onclick: () => addShapeOn(n) }))], 'Nothing is drawn on this bone'));
 }
 function farSide(box) {
   if (view.move !== 'edit') return;
@@ -1652,11 +1752,13 @@ $('skin').onchange = () => {
   if (n) create(n, { recolor: {} }, base); else fillKinds();
 };
 $('undo').onclick = undo; $('redo').onclick = redo; $('save').onclick = save;
-$('gameMode').onclick = () => setMode(view.mode === 'game' ? 'setup' : 'game');
+const gameToggle = () => setMode(view.mode === 'game' ? before : 'game');
+$('gameMode').onclick = gameToggle;
+$('leaveGame').onclick = gameToggle;
 $('revert').onclick = () => { remember(); if (view.mode === 'game') { restore(savedPalette); return; } restore(JSON.stringify({ build: saved[base] ? JSON.parse(saved[base]) : build, skin: skin && saved[kind] ? JSON.parse(saved[kind]) : skin })); };
 // the keyboard: what each key does (shown with ?), by when it works
 const KEYS = [
-  ['Everywhere', [['⌘Z', 'Undo'], ['⇧⌘Z', 'Redo'], ['⌘S', 'Save'], ['1 2 3', 'Setup, Animate, Play'], ['4', 'Game settings (the palette)'], ['?', 'These shortcuts'], ['Esc', 'Pick nothing (close a popup)']]],
+  ['Everywhere', [['⌘Z', 'Undo'], ['⇧⌘Z', 'Redo'], ['⌘S', 'Save'], ['1 2 3', 'Setup, Animate, Play'], ['4', 'Game settings (the palette), and back'], ['?', 'These shortcuts'], ['Esc', 'Pick nothing (close a popup)']]],
   ['Parts', [['Tab  ⇧Tab', 'The next part in the lists, the one before'], ['← → ↑ ↓', 'Move the part picked a tenth of a pixel (in a move: its key at the frame)'], ['⇧ + arrows', 'A whole pixel'],
     ['⌘D', 'Copy the shape picked'], ['⌫', 'Delete the shape picked'], ['[  ]', 'Drawn earlier, later'], ['H', 'Hide or show the part picked'], ['Enter', 'Rename the shape picked (or double-click it)'], ['⌥H', 'Show everything hidden']]],
   ['Animate', [['Space', 'Play the move, stop'], [',  .', 'A frame back, on'], ['← →', 'A frame back, on (nothing picked)'], ['Home  End', 'The first frame, the last']]],
@@ -1709,7 +1811,7 @@ document.addEventListener('keydown', (e) => {
   }
   if (k === '?') { take(); $('keysButton').click(); return; }
   if (['1', '2', '3'].includes(k)) { take(); setMode(['setup', 'animate', 'play'][k - 1]); return; }
-  if (k === '4') { take(); setMode('game'); return; }
+  if (k === '4') { take(); gameToggle(); return; }
   if (low === 's') { take(); flip('shading'); return; }
   if (view.mode === 'play' || view.mode === 'game') return;
   if (low === 'b') { take(); flip('showBones'); return; }
@@ -1719,7 +1821,7 @@ document.addEventListener('keydown', (e) => {
   if (e.code === 'KeyH' && e.altKey) { take(); hidden.clear(); rebuild(); listParts(); draw(); return; }
   if (low === 'h' && ['item', 'spikes'].includes(sel.type) && view.move === 'edit') { take(); hide(sel); return; }
   if (k === 'Tab') { take(); nextPart(e.shiftKey ? -1 : 1); return; }
-  if (k === 'Enter' && sel.type === 'item' && view.move === 'edit') { const r = [...document.querySelectorAll('#shapes .row.on')][0], p = current(); if (r && p) { take(); renaming(r, p); } return; }
+  if (k === 'Enter' && sel.type === 'item' && view.move === 'edit' && view.mode === 'setup') { take(); startRename(sel); return; }
   if ((k === 'Delete' || k === 'Backspace') && sel.type === 'item') { take(); itemDo('delete'); return; }
   if ((k === '[' || k === ']') && sel.type === 'item') { take(); itemDo('move', k === '[' ? -1 : 1); return; }
   if (k === 'Escape') { sel = { type: view.move === 'edit' ? 'rig' : 'frame' }; listParts(); inspect(); draw(); return; }
