@@ -29,7 +29,8 @@
 //                socks are drawn with it, and the paws lying low (over) over it
 //   a shape      ellipse [x, y, rx, ry], capsule [ax, ay, bx, by, r], box [x0, y0, x1, y1, r] or triangle [[x, y] × 3]
 //                (an ellipse, a box: angle, turned about its middle, radians, + clockwise),
-//                `on` a joint (in its frame: spine, hip, chest turn with the spine; head with the head) or in the box;
+//                `on` a joint (in its frame: spine, hip, chest turn with the spine; head with the head), a leg's thigh
+//                or shin ('frontNear.shin': from where it starts, along it, turned as the pose bends it) or in the box;
 //                or `bone`: drawn along a bone (the spine, from the hip to the chest; a leg, from its root by its knee
 //                to its paw; a chain, by its links), as the pose has it, `along` as one of the same: an ellipse or a
 //                box from its root to its end (r: how thick; ends: how far past both; a box's round: its corners),

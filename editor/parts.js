@@ -23,6 +23,8 @@ export const alongOf = (s) => s.along || (s.bone === 'spine' ? (s.round ? 'capsu
 const shapesOn = (n) => (build.layers || []).filter(isGroup).flatMap((G) => G.shapes).filter((x) => x.bone === n);
 export const isOwn = (n) => { const on = shapesOn(n); return !!build.chains?.[n] && on.length === 1 && on[0].name === n; };
 export const ownChain = (s) => (s?.bone && s.name === s.bone && isOwn(s.bone) ? build.chains[s.bone] : null);
+// what a shape can be on: a joint, a leg's thigh or shin, none (the box)
+export const onChoices = () => ['', 'spine', 'hip', 'chest', 'head', ...Object.keys(build.legs || {}).flatMap((n) => [`${n}.thigh`, `${n}.shin`])];
 export const spineShape = () => (build.layers || []).filter(isGroup).flatMap((G) => G.shapes).find((s) => s.bone === 'spine'); // (the torso: a move's torso changes it)
 export const ALONG = { // (each kind's own settings along a bone)
   ellipse: { r: 1, ends: 0 }, capsule: { r: 1, ends: 0, end: 0 }, box: { r: 1, ends: 0, round: 0 }, triangle: { base: [[-1.2, 0.5], [1.2, -0.5]], tipColor: undefined, tipSize: 2 },

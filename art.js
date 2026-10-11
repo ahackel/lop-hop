@@ -597,6 +597,13 @@ function posedAs(rig, p) {
   const J = { ...rig.joints, ...p.joints }, a = Math.atan2(J.chest[1] - J.hip[1], J.chest[0] - J.hip[0]);
   const F = { spine: jointFrame(J.hip, a, p.flip), hip: jointFrame(J.hip, a, p.flip), chest: jointFrame(J.chest, a, p.flip), head: headFrame(J.head, p.headAngle || 0, rig.headPivot),
     box: p.turn ? jointFrame(plus(minus(p.turn.pivot, turn(p.turn.pivot, p.turn.angle)), p.turn.by || [0, 0]), p.turn.angle) : null }; // (box: what is on no joint, turned with the whole body, moved by: see hung)
+  for (const n in rig.legs) { // (a leg's thigh and shin: from where each starts, along it, as the pose bends it)
+    const L = rig.legs[n], b = F[L.on], paw = p.paws?.[n];
+    if (!b || !paw) continue;
+    const root = p.roots?.[n] || toWorld(b, L.at), [knee, end] = reach(root, paw, L.thigh, L.shin, L.bend);
+    F[`${n}.thigh`] = { o: root, a: Math.atan2(knee[1] - root[1], knee[0] - root[0]), flip: b.flip };
+    F[`${n}.shin`] = { o: knee, a: Math.atan2(end[1] - knee[1], end[0] - knee[0]), flip: b.flip };
+  }
   return { p, J, F, a, torso: rig.torso?.none ? { r: 0 } : torsoBy(rig.torso, p.torso) }; // (none: no shape on the spine)
 }
 // a torso (the first shape on the spine, see onLayers) as a pose has it: its r and ends, thicker and longer by the

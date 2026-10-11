@@ -171,7 +171,7 @@ const named = (what) => { // (a name for a new one: lower case letters, not take
   return n;
 };
 function create(k, b, of) {
-  files[k] = { format: 4, name: k, ...(of && { of }) }; builds[k] = b; saved[k] = null; KINDS.push(k);
+  files[k] = { format: 5, name: k, ...(of && { of }) }; builds[k] = b; saved[k] = null; KINDS.push(k);
   ANIMALS[k] = { ...ANIMALS[of || base], name: k.toUpperCase() };
   setRig(k, rigFor(k));
   choose(k); status();
