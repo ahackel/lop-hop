@@ -21,7 +21,6 @@ import { W, H, GROUND, PALETTES, COLOR, FOOT, ANIMALS, TRUNK, animal, moveBody, 
 import { GLYPHS, text, textWidth } from './font.js';
 import { ICONS, PAD_ICONS } from './icons.js';
 import { course, pace, topSpeed, drain, hardness, nightAt, random, seedOf, chaserOf, SCORE_PER_PX, CROWS_FROM, FAST_FROM, CHASE } from './level.js';
-import { ease } from './animals/kit.js';
 import { BUILT, APP_VERSION } from './version.js';
 import { t } from './lang.js'; // (what it writes, in the player's language)
 
@@ -86,6 +85,7 @@ const T = () => ANIMALS[kind]; // the animal's dials (see art.js)
 // an animal's name, and with its article (THE RABBIT), in the player's language
 const nameOf = (k) => t(`animal.${k}`), theOf = (k) => t(`animal.${k}.the`);
 for (const p of document.querySelectorAll('#rotate p')) p.textContent = t('page.rotate'); // (the page's only words the player sees)
+const ease = (u) => u * u * (3 - 2 * u); // (0…1 eased in and out)
 const Q = new URLSearchParams(location.search); // (the address's switches: ?auto, ?fps, ?all, ?treats, ?scale, ?hz, ?log, ?reset, ?cheats, ?top)
 // ?cheats: a row of buttons at the bottom of the screen, to get somewhere quickly (see CHEATS); its runs are not
 // written down (they would not say how the game plays)

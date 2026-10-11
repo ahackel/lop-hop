@@ -134,7 +134,7 @@ ok(mults.every((m, i) => !i || m > mults[i - 1]), `each animal counts more than 
 ok(branchBottom <= DUCK_UNDER && branchBottom >= DUCK_UNDER - 2, `branches end just above a ducking animal (row ${branchBottom})`);
 ok(CROW_BOTTOM > 0, 'crows have a lowest row');
 // every animal has its food, and its file is kept for playing offline (sw.js)
-const sw = readFileSync(new URL('../sw.js', import.meta.url), 'utf8'), missing = Object.keys(ANIMALS).filter((k) => !FOOD[ANIMALS[k].food] || !sw.includes(`'animals/${k}.js'`) || !sw.includes(`'assets/${k}.js'`));
+const sw = readFileSync(new URL('../sw.js', import.meta.url), 'utf8'), missing = Object.keys(ANIMALS).filter((k) => !FOOD[ANIMALS[k].food] || !sw.includes(`'assets/${k}.js'`));
 ok(!missing.length, `every animal has its food and is kept offline${missing.length ? ` — not: ${missing}` : ''}`);
 
 // the courses (level.js): the same every run, the next animal's another; every one can be got past (a player who

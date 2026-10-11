@@ -66,6 +66,24 @@
   #timeline input[type=range] { width: min(420px, 60vw); }
   #timeline .note { flex-basis: 100%; }
   .field.own > span:first-child { color: var(--accent); }
+  /* a number: its box and a slider (under it in a list; beside it on its own) */
+  .num { display: inline-flex; flex-direction: column; gap: 1px; }
+  .num input[type=number] { width: 62px; }
+  .num input[type=range] { width: 62px; height: 12px; margin: 0; accent-color: var(--accent); }
+  .field > .num { display: flex; flex-direction: row; align-items: center; gap: 6px; }
+  .field > .num input[type=range] { flex: 1; width: auto; min-width: 40px; }
+  label > .num { flex-direction: row; align-items: center; gap: 4px; }
+  /* a clip's dopesheet: a row for each bone, a column for each frame, its keys (a square: step) */
+  .dope { display: grid; gap: 1px; font-size: 10px; user-select: none; width: 100%; max-height: 26vh; overflow: auto; }
+  .dope .name { color: var(--dim); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 4px; }
+  .dope .name.on { color: var(--ink); font-weight: 600; }
+  .dope .fno { color: var(--dim); text-align: center; cursor: pointer; white-space: nowrap; overflow: visible; }
+  .dope .cell { height: 13px; background: var(--bg); cursor: pointer; position: relative; }
+  .dope .now { background: var(--accent-soft); }
+  .dope .key::after { content: ''; position: absolute; left: 50%; top: 50%; width: 7px; height: 7px; background: var(--sel); transform: translate(-50%, -50%) rotate(45deg); }
+  .dope .key.step::after { transform: translate(-50%, -50%); }
+  .keys { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 4px; }
+  .frameNo { color: var(--dim); min-width: 150px; }
   #previewCard { padding: 8px; flex: none; }
   #preview { display: block; height: min(15vh, 170px); width: auto; max-width: 100%; margin: 0 auto; image-rendering: pixelated; border-radius: 4px; }
   #sprites { display: flex; gap: 14px; align-items: flex-end; padding: 8px 10px; flex: none; overflow: hidden; }
@@ -85,7 +103,7 @@
   <button id="undo" title="Undo (⌘Z)">Undo</button>
   <button id="redo" title="Redo (⇧⌘Z)">Redo</button>
   <button id="revert" title="Back to the file as it was loaded">Revert</button>
-  <button id="save" class="primary" title="Save into animals/… or its asset, assets/… (⌘S)">Save</button>
+  <button id="save" class="primary" title="Save into its file, assets/… (⌘S)">Save</button>
   <span id="status"></span>
 </header>
 <main>

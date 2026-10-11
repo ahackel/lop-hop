@@ -1,27 +1,28 @@
 // Pixel art for Lop Hop. Sprites are small grids of palette indices, filled from shapes (ellipses, capsules,
-// triangles) and outlined. Each sprite comes with a collision mask. The animals are rigs (animals/*.js; see the rigs
+// triangles) and outlined. Each sprite comes with a collision mask. The animals are rigs (assets/*.js; see the rigs
 // below): their tails and ears swing to any angle, and never count in a collision.
-import rabbit from './animals/rabbit.js';
-import cat from './animals/cat.js';
-import dog from './animals/dog.js';
-import fox from './animals/fox.js';
-import hedgehog from './animals/hedgehog.js';
-import squirrel from './animals/squirrel.js';
-import otter from './animals/otter.js';
-import skunk from './animals/skunk.js';
-import wolf from './animals/wolf.js';
-import boar from './animals/boar.js';
-import bear from './animals/bear.js';
-import cheetah from './animals/cheetah.js';
-import rhino from './animals/rhino.js';
-import elephant from './animals/elephant.js';
-import dino from './animals/dino.js';
-import guineapig from './animals/guineapig.js';
-import pig from './animals/pig.js';
-import yak from './animals/yak.js';
-import ostrich from './animals/ostrich.js';
-import dromedary from './animals/dromedary.js';
-import gorilla from './animals/gorilla.js';
+import { toBuild } from './asset.js';
+import rabbit from './assets/rabbit.js';
+import cat from './assets/cat.js';
+import dog from './assets/dog.js';
+import fox from './assets/fox.js';
+import hedgehog from './assets/hedgehog.js';
+import squirrel from './assets/squirrel.js';
+import otter from './assets/otter.js';
+import skunk from './assets/skunk.js';
+import wolf from './assets/wolf.js';
+import boar from './assets/boar.js';
+import bear from './assets/bear.js';
+import cheetah from './assets/cheetah.js';
+import rhino from './assets/rhino.js';
+import elephant from './assets/elephant.js';
+import dino from './assets/dino.js';
+import guineapig from './assets/guineapig.js';
+import pig from './assets/pig.js';
+import yak from './assets/yak.js';
+import ostrich from './assets/ostrich.js';
+import dromedary from './assets/dromedary.js';
+import gorilla from './assets/gorilla.js';
 
 export const W = 300, H = 90, GROUND = 78; // the world in art pixels; GROUND: the y of the ground line
 
@@ -283,13 +284,13 @@ export const leaps = (kind) => !!RIGS[kind].poses.run?.gait?.leap;
 // sitting (on the title), t seconds in → its frame: a rig's own loop (breathing, looking about), or two frames
 export function idleFrame(kind, t) {
   const m = RIGS[kind].poses.idle;
-  return m?.at ? Math.floor(t * m.fps) % m.frames : Math.floor(t * 5) % 2;
+  return m?.fps ? Math.floor(t * m.fps) % m.frames : Math.floor(t * 5) % 2;
 }
 
 // jumping, rise: how fast it goes up (1: as it takes off, 0: at the top, -1: falling as fast) → its frame: a rig's jump
 // keyframes, spread over the arc (two: rising, falling)
 export function jumpFrame(kind, rise) {
-  const m = RIGS[kind].poses.jump, n = Array.isArray(m) ? m.length : 2;
+  const m = RIGS[kind].poses.jump, n = m?.keys ? m.frames : 2;
   return clamp(Math.floor(((1 - rise) / 2) * n), 0, n - 1);
 }
 
@@ -331,28 +332,14 @@ const balls = [0, 1, 2, 3].map((f) => {
 });
 
 // ------------------------------------------------------------------------------------------------------------ rigs
-// An animal can be a rig (animals/<kind>.js, see the cat): joints, shapes on them, legs that bend to reach their paws,
-// chains (a tail, ears) that the body's motion swings, and a pose for each move and frame. Its shapes are distances (how
-// far a point lies outside them), so they join smoothly. Each frame is drawn into a grid just big enough for it, with its
-// offset (ox, oy) from the 26×20 box the game places every animal by: a tail can reach out of the box.
-// (moves: the build's own, over the moves its make worked out: a list of keyframes set by hand in the editor's timeline,
-// in place of the move; or a gait's settings over the worked-out ones, a leg's over its own)
-function withMoves(rig) {
-  if (!rig.moves) return rig;
-  const poses = { ...rig.poses };
-  for (const name in rig.moves) {
-    const o = rig.moves[name], m = poses[name];
-    if (Array.isArray(o)) poses[name] = o;
-    else if (o.gait && m?.gait) {
-      const legs = { ...m.gait.legs };
-      for (const l in o.gait.legs || {}) legs[l] = Array.isArray(legs[l]) ? o.gait.legs[l] : { ...legs[l], ...o.gait.legs[l] };
-      poses[name] = { ...m, gait: { ...m.gait, ...o.gait, legs } };
-    }
-  }
-  return { ...rig, poses };
-}
-const RIGS = Object.fromEntries(Object.entries({ rabbit, guineapig, cat, dog, pig, fox, hedgehog, squirrel, otter, skunk, wolf, boar, bear, yak, ostrich, cheetah, dromedary, rhino, gorilla, elephant, dino })
-  .map(([k, rig]) => [k, withMoves(rig)]));
+// An animal is a rig (its file, assets/<kind>.js: see asset.js): joints, shapes on them, legs that
+// bend to reach their paws, chains (a tail, ears) that the body's motion swings, and its moves: a pose for each move and
+// frame (see poseOf). Its shapes are distances (how far a point lies outside them), so they join smoothly. Each frame is
+// drawn into a grid just big enough for it, with its offset (ox, oy) from the 26×20 box the game places every animal by:
+// a tail can reach out of the box. One made from another (of: the wolf, the fox's) is that one's, with its own over it
+const FILES = { rabbit, guineapig, cat, dog, pig, fox, hedgehog, squirrel, otter, skunk, wolf, boar, bear, yak, ostrich, cheetah, dromedary, rhino, gorilla, elephant, dino };
+export const rigOf = (asset, of = FILES[asset.of]) => (of ? { ...rigOf(of), ...toBuild(asset) } : { ...toBuild(asset), poses: asset.moves || {} });
+const RIGS = Object.fromEntries(Object.entries(FILES).map(([k, a]) => [k, rigOf(a)]));
 const NAMED = { OUT, FUR, EAR, PINK, INK, BERRY, ORANGE, LEAF, FAINT, LIGHT, FOX, BELLY, TAN, BROWN, GINGER, STRIPE, YELLOW, BARK, WOOD,
   FISH, LEAF_DARK, GRAPE, WOLF, BOAR, SNOUT, WOLF_DARK, SKUNK, CHEETAH, RHINO, RHINO_DARK, DINO, DINO_LIGHT, ELEPHANT, ELEPHANT_DARK, PIG, PIG_DARK, YAK, HORN, OSTRICH, OSTRICH_SKIN, CAMEL, CAMEL_DARK, GORILLA, SILVER, GORILLA_FACE, BOAR_DARK };
 
@@ -437,16 +424,93 @@ function leapPose(rig, m, f) {
 // how high a leap has the body, where the stride is
 const leapLift = (g, phase) => (phase < g.land ? 0 : g.height * Math.sin((Math.PI * (phase - g.land)) / (1 - g.land)));
 
-// a rig's pose for a move and a frame. A move is keyframes (a list), a gait, or a loop worked out by its own function
-// (at: 0…1 → a pose, in frames at fps); one it has none for: the run. (Worked-out poses are kept.)
+// a rig's pose for a move and a frame. A move is a gait (gait: its settings, see gaitPose and leapPose; with what else of
+// the pose it changes: lying low's joints, torso, shapes) or a clip: keys over its frames (frames; fps: a loop, played
+// over time: the idle), each key at a frame setting what of the pose it changes (a joint, a paw, the torso, the head's
+// turn, a tail's angle, the shapes), each of those going from a key that sets it to the next by the first's ease (see
+// EASES; linear if none), a loop's last key on round to its first. A move it has none of: the run. (Worked-out poses
+// are kept.)
 const worked = new Map();
 function poseOf(rig, name, frame) {
   const m = rig.poses[name] || rig.poses.run;
-  if (Array.isArray(m)) return m[frame % m.length];
   let list = worked.get(m);
   if (!list) worked.set(m, (list = []));
   const n = m.gait ? m.gait.frames : m.frames, i = frame % n;
-  return list[i] || (list[i] = m.gait ? (m.gait.leap ? leapPose : gaitPose)(rig, m, i) : m.at(i / n));
+  return list[i] || (list[i] = using(rig, m.gait ? (m.gait.leap ? leapPose : gaitPose)(rig, m, i) : clipPose(m, i)));
+}
+// how a thing goes from one key to the next (u: 0…1 of the way): at once at the next (step), evenly, easing in and out
+// (smooth), or as a swing does (sine: a breath, a wave)
+const EASES = { step: () => 0, linear: (u) => u, smooth: (u) => u * u * (3 - 2 * u), sine: (u) => (1 - Math.cos(Math.PI * u)) / 2 };
+// a value part way to another: numbers, and lists and objects of them alike; what differs in kind: the first
+const between = (a, b, u) => {
+  if (u <= 0 || a === b) return a;
+  if (typeof a === 'number' && typeof b === 'number') return a + (b - a) * u;
+  if (Array.isArray(a) && Array.isArray(b) && a.length === b.length) return a.map((x, i) => between(x, b[i], u));
+  if (a && b && typeof a === 'object' && typeof b === 'object' && !Array.isArray(a) && !Array.isArray(b)) {
+    const ka = Object.keys(a);
+    if (ka.length === Object.keys(b).length && ka.every((k) => k in b)) { const o = {}; for (const k of ka) o[k] = between(a[k], b[k], u); return o; }
+  }
+  return a;
+};
+// a clip's keys, by what they set (a path: 'joints.chest', 'chains.tail.angle', 'shapes'): [{ at, v, ease }] in order
+const tracksOf = new Map();
+function tracks(m) {
+  let t = tracksOf.get(m);
+  if (t) return t;
+  t = new Map();
+  const walk = (o, pre, key) => {
+    for (const k in o) {
+      if (!pre && (k === 'at' || k === 'ease')) continue;
+      const v = o[k], path = pre ? `${pre}.${k}` : k;
+      if (v && typeof v === 'object' && !Array.isArray(v)) walk(v, path, key);
+      else { if (!t.has(path)) t.set(path, []); t.get(path).push({ at: key.at, v, ease: key.ease }); }
+    }
+  };
+  for (const key of m.keys) walk(key, '', key);
+  for (const list of t.values()) list.sort((a, b) => a.at - b.at);
+  tracksOf.set(m, t);
+  return t;
+}
+// a clip's pose at a frame (a value of null: not set, as if no key had it)
+function clipPose(m, f) {
+  const pose = {}, n = m.frames, loop = !!m.fps;
+  for (const [path, ks] of tracks(m)) {
+    let i = ks.length - 1;
+    while (i > 0 && ks[i].at > f) i--;
+    let a = ks[i], b = ks[i + 1], from = a.at, to = b?.at;
+    if (a.at > f) { if (loop) { b = a; to = a.at; a = ks[ks.length - 1]; from = a.at - n; } else b = null; } // (before the first)
+    else if (!b && loop && ks.length > 1) { b = ks[0]; to = b.at + n; } // (after the last: on round to the first)
+    const v = b ? between(a.v, b.v, (EASES[a.ease] || EASES.linear)((f - from) / (to - from))) : a.v;
+    if (v === null) continue;
+    const keys = path.split('.');
+    let o = pose;
+    for (let j = 0; j < keys.length - 1; j++) o = o[keys[j]] ||= {};
+    o[keys[keys.length - 1]] = v;
+  }
+  return pose;
+}
+// a pose's shapes, paint and top, with the build's own put in where one is used by name ({ use: its name, move: [dx, dy]
+// (all of it moved), and what of it is other}): the build's as it is now
+const SHIFT = { ellipse: [0], capsule: [0, 2], box: [0, 2] };
+const shifted = (s, [dx, dy]) => {
+  const o = { ...s };
+  for (const g in SHIFT) if (s[g]) { o[g] = s[g].slice(); for (const i of SHIFT[g]) { o[g][i] += dx; o[g][i + 1] += dy; } }
+  if (s.triangle) o.triangle = s.triangle.map(([x, y]) => [x + dx, y + dy]);
+  if (s.shapes) o.shapes = s.shapes.map((x) => shifted(x, [dx, dy]));
+  return o;
+};
+function using(rig, p) {
+  let out = p;
+  for (const list of ['shapes', 'paint', 'top']) {
+    if (!p[list]?.some((x) => x.use)) continue;
+    const own = rig[list] || [];
+    out = { ...out, [list]: p[list].map((x) => {
+      if (!x.use) return x;
+      const { use, move, ...other } = x, s = { ...own.find((y) => y.name === use), ...other };
+      return move ? shifted(s, move) : s;
+    }) };
+  }
+  return out;
 }
 // a rig in a pose: the pose's settings over the rig's, the joints' frames
 const posed = (rig, name, frame) => posedAs(rig, poseOf(rig, name, frame));
@@ -525,7 +589,7 @@ export function moveBody(body, kind, pose, frame, x, y, wind, dt, P = null) { //
 // Both in steps (a few a move, as the frames go), so the frames drawn are few.
 const BLEND = 0.12, SQUASH = 0.2, STEPS = 3, SNAPS = ['idle', 'ko', 'ball', 'reach'];
 function ease(body, rig, pose, frame, dt) {
-  const was = body.move, keys = Array.isArray(rig.poses[pose]);
+  const was = body.move, m = rig.poses[pose], keys = !!m && !m.gait && !m.fps; // (a frame of its own: eased into)
   body.since = (body.since ?? Infinity) + dt; body.landed = (body.landed ?? Infinity) + dt;
   if (was && (was.pose !== pose || (keys && was.frame !== frame))) {
     body.from = SNAPS.includes(was.pose) || SNAPS.includes(pose) ? null : was; body.since = 0;
@@ -588,7 +652,7 @@ const SIZE = { rabbit: 0, guineapig: 0, cat: 1, dog: 2, pig: 2, fox: 1, hedgehog
   cheetah: 2, dromedary: 4, rhino: 4, gorilla: 4, elephant: 3, dino: 2 };
 const ducks = {};
 // how many frames a move has (a gait's, keyframes'; a loop's), for an animal
-const framesOf = (kind, pose) => { const m = RIGS[kind].poses[pose]; return m?.gait ? m.gait.frames : Array.isArray(m) ? m.length : m?.frames || 1; };
+const framesOf = (kind, pose) => { const m = RIGS[kind].poses[pose]; return m?.gait ? m.gait.frames : m?.frames || 1; };
 // the most it grows by, ducking: tried, every frame of the crawl, a frame at a time (see readying; ducked: all at once)
 function* fitDuck(kind) {
   const top = (s) => { let t = Infinity; for (let i = 0; i < s.mask.length; i++) if (s.mask[i]) { t = Math.floor(i / s.w); break; } return t + s.oy; };
@@ -1012,8 +1076,8 @@ export function front(kind, { blink = false, scale = 1 } = {}) {
   return s;
 }
 
-export function setRig(kind, rig) { RIGS[kind] = withMoves(rig); rigFrames.clear(); worked.clear(); hitboxes.clear(); delete ducks[kind]; }
-export const rigParts = { posed: (kind, move, frame) => posed(RIGS[kind], move, frame), pose: (kind, move, frame) => poseOf(RIGS[kind], move, frame), move: (kind, name) => RIGS[kind].poses[name], chainRest: (kind, P, name) => chainRest(RIGS[kind], P, name), growth: (kind, pose) => growth(grown(kind, pose)), toWorld, toLocal, sdShape, NAMED };
+export function setRig(kind, rig) { RIGS[kind] = rig; rigFrames.clear(); worked.clear(); tracksOf.clear(); hitboxes.clear(); delete ducks[kind]; }
+export const rigParts = { posed: (kind, move, frame) => posed(RIGS[kind], move, frame), pose: (kind, move, frame) => poseOf(RIGS[kind], move, frame), move: (kind, name) => RIGS[kind].poses[name], moves: (kind) => Object.keys(RIGS[kind].poses), clip: (m, frame) => clipPose(m, frame), chainRest: (kind, P, name) => chainRest(RIGS[kind], P, name), growth: (kind, pose) => growth(grown(kind, pose)), toWorld, toLocal, sdShape, NAMED };
 
 // the birds that circle a knocked-out head: two frames
 const birds = [0, 1].map((f) => {
