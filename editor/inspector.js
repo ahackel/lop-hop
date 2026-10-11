@@ -31,7 +31,7 @@ export function inspect() {
   if (t === 'joint') { box.append(field('place', nums(o, sel.name))); return; }
   if (t === 'group') { groupFields(o, box); return; }
   if (t === 'item' && o.bone) { fields(withDefaults(o, boneDefaults(o)), box, ['name', 'bone', 'along']); return; } // (a shape on a bone: all it can be)
-  if (t === 'item') { fields(withDefaults(o, { color: undefined, smooth: 1 }), box, ['name', 'on']); return; }
+  if (t === 'item') { fields(withDefaults(o, { color: undefined, smooth: 1, ...((o.ellipse || o.box) && { angle: 0 }) }), box, ['name', 'on']); return; } // (an ellipse, a box: turned)
   const skip = t === 'rig' ? ['joints', 'layers', 'dots', 'legs', 'chains', 'face', 'moves', 'handling', 'recolor'] : t === 'paint' || t === 'dot' ? ['name'] : t === 'leg' || t === 'chain' ? ['on'] : []; // (a bone's joint: dragged onto another in the list)
   fields(o, box, t === 'face' ? ['frames'] : skip);
   if (t === 'face') faceFrames(box);
@@ -58,7 +58,7 @@ function reattach(o, how, n) {
     if (!o.bone) {
       const g = geomOf(o) || 'ellipse', v = o[g];
       for (const x of GEOMS) delete o[x];
-      delete o.on;
+      delete o.on; delete o.angle;
       o.along = g;
       if (g === 'triangle') o.base = clone(ALONG.triangle.base);
       else o.r = +Math.max(0.3, g === 'ellipse' ? v[3] : g === 'capsule' ? v[4] : (v[3] - v[1]) / 2).toFixed(2);
@@ -80,7 +80,13 @@ function reshape(o, to) {
     for (const k of [...Object.keys(ALONG[was]), 'foot', 'round']) if (!(k in ALONG[to]) || k === 'round') delete o[k];
     o.along = to;
     if (to === 'triangle') o.base ??= clone(ALONG.triangle.base);
-  } else { const g = geomOf(o); if (g !== to) { o[to] = convert(o[g], g, to); delete o[g]; } }
+  } else {
+    const g = geomOf(o);
+    if (g !== to) {
+      o[to] = convert(o[g], g, to); delete o[g];
+      if (o.angle && (to === 'capsule' || to === 'triangle')) { o[to] = turnedAbout(o[to], to, o.angle); delete o.angle; } // (turned: its points so)
+    }
+  }
   tidy(o);
 }
 // (its settings in the order the files have them: its name, what it is on, what it is; then the rest)
@@ -220,6 +226,12 @@ const LABELS = { ellipse: ['x', 'y', 'rx', 'ry'], capsule: ['ax', 'ay', 'bx', 'b
 export const numName = (labels, n, j) => labels?.[j] ?? (n === 2 ? 'xy'[j] : `${j + 1}`);
 const nums = (o, k, geom, labels = LABELS[geom]) => stack(o[k].map((_, j) => numIn(o[k][j], (x) => { o[k][j] = x; }, { ...(RADII[geom]?.includes(j) && { min: 0 }), label: numName(labels, o[k].length, j) })));
 const json = (o, k) => { const i = el('input', { type: 'text', value: JSON.stringify(o[k]) }); i.onchange = () => { try { const v = JSON.parse(i.value); commit(() => { o[k] = v; }); } catch { i.style.borderColor = 'red'; } }; return i; };
+// a capsule's or a triangle's points turned by a about their middle
+function turnedAbout(v, g, a) {
+  const pts = g === 'capsule' ? [[v[0], v[1]], [v[2], v[3]]] : v, c = [pts.reduce((x, q) => x + q[0], 0) / pts.length, pts.reduce((x, q) => x + q[1], 0) / pts.length];
+  const t = pts.map(([x, y]) => [+(c[0] + (x - c[0]) * Math.cos(a) - (y - c[1]) * Math.sin(a)).toFixed(2), +(c[1] + (x - c[0]) * Math.sin(a) + (y - c[1]) * Math.cos(a)).toFixed(2)]);
+  return g === 'capsule' ? [...t[0], ...t[1], v[4]] : t;
+}
 // a shape's numbers, as another kind of shape about the same place
 function convert(v, from, to) {
   const box = from === 'ellipse' ? [v[0] - v[2], v[1] - v[3], v[0] + v[2], v[1] + v[3]] : from === 'triangle' ? [Math.min(...v.map((q) => q[0])), Math.min(...v.map((q) => q[1])), Math.max(...v.map((q) => q[0])), Math.max(...v.map((q) => q[1]))] : v.slice(0, 4);

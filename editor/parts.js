@@ -92,12 +92,20 @@ export function middleOf(t) {
 export let alt = false; // (⌥ held, dragging: see a group's pivot)
 // handles and outline of a shape (in its joint's frame)
 function shapeBits(s, fr) { // (fr: its frame, if not its joint's: in a group, see groupFrame)
-  const f = fr !== undefined ? fr : frameOf(s.on), g = geomOf(s), v = s[g], L = (p) => local(f, p), Wd = (p) => world(f, p);
+  const f = fr !== undefined ? fr : frameOf(s.on), g = geomOf(s), v = s[g];
+  // (an ellipse, a box: turned about its middle by its angle; its handles with it)
+  const turns = g === 'ellipse' || g === 'box', ang = turns ? s.angle || 0 : 0, c0 = g === 'ellipse' ? [v[0], v[1]] : g === 'box' ? [(v[0] + v[2]) / 2, (v[1] + v[3]) / 2] : [0, 0];
+  const L = (p) => plus(c0, turnBy(minus(local(f, p), c0), -ang)), Wd = (p) => world(f, plus(c0, turnBy(minus(p, c0), ang)));
   const handles = [], lines = [];
   const point = (get, put, anchor) => handles.push({ at: Wd(get()), set: (p) => put(roundAll(L(p))), anchor });
   const mover = (pts) => { // the middle: moves all of it
     const mid = () => [pts().reduce((a, q) => a + q[0], 0) / pts().length, pts().reduce((a, q) => a + q[1], 0) / pts().length];
-    handles.push({ at: Wd(mid()), anchor: true, move: true, set: (p) => { const d = minus(roundAll(L(p)), mid()); shift(d); } });
+    handles.push({ at: Wd(mid()), anchor: true, move: true, set: (p) => { const d = minus(roundAll(local(f, p)), mid()); shift(d); } });
+  };
+  const turner = (out) => { // its turn: the handle on the line out of its middle
+    const at = Wd(plus(c0, [out + 1.5, 0]));
+    handles.push({ at, size: true, set: (p) => { const q = minus(local(f, p), c0), a = Math.round(Math.atan2(q[1], q[0]) / (alt ? 0.01 : Math.PI / 36)) * (alt ? 0.01 : Math.PI / 36); if (Math.abs(a) < 0.005) delete s.angle; else s.angle = +a.toFixed(3); } });
+    lines.push([world(f, c0), at]);
   };
   const shift = (d) => {
     if (g === 'ellipse') { v[0] = +(v[0] + d[0]).toFixed(3); v[1] = +(v[1] + d[1]).toFixed(3); }
@@ -109,6 +117,7 @@ function shapeBits(s, fr) { // (fr: its frame, if not its joint's: in a group, s
     mover(() => [[v[0], v[1]]]);
     handles.push({ at: Wd([v[0] + v[2], v[1]]), size: true, set: (p) => { v[2] = Math.max(0.2, +Math.abs(round(L(p)[0] - v[0])).toFixed(3)); } });
     handles.push({ at: Wd([v[0], v[1] + v[3]]), size: true, set: (p) => { v[3] = Math.max(0.2, +Math.abs(round(L(p)[1] - v[1])).toFixed(3)); } });
+    turner(v[2]);
     lines.push(ring(40, (t) => [v[0] + v[2] * Math.cos(t), v[1] + v[3] * Math.sin(t)]));
   } else if (g === 'capsule') {
     const a = [v[0], v[1]], b = [v[2], v[3]], len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, d = [(b[0] - a[0]) / len, (b[1] - a[1]) / len], n = [-d[1], d[0]], r = v[4];
@@ -120,8 +129,14 @@ function shapeBits(s, fr) { // (fr: its frame, if not its joint's: in a group, s
     const arc = (c, from) => { const pts = []; for (let i = 0; i <= 16; i++) { const t = from + (i / 16) * Math.PI; pts.push(Wd([c[0] + r * (n[0] * Math.cos(t) + d[0] * Math.sin(t)), c[1] + r * (n[1] * Math.cos(t) + d[1] * Math.sin(t))])); } return pts; };
     lines.push([...arc(b, 0), ...arc(a, Math.PI), Wd(plus(b, [n[0] * r, n[1] * r]))]);
   } else if (g === 'box') {
-    point(() => [v[0], v[1]], (q) => { v[0] = q[0]; v[1] = q[1]; });
-    point(() => [v[2], v[3]], (q) => { v[2] = q[0]; v[3] = q[1]; });
+    if (ang) { // (turned: as wide and as tall about its middle, which stays)
+      const half = (i, q) => { const h = Math.max(0.2, +Math.abs(round(q[i] - c0[i])).toFixed(3)); v[i] = +(c0[i] - h).toFixed(3); v[i + 2] = +(c0[i] + h).toFixed(3); };
+      handles.push({ at: Wd([v[2], c0[1]]), size: true, set: (p) => half(0, L(p)) }, { at: Wd([c0[0], v[3]]), size: true, set: (p) => half(1, L(p)) });
+    } else {
+      point(() => [v[0], v[1]], (q) => { v[0] = q[0]; v[1] = q[1]; });
+      point(() => [v[2], v[3]], (q) => { v[2] = q[0]; v[3] = q[1]; });
+    }
+    turner(Math.abs(v[2] - v[0]) / 2);
     mover(() => [[v[0], v[1]], [v[2], v[3]]]);
     lines.push([[v[0], v[1]], [v[2], v[1]], [v[2], v[3]], [v[0], v[3]], [v[0], v[1]]].map(Wd));
   } else {

@@ -446,6 +446,13 @@ const extent = (s) => (s.ellipse ? [s.ellipse[0] - s.ellipse[2], s.ellipse[1] - 
   : s.capsule ? [Math.min(s.capsule[0], s.capsule[2]) - s.capsule[4], Math.min(s.capsule[1], s.capsule[3]) - s.capsule[4], Math.max(s.capsule[0], s.capsule[2]) + s.capsule[4], Math.max(s.capsule[1], s.capsule[3]) + s.capsule[4]]
   : [Math.min(...s.triangle.map((p) => p[0])), Math.min(...s.triangle.map((p) => p[1])), Math.max(...s.triangle.map((p) => p[0])), Math.max(...s.triangle.map((p) => p[1]))]);
 
+// an ellipse or a box turned (angle: about its middle, + clockwise): as one in the middle of a frame turned so, in f
+function turned(s, f) {
+  if (!s.angle || !(s.ellipse || s.box)) return [s, f];
+  const v = s.ellipse || s.box, c = s.ellipse ? [v[0], v[1]] : [(v[0] + v[2]) / 2, (v[1] + v[3]) / 2], b = f || { o: [0, 0], a: 0, flip: 1 };
+  const t = { o: toWorld(b, c), a: b.a + s.angle * b.flip, flip: b.flip };
+  return [s.ellipse ? { ...s, ellipse: [0, 0, v[2], v[3]] } : { ...s, box: [v[0] - c[0], v[1] - c[1], v[2] - c[0], v[3] - c[1], v[4]] }, t];
+}
 // a joint's frame: its place, its angle, flipped (on its back); points from it (local) and back (world)
 const jointFrame = (o, a, flip) => ({ o, a, flip: flip ? -1 : 1 });
 const toLocal = (f, x, y) => { const dx = x - f.o[0], dy = y - f.o[1], c = Math.cos(f.a), s = Math.sin(f.a); return [dx * c + dy * s, (-dx * s + dy * c) * f.flip]; };
@@ -840,8 +847,8 @@ function drawRig(rig, P, blink, chains, S = 1, [dx, dy] = [0, 0], floor = Math.r
   // a shape with its frame (its turn worked out once), its box in the box's coordinates, and how much nearer than its
   // distance that box may be (an ellipse's distance is short of the true one off its long axis): see near
   const placedIn = (s, group) => placed(s, group ? groupFrame(group, s) : s.on ? F[s.on] : F.box); // (group: one with a pivot it is in, see groupFrame)
-  const placed = (s, f) => {
-    const [a, b, c, d] = extent(s), q = [[a, b], [c, b], [a, d], [c, d]].map((v) => toWorld(f, v));
+  const placed = (s0, f0) => {
+    const [s, f] = turned(s0, f0), [a, b, c, d] = extent(s), q = [[a, b], [c, b], [a, d], [c, d]].map((v) => toWorld(f, v));
     const e = s.ellipse && Math.min(s.ellipse[2], s.ellipse[3]) / Math.max(s.ellipse[2], s.ellipse[3]);
     return { s, f, cos: f ? Math.cos(f.a) : 1, sin: f ? Math.sin(f.a) : 0, k: e || 1,
       box: [Math.min(...q.map((v) => v[0])), Math.min(...q.map((v) => v[1])), Math.max(...q.map((v) => v[0])), Math.max(...q.map((v) => v[1]))] };
