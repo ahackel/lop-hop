@@ -83,6 +83,7 @@ export function draw() {
   ctx.strokeRect((s.ox / S - X0) * Z, (s.oy / S - Y0) * Z, (s.w / S) * Z, (s.h / S) * Z);
   ctx.setLineDash([]);
   if ($('showBones').checked && editable() && view.mode !== 'play') drawBones(ctx);
+  if ($('showSwings').checked && editable() && view.mode !== 'play') drawSwings(ctx);
   if (editing() && !view.play) drawHandles(ctx);
   markFrames();
 }
@@ -121,8 +122,32 @@ function drawBones(ctx) {
     else { const pts = restPoints(r); for (let i = 1; i < pts.length; i++) bone(pts[i - 1], pts[i]); }
     if (f) hangs.push([f.o, r.root]);
   }
+  for (const n in build.bones || {}) { // (a bone: from its root, as long as it is (none long: a little way, its turn))
+    const f = F[n], up = F[build.bones[n].on];
+    if (!f) continue;
+    bone(f.o, toWorld(f, [Math.max(build.bones[n].length || 0, 1.5), 0]));
+    if (up) hangs.push([up.o, f.o]);
+  }
   ctx.setLineDash([3, 3]); ctx.strokeStyle = 'rgba(40,40,56,0.45)';
   for (const [a, b] of hangs) hang(a, b);
+  ctx.restore();
+}
+
+// the swings' bones (a shape's own, a group's), as the pose has them at rest: cyan lines edged white (no fur is cyan), a
+// dot where each link starts, a ring at the root (dashed: from the joint it hangs from)
+function drawSwings(ctx) {
+  const F = P.F, CYAN = 'rgba(0,175,215,0.95)', EDGE = 'rgba(255,255,255,0.85)';
+  ctx.save();
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  const both = (fn) => { ctx.strokeStyle = EDGE; ctx.lineWidth = 3.5; fn(); ctx.strokeStyle = CYAN; ctx.lineWidth = 1.5; fn(); };
+  for (const n of rigParts.chains(kind)) {
+    if (!n.startsWith('~') && !isOwn(n)) continue; // (a chain of the list's: drawn with the bones)
+    const r = rigParts.chainRest(kind, P, n), f = F[r.on], pts = r.ear ? [r.root, plus(r.root, times(r.dir, r.length))] : restPoints(r), sc = pts.map(toScreen);
+    if (f) { const [ax, ay] = toScreen(f.o); ctx.setLineDash([2, 3]); ctx.strokeStyle = CYAN; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(...sc[0]); ctx.stroke(); ctx.setLineDash([]); }
+    both(() => { ctx.beginPath(); sc.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.stroke(); });
+    for (const [x, y] of sc.slice(1, -1)) { ctx.beginPath(); ctx.arc(x, y, 2.5, 0, Math.PI * 2); ctx.fillStyle = CYAN; ctx.fill(); ctx.lineWidth = 1; ctx.strokeStyle = EDGE; ctx.stroke(); }
+    both(() => { ctx.beginPath(); ctx.arc(...sc[0], 3, 0, Math.PI * 2); ctx.stroke(); });
+  }
   ctx.restore();
 }
 

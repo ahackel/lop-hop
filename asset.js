@@ -45,6 +45,10 @@
 //   dots         single pixels: { on, at, color }, drawn with the face
 //   spikes       (a group's) a shape where it bristles (speck: a color for specks inside)
 //   socks        a color for the lower legs
+//   bones        bones of its own, by name, each: on (a joint, a leg's thigh or shin, another bone; none: the box), at (where,
+//                in its frame), angle (its turn on it, radians, + clockwise), length (a shape drawn along it: so long; none:
+//                a joint only). What is on it (shapes, groups, swings, legs, dots, bones) goes with it; a move turns it
+//                (bones { name: { angle, at } })
 //   legs         bones that bend to reach their paws, each: on (hip or chest), at (where it joins), thigh, shin, bend (1:
 //                the knee back, -1: forward)
 //   chains       bones swung by the body's motion, by name: a tail (on, at, angle from straight up, more: further back;
@@ -72,7 +76,7 @@
 //                or a clip: { frames, fps (a loop, played over time: the idle), keys: [{ at: a frame, ease, what of the pose
 //                  it sets }] }. Each thing a key sets goes from it to the next key that sets it by its ease (step,
 //                  linear, smooth, sine; linear if none); a loop's last on round to its first; null: not set
-//                a pose: joints, paws { leg: [x, y] }, headAngle, torso { thicker, longer: than the torso shape, -: less }, chains { name: angle, at, curl, tip }, roots
+//                a pose: joints, bones { name: { angle, at } }, paws { leg: [x, y] }, headAngle, torso { thicker, longer: than the torso shape, -: less }, chains { name: angle, at, curl, tip }, roots
 //                  { leg: [x, y] }, flip (on its back), pad (the near paws flat: [rx, ry]), over (drawn over the body); eye, mouth (its face's frames by name: open and shut if
 //                  none; blinking, open is blink); shapes (the body's own and these; ownShapes: only these), paint
 //                  (the body's), top (groups of its own: after the body and the groups on no bone after it), dots. A

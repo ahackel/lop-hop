@@ -9,13 +9,14 @@ import { alongOf, geomOf, ownChain, parts, same } from './parts.js';
 import { draw, editing } from './stage.js';
 import { P, also, build, commit, editable, hide, isGroup, kind, picked, refresh, sel, toLocal, toWorld, view, setAlso, setSel } from './state.js';
 import { ABOUT, keysAt, kindOf, leaves, pathsOf, rowOf } from './timeline.js';
+import { addBone, reparentBone, under } from './bones.js';
 
 // two tables, as Spine has them: the bones (a tree: the root (the animal itself), hip, chest and head down the spine, each
 // joint's legs and chains under it), each with what kind it is (a clip: its keys); and the shapes, in their groups in
 // the order they are drawn, each with what it is on and what it is. A group's head: its switches (how it is drawn, see
 // asset.js), to flip. Pointed at, a row's outline shows on the stage (a group's: all of its shapes'). Shapes dragged
 // into another group, or to another place in theirs; groups to another place among them. Templates: lit-html (lit/)
-const BONES = ['Animal', 'Frame', 'Joints', 'Legs', 'Chains', 'Paws', 'Tails and ears'];
+const BONES = ['Animal', 'Frame', 'Joints', 'Bones', 'Legs', 'Chains', 'Paws', 'Tails and ears'];
 let renamingSel = null; // (what is being renamed, in its row)
 export let hover = null; // (what is pointed at in the lists: { sels }; its outline on the stage, see drawHandles)
 export function listParts() {
@@ -73,18 +74,28 @@ const stop = (fn) => (e) => { e.stopPropagation(); fn(e); };
 
 // the bones: an icon (a bone; its kind: its tooltip), name (down the tree); a clip's: its keys (◆ here, ◇ at another frame). What
 // is drawn on them: the shapes' (see their Bone). A leg or a chain dragged onto a joint: on it (where it is, kept)
-const BONE_TYPES = { rig: ['root', 'The animal'], frame: ['frame', 'The frame shown'], joint: ['bone', 'A joint, down the spine'], leg: ['bone', 'A leg'], paw: ['bone', 'A paw'] };
+const BONE_TYPES = { rig: ['root', 'The animal'], frame: ['frame', 'The frame shown'], joint: ['bone', 'A joint, down the spine'], bone: ['bone', 'A bone: what is on it goes with it (shapes, swings, legs, bones); turned in a move'], leg: ['bone', 'A leg'], paw: ['bone', 'A paw'] };
 const boneType = (p) => (p.sel.type === 'chain' ? ['bone', build.chains[p.sel.name]?.ear ? 'An ear' : 'A chain (a tail)'] : BONE_TYPES[p.sel.type] || ['bone', '']);
 const typeIcon = ([ic, tip]) => html`<span class="kindIcon" title=${tip}>${icon(ic)}</span>`;
 function bonesTable(all) {
   const bonesOf = all.filter((p) => BONES.includes(p.group)), rows = [], put = (p, depth) => rows.push([p, depth]);
-  const onOf = (p) => (p.sel.type === 'leg' || p.sel.type === 'paw' ? build.legs[p.sel.name]?.on : p.sel.type === 'chain' ? build.chains[p.sel.name]?.on : null);
+  const onOf = (p) => (p.sel.type === 'leg' || p.sel.type === 'paw' ? build.legs[p.sel.name]?.on : p.sel.type === 'chain' ? build.chains[p.sel.name]?.on : p.sel.type === 'bone' ? build.bones?.[p.sel.name]?.on || '' : null);
+  const kidsOf = (name, depth) => { // (what is on it, and what is on those: a bone's, a leg's parts')
+    for (const p of bonesOf) {
+      if (rows.some(([q]) => q === p) || onOf(p) !== name) continue;
+      put(p, depth);
+      if (p.sel.type === 'bone') kidsOf(p.sel.name, depth + 1);
+      if (p.sel.type === 'leg' || p.sel.type === 'paw') for (const part of ['thigh', 'shin']) kidsOf(`${p.sel.name}.${part}`, depth + 1);
+    }
+  };
   for (const p of bonesOf) if (p.sel.type === 'rig' || p.sel.type === 'frame') put(p, 0);
   Object.keys(build.joints).forEach((j, d) => {
     const jp = bonesOf.find((p) => p.sel.type === 'joint' && p.sel.name === j);
     if (jp) put(jp, d + 1);
-    for (const p of bonesOf) if (!rows.some(([q]) => q === p) && onOf(p) === j) put(p, d + 2);
+    kidsOf(j, d + 2);
+    if (j === 'hip') kidsOf('spine', d + 2);
   });
+  kidsOf('', 1); // (on the box)
   for (const p of bonesOf) if (!rows.some(([q]) => q === p)) put(p, 1); // (on no joint)
   const foldOf = (p) => `bone:${p.sel.type}:${p.sel.name || ''}`, shown = [];
   let under = Infinity; // (the depth of a folded bone the rows go on under)
@@ -105,22 +116,30 @@ function bonesTable(all) {
   return html`<table class="list bonesList" @mouseleave=${() => point(null)}>
     <colgroup><col>${clip ? html`<col class="cKey">` : nothing}</colgroup>
     <thead><tr><th>Name</th>${clip ? html`<th>Key</th>` : nothing}</tr></thead>
-    <tbody>${shown.map(([p, depth, kids]) => html`<tr class=${rowClass(p)} .sel=${p.sel} draggable=${!clip && (p.sel.type === 'leg' || p.sel.type === 'chain') ? 'true' : 'false'}
+    <tbody>${shown.map(([p, depth, kids]) => html`<tr class=${rowClass(p)} .sel=${p.sel} draggable=${!clip && ['leg', 'chain', 'bone'].includes(p.sel.type) ? 'true' : 'false'}
         @click=${(e) => pick(p.sel, e)} @mouseenter=${() => point({ sels: [p.sel] })}
         @dragstart=${(e) => { boneDragged = p.sel; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', p.sel.name); }} @dragend=${boneDragEnd}
         @dragover=${(e) => { if (!boneDropOn(p.sel)) return; e.preventDefault(); e.currentTarget.classList.add('dropInto'); }}
         @dragleave=${(e) => { if (!e.currentTarget.contains(e.relatedTarget)) e.currentTarget.classList.remove('dropInto'); }}
         @drop=${(e) => { e.preventDefault(); const from = boneDropOn(p.sel) && boneDragged; boneDragEnd(); if (from) reparent(from, p.sel.name); }}>
       <td title=${p.tip || ''}><div class="name" style=${`padding-left:${depth * 12}px`}>${chevron(foldOf(p), kids)}${typeIcon(boneType(p))}<span>${p.label}</span></div></td>${clip ? html`<td>${key(p)}</td>` : nothing}</tr>`)}</tbody>
+    ${clip ? nothing : html`<tbody><tr class="sub"><td><button class="withIcon" title=${`A new bone on ${boneOn()}: shapes, swings, legs and bones go on it, and it turns in a move. Drag its root or tip; with ⌥ the bone alone (what is on it stays)`} @click=${() => addBone(boneOn())}>${icon('plus')}<span>Bone</span></button></td></tr></tbody>`}
   </table>`;
 }
 
-// a leg or a chain dragged onto a joint: on it, where it is kept (its root, an ear's tip, a tail's angle: in the joint's
-// frame, as Setup shows them)
+// what a new bone goes on: the joint or bone picked (none: the head)
+const boneOn = () => (sel.type === 'joint' || sel.type === 'bone' ? sel.name : 'head');
+// a leg, a chain or a bone dragged onto a joint or a bone: on it, where it is kept (its root, an ear's tip, a tail's
+// angle: in the joint's frame, as Setup shows them); a bone not onto itself or one on it
 let boneDragged = null;
-const boneDropOn = (s) => !!boneDragged && s.type === 'joint' && (boneDragged.type === 'leg' ? build.legs : build.chains)[boneDragged.name]?.on !== s.name;
+const boneDropOn = (s) => {
+  if (!boneDragged || (s.type !== 'joint' && s.type !== 'bone')) return false;
+  if (boneDragged.type === 'bone') return !under(boneDragged.name).has(s.name) && (build.bones[boneDragged.name]?.on || '') !== s.name;
+  return (boneDragged.type === 'leg' ? build.legs : build.chains)[boneDragged.name]?.on !== s.name;
+};
 function boneDragEnd() { boneDragged = null; for (const x of $('bones').querySelectorAll('.dropInto')) x.classList.remove('dropInto'); }
 export function reparent(from, j) {
+  if (from.type === 'bone') { reparentBone(from.name, j); return; }
   const o = (from.type === 'leg' ? build.legs : build.chains)[from.name], f = P.F[o.on], g = P.F[j], r3 = (v) => +v.toFixed(3);
   const into = (q) => toLocal(g, ...toWorld(f, q)).map(r3);
   commit(() => {

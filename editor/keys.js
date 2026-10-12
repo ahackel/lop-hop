@@ -8,6 +8,7 @@ import { current, parts, plus, same, times } from './parts.js';
 import { draw, editing, withIt } from './stage.js';
 import { changed, gameToggle, hidden, hide, picked, place, rebuild, redo, remember, save, sel, setMode, undo, view, setAlso, setSel } from './state.js';
 import { frames, setPlay, timeline } from './timeline.js';
+import { deleteBone } from './bones.js';
 
 // the keyboard: what each key does (shown with ?), by when it works
 const KEYS = [
@@ -16,7 +17,7 @@ const KEYS = [
     ['⌘ click  ⇧ click', 'Pick more shapes, markings, dots or groups (⇧: the rows between too)'], ['⌘A', 'Pick all in the list of the one picked'],
     ['⌘D', 'Copy what is picked'], ['⌫', 'Delete what is picked'], ['[  ]', 'Drawn earlier, later'], ['H', 'Hide or show what is picked'], ['Enter', 'Rename the shape or group picked (or double-click it)'], ['⌥H', 'Show everything hidden']]],
   ['Animate', [['Space', 'Play the move, stop'], [',  .', 'A frame back, on'], ['← →', 'A frame back, on (nothing picked)'], ['Home  End', 'The first frame, the last']]],
-  ['The stage', [['B', 'Bones'], ['A', 'All handles'], ['O', 'Onion skin'], ['P', 'Screen pixels (Setup)'], ['S', 'Shading']]],
+  ['The stage', [['B', 'Bones'], ['W', 'Swings’ bones'], ['A', 'All handles'], ['O', 'Onion skin'], ['P', 'Screen pixels (Setup)'], ['S', 'Shading']]],
 ];
 {
   const box = el('div');
@@ -78,6 +79,7 @@ document.addEventListener('keydown', (e) => {
   if (low === 's') { take(); flip('shading'); return; }
   if (view.mode === 'play' || view.mode === 'game') return;
   if (low === 'b') { take(); flip('showBones'); return; }
+  if (low === 'w') { take(); flip('showSwings'); return; }
   if (low === 'a') { take(); flip('allHandles'); return; }
   if (low === 'o' && view.mode === 'animate') { take(); flip('onion'); return; }
   if (low === 'p' && view.mode === 'setup') { take(); flip('fine'); return; }
@@ -86,6 +88,7 @@ document.addEventListener('keydown', (e) => {
   if (k === 'Tab') { take(); nextPart(e.shiftKey ? -1 : 1); return; }
   if (k === 'Enter' && LISTED.includes(sel.type) && view.move === 'edit' && view.mode === 'setup') { take(); startRename(sel); return; }
   if ((k === 'Delete' || k === 'Backspace') && LISTED.includes(sel.type)) { take(); itemDo('delete'); return; }
+  if ((k === 'Delete' || k === 'Backspace') && sel.type === 'bone' && view.move === 'edit' && view.mode === 'setup') { take(); deleteBone(sel.name); return; }
   if ((k === '[' || k === ']') && [...LISTED, 'face'].includes(sel.type)) { take(); itemDo('move', k === '[' ? -1 : 1); return; }
   if (k === 'Escape') { setSel({ type: view.move === 'edit' ? 'rig' : 'frame' }); listParts(); inspect(); draw(); return; }
   if (view.mode === 'animate') {

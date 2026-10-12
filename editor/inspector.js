@@ -8,6 +8,7 @@ import { colorPick, inspectPalette } from './palette.js';
 import { ALONG, alongOf, boneDefaults, current, geomOf, isOwn, middleOf, onChoices, ownChain, parts, repivot, withDefaults } from './parts.js';
 import { COLOR_KEYS, GEOMS, also, base, build, builds, changed, choose, commit, editable, isGroup, kind, newAnimal, newSkin, nice, paints, refresh, remember, sel, skin, skinsOf, status, view, setSel } from './state.js';
 import { inspectMove, timeline } from './timeline.js';
+import { addBone, deleteBone, renameBone, reparentBone, under } from './bones.js';
 
 export function inspect() {
   const box = $('inspector'); box.textContent = '';
@@ -28,8 +29,10 @@ export function inspect() {
     if (t === 'item' || t === 'paint') head.push(field('shape', shapeKind(o), o.bone ? 'What it is drawn as along its bone' : 'What it is: fitted to where it was'));
     box.append(section(t === 'group' ? 'Group' : 'Shape', head));
   }
+  if (t === 'bone') { boneFields(sel.name, o, box, title); return; }
   if (t === 'joint') {
     box.append(field('place', nums(o, sel.name)));
+    box.append(el('div', { className: 'keys' }, iconBtn('plus', 'Bone', { title: `A new bone on the ${sel.name}: what is on it goes with it, and it turns in a move`, onclick: () => addBone(sel.name) })));
     if (sel.name === 'head') { // (what it turns about)
       const pv = () => build.headPivot || [0, 0], put = (q) => { if (q[0] || q[1]) build.headPivot = q; else delete build.headPivot; };
       box.append(field('pivot', stack(pv().map((v, j) => numIn(v, (x) => { const q = pv().slice(); q[j] = x; put(q); }, { label: 'xy'[j] }))), 'What it turns about, from the joint: where the neck meets it (drag the ring by the joint)'));
@@ -63,7 +66,7 @@ function attach(o) {
   const now = o.bone ? `bone:${o.bone}` : `on:${o.on || ''}`, opt = (v, label) => el('option', { value: v, textContent: label, selected: v === now });
   const input = el('select', { onchange: () => { const [how, n] = input.value.split(':'); commit(() => reattach(o, how, n)); listParts(); inspect(); } });
   input.append(el('optgroup', { label: 'a joint, a leg’s part' }, opt('on:', 'the box'), ...onChoices().slice(1).map((j) => opt(`on:${j}`, j.replace('.', ' ')))),
-    el('optgroup', { label: 'drawn along a bone' }, opt('bone:spine', 'spine'), ...[...Object.keys(build.legs || {}), ...Object.keys(build.chains || {}).filter((n) => !isOwn(n) || n === o.bone)].map((n) => opt(`bone:${n}`, n === o.bone && isOwn(n) ? `${n} (its swing)` : n))));
+    el('optgroup', { label: 'drawn along a bone' }, opt('bone:spine', 'spine'), ...[...Object.keys(build.bones || {}), ...Object.keys(build.legs || {}), ...Object.keys(build.chains || {}).filter((n) => !isOwn(n) || n === o.bone)].map((n) => opt(`bone:${n}`, n === o.bone && isOwn(n) ? `${n} (its swing)` : n))));
   return input;
 }
 // a swing: a shape's own bone (see ownChain): the joint it hangs from (moved onto another: where it is, see reparent), its role,
@@ -73,6 +76,19 @@ const SWING_TIP = 'Swung as the body moves, on a bone of its own made from it: a
 function swingBox(o, on) {
   const no = !on && swingable(o);
   return field('swings', el('input', { type: 'checkbox', checked: on, disabled: !!no, onchange: () => { commit(() => (on ? swingOff(o) : swingOn(o))); listParts(); inspect(); } }), no || SWING_TIP);
+}
+// a bone: its name, what it is on (a joint, a bone, a leg's part; the box), where (its root there), its turn, how long it
+// is (a shape drawn along it: so long); a bone on it, or none
+function boneFields(n, B, box, title) {
+  title.append(el('span', { className: 'acts' }, iconBtn('trash', '', { title: 'Delete (⌫): what is on it stays where it is, on what it was on', onclick: () => deleteBone(n) })));
+  const name = el('input', { type: 'text', value: n, onchange: () => renameBone(n, name.value) });
+  const on = el('select', { onchange: () => reparentBone(n, on.value) }), no = under(n);
+  for (const c of onChoices().filter((x) => !no.has(x))) on.append(el('option', { value: c, textContent: c.replace('.', ' ') || 'the box', selected: c === (B.on || '') }));
+  box.append(section('Bone', [field('name', name, 'Its name: what is on it, and its keys in the moves, go by it'), field('on', on, 'What it is on: it goes with it (where it is, kept)'),
+    field('at', stack((B.at || [0, 0]).map((v, j) => numIn(v, (x) => { const q = (B.at || [0, 0]).slice(); q[j] = x; B.at = q; }, { label: 'xy'[j] }))), 'Where it is on what it is on (in its frame)'),
+    field('angle', numIn(B.angle || 0, (x) => { B.angle = x; }, { min: -3.14, max: 3.14, step: 0.01 }), 'Its turn on what it is on, radians (+: clockwise); a move turns it from there'),
+    field('length', numIn(B.length || 0, (x) => { B.length = x; }, { min: 0 }), 'How long it is: a shape drawn along it is so long (none: a joint, only turned)'),
+    el('div', { className: 'keys' }, iconBtn('plus', 'Bone', { title: 'A new bone on this one, at its end', onclick: () => addBone(n) }))], 'A bone of its own: shapes, swings, legs and bones go on it'));
 }
 // a group that swings: all of it, about its pivot, as the body moves (see swungGroups in art.js); on, its pivot at the top
 // of its shapes if it had none (where things hang from: drag it), its settings
@@ -97,7 +113,7 @@ function groupSwing(G) {
 }
 function chainFields(n, c) {
   const on = el('select', { onchange: () => reparent({ type: 'chain', name: n }, on.value) });
-  for (const j of Object.keys(build.joints)) on.append(el('option', { value: j, textContent: j, selected: j === c.on }));
+  for (const j of [...Object.keys(build.joints), ...Object.keys(build.bones || {})]) on.append(el('option', { value: j, textContent: j, selected: j === c.on }));
   const role = el('select', { onchange: () => { commit(() => { if (role.value) c.role = role.value; else delete c.role; }); inspect(); } });
   for (const [v, label] of ROLES) role.append(el('option', { value: v, textContent: label, selected: v === (c.role || '') }));
   const inner = el('div');
@@ -218,7 +234,7 @@ function fields(o, box, skip, flat = false) {
         : el('input', { type: 'checkbox', title: 'A flat foot', onchange: () => { commit(() => { o.foot = [1.3, 0.6]; }); inspect(); } });
     } else if (k === 'bone') {
       input = el('select', { onchange: () => { commit(() => { o.bone = input.value; }); listParts(); inspect(); } });
-      for (const c of ['spine', ...Object.keys(build.legs || {}), ...Object.keys(build.chains || {})]) input.append(el('option', { value: c, textContent: c, selected: c === v }));
+      for (const c of ['spine', ...Object.keys(build.bones || {}), ...Object.keys(build.legs || {}), ...Object.keys(build.chains || {})]) input.append(el('option', { value: c, textContent: c, selected: c === v }));
     } else if (k === 'on') {
       input = el('select', { onchange: () => commit(() => { if (input.value) o.on = input.value; else delete o.on; }) });
       for (const c of onChoices()) input.append(el('option', { value: c, textContent: c.replace('.', ' ') || 'the box', selected: c === (v || '') }));

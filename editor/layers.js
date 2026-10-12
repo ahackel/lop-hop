@@ -286,7 +286,7 @@ export function setSpikes(g, on) {
 // pose's paint), a group (a pose's top)
 export function rename(s, o, name) {
   const to = name.trim(), was = o.name, body = s.g === bodyIndex(), own = s.type === 'item' && ownChain(o);
-  if (own && to !== was && (!to || to in (build.chains || {}) || to in (build.legs || {}) || to === 'spine')) { listParts(); return; } // (its bone's name: its, and not another's)
+  if (own && to !== was && (!to || to in (build.chains || {}) || to in (build.legs || {}) || to in (build.joints || {}) || to in (build.bones || {}) || to === 'spine')) { listParts(); return; } // (its bone's name: its, and not another's)
   const list = s.type === 'group' ? 'top' : body && s.type === 'item' && !o.bone ? 'shapes' : body && s.type === 'paint' ? 'paint' : null;
   if (to === (was || '')) { listParts(); return; }
   const uses = (m, f) => { if (!m || typeof m !== 'object') return; if (Array.isArray(m[list])) for (const x of m[list]) if (x?.use === was) f(x); for (const v of Object.values(m)) uses(v, f); };

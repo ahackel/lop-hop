@@ -610,6 +610,7 @@ function posedAs(rig, p) {
   const J = { ...rig.joints, ...p.joints }, a = Math.atan2(J.chest[1] - J.hip[1], J.chest[0] - J.hip[0]);
   const F = { spine: jointFrame(J.hip, a, p.flip), hip: jointFrame(J.hip, a, p.flip), chest: jointFrame(J.chest, a, p.flip), head: headFrame(J.head, p.headAngle || 0, rig.headPivot),
     box: p.turn ? jointFrame(plus(minus(p.turn.pivot, turn(p.turn.pivot, p.turn.angle)), p.turn.by || [0, 0]), p.turn.angle) : null }; // (box: what is on no joint, turned with the whole body, moved by: see hung)
+  bonesOn(rig, p, F);
   for (const n in rig.legs) { // (a leg's thigh and shin: from where each starts, along it, as the pose bends it)
     const L = rig.legs[n], b = F[L.on], paw = p.paws?.[n];
     if (!b || !paw) continue;
@@ -617,7 +618,23 @@ function posedAs(rig, p) {
     F[`${n}.thigh`] = { o: root, a: Math.atan2(knee[1] - root[1], knee[0] - root[0]), flip: b.flip };
     F[`${n}.shin`] = { o: knee, a: Math.atan2(end[1] - knee[1], end[0] - knee[0]), flip: b.flip };
   }
+  bonesOn(rig, p, F); // (those on a leg's thigh or shin)
   return { p, J, F, a, torso: rig.torso?.none ? { r: 0 } : torsoBy(rig.torso, p.torso) }; // (none: no shape on the spine)
+}
+// the bones (see asset.js): each a frame, from where it is on what it is on (a joint, a leg's part, a bone; none: the box),
+// turned by its angle as the pose has it. One on what has no frame yet: left for later (on a leg's part, see posedAs)
+function bonesOn(rig, p, F) {
+  const B = rig.bones;
+  if (!B) return;
+  const put = (n, seen) => {
+    if (F[n]) return true;
+    const b = { ...B[n], ...p.bones?.[n] };
+    if (b.on && !F[b.on] && (!B[b.on] || seen.has(b.on) || !put(b.on, seen.add(n)))) return false;
+    const f = b.on ? F[b.on] : F.box, base = f || { a: 0, flip: 1 };
+    F[n] = { o: toWorld(f, b.at || [0, 0]), a: base.a + (b.angle || 0) * base.flip, flip: base.flip };
+    return true;
+  };
+  for (const n in B) put(n, new Set());
 }
 // a torso (the first shape on the spine, see onLayers) as a pose has it: its r and ends, thicker and longer by the
 // pose's (-: thinner, shorter)
@@ -631,6 +648,7 @@ function mixPose(rig, a, b, u) {
   const out = { ...m, eye: b.eye, mouth: b.mouth, joints: {}, paws: {}, chains: {}, headAngle: lerp(a.headAngle || 0, b.headAngle || 0), torso: { thicker: lerp(ta.thicker || 0, tb.thicker || 0), longer: lerp(ta.longer || 0, tb.longer || 0) } };
   for (const k in ja) out.joints[k] = mix(ja[k], jb[k], u);
   for (const k in rig.legs) out.paws[k] = part(a.paws?.[k], b.paws?.[k]);
+  if (rig.bones) { out.bones = {}; for (const k in rig.bones) { const ba = { angle: 0, at: [0, 0], ...rig.bones[k], ...a.bones?.[k] }, bb = { angle: 0, at: [0, 0], ...rig.bones[k], ...b.bones?.[k] }; out.bones[k] = { angle: lerp(ba.angle, bb.angle), at: mix(ba.at, bb.at, u) }; } }
   for (const k in rig.chains) {
     const ca = { curl: 0, ...rig.chains[k], ...a.chains?.[k] }, cb = { curl: 0, ...rig.chains[k], ...b.chains?.[k] };
     out.chains[k] = ca.ear ? { tip: mix(ca.tip, cb.tip, u) } : { ...(u < 0.5 ? a : b).chains?.[k], angle: lerp(ca.angle, cb.angle), curl: lerp(ca.curl, cb.curl), at: mix(ca.at, cb.at, u), root: part(ca.root, cb.root) };
@@ -671,7 +689,8 @@ function onBone(rig, P, chains, s, far = false, first = false) {
   } else if (c && chains[n]) {
     pts = chains[n];
     if (c.ear) { rf = F[c.on]; at = c.at; } else rf = { ...F[c.on], o: pts[0] };
-  } else return null;
+  } else if (rig.bones?.[n] && F[n]) { pts = [F[n].o, toWorld(F[n], [rig.bones[n].length || 0, 0])]; rf = F[n]; } // (a bone: from where it is on, as long as it is)
+  else return null;
   const t = n === 'spine' ? (first ? { ...s, r: P.torso.r, ends: P.torso.ends } : torsoBy(s, p.torso)) : s; // (another on the spine: changed as much)
   const kind = s.along || (n === 'spine' ? (s.round ? 'capsule' : 'ellipse') : c?.ear ? 'triangle' : 'capsule'); // (none: as its bone had it)
   const a = pts[0], b = pts[pts.length - 1], ends = t.ends || 0;
@@ -1246,7 +1265,7 @@ export function moveReaching(body, kind, tx, ty, amount, look, x, y, dt, sniff =
 
 // for the editor (editor/): an edited rig swapped in (its frames drawn again), and what places its parts
 export function setRig(kind, rig) { RIGS[kind] = rig; rigFrames.clear(); worked.clear(); tracksOf.clear(); hitboxes.clear(); delete ducks[kind]; delete depths[kind]; }
-export const rigParts = { posed: (kind, move, frame) => posed(RIGS[kind], move, frame), pose: (kind, move, frame) => poseOf(RIGS[kind], move, frame), move: (kind, name) => RIGS[kind].poses[name], moves: (kind) => Object.keys(RIGS[kind].poses), clip: (m, frame) => clipPose(m, frame), chainRest: (kind, P, name) => chainRest(RIGS[kind], P, name), onBone: (kind, P, s, first) => { const rig = RIGS[kind]; return onBone(rig, P, rig.chains?.[s.bone] ? { [s.bone]: restPoints(chainRest(rig, P, s.bone)) } : {}, s, false, first); }, growth: (kind, pose) => growth(grown(kind, pose)), reach, restPoints, toWorld, toLocal, sdShape, NAMED, faceFrame };
+export const rigParts = { posed: (kind, move, frame) => posed(RIGS[kind], move, frame), pose: (kind, move, frame) => poseOf(RIGS[kind], move, frame), move: (kind, name) => RIGS[kind].poses[name], moves: (kind) => Object.keys(RIGS[kind].poses), clip: (m, frame) => clipPose(m, frame), chainRest: (kind, P, name) => chainRest(RIGS[kind], P, name), onBone: (kind, P, s, first) => { const rig = RIGS[kind]; return onBone(rig, P, rig.chains?.[s.bone] ? { [s.bone]: restPoints(chainRest(rig, P, s.bone)) } : {}, s, false, first); }, chains: (kind) => Object.keys(RIGS[kind].chains || {}), growth: (kind, pose) => growth(grown(kind, pose)), reach, restPoints, toWorld, toLocal, sdShape, NAMED, faceFrame };
 
 // the birds that circle a knocked-out head: two frames
 const birds = [0, 1].map((f) => {

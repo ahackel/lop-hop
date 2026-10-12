@@ -2,6 +2,7 @@
 import { rigParts } from '../art.js';
 import { GEOMS, P, build, editable, hidden, isGroup, kind, sdShape, sel, swatch, toLocal, toWorld, view } from './state.js';
 import { frames, kindOf, setKey } from './timeline.js';
+import { moveAlone } from './bones.js';
 
 // every part of the build: what picks it (sel), its name in the list, its color, the object the inspector edits, its
 // handles (each: where, and what dragging it there does), its outline and whether a point is on it
@@ -24,7 +25,7 @@ const shapesOn = (n) => (build.layers || []).filter(isGroup).flatMap((G) => G.sh
 export const isOwn = (n) => { const on = shapesOn(n); return !!build.chains?.[n] && on.length === 1 && on[0].name === n; };
 export const ownChain = (s) => (s?.bone && s.name === s.bone && isOwn(s.bone) ? build.chains[s.bone] : null);
 // what a shape can be on: a joint, a leg's thigh or shin, none (the box)
-export const onChoices = () => ['', 'spine', 'hip', 'chest', 'head', ...Object.keys(build.legs || {}).flatMap((n) => [`${n}.thigh`, `${n}.shin`])];
+export const onChoices = () => ['', 'spine', 'hip', 'chest', 'head', ...Object.keys(build.bones || {}), ...Object.keys(build.legs || {}).flatMap((n) => [`${n}.thigh`, `${n}.shin`])]; // (and the bones)
 export const spineShape = () => (build.layers || []).filter(isGroup).flatMap((G) => G.shapes).find((s) => s.bone === 'spine'); // (the torso: a move's torso changes it)
 export const ALONG = { // (each kind's own settings along a bone)
   ellipse: { r: 1, ends: 0 }, capsule: { r: 1, ends: 0, end: 0 }, box: { r: 1, ends: 0, round: 0 }, triangle: { base: [[-1.2, 0.5], [1.2, -0.5]], tipColor: undefined, tipSize: 2 },
@@ -169,6 +170,15 @@ export function parts() {
     }
     out.push(jp);
   }
+  // each bone: where it is on its joint or bone (its root), its turn and how long it is (its tip; none long: two pixels out)
+  for (const n in build.bones || {}) {
+    const B = build.bones[n], f = frameOf(B.on) || P.F.box, bf = P.F[n];
+    if (!bf) continue;
+    const root = world(f, B.at || [0, 0]), tip = world(bf, [Math.max(B.length || 0, 2), 0]);
+    out.push({ sel: { type: 'bone', name: n }, group: 'Bones', label: n, obj: B, lines: [[root, tip]],
+      handles: [{ at: root, anchor: true, joint: true, set: (p) => { const q = roundAll(local(f, p)); if (alt) moveAlone(n, q, B.angle || 0); else B.at = q; } }, // (⌥: the bone alone, what is on it staying)
+        { at: tip, size: true, set: (p) => { const d = minus(local(f, p), B.at || [0, 0]), a = +Math.atan2(d[1], d[0]).toFixed(3); if (alt) moveAlone(n, B.at || [0, 0], a); else B.angle = a; B.length = Math.max(0, +round(Math.hypot(...d)).toFixed(3)); } }] });
+  }
   // each group (in the order drawn): itself (on no bone: its pivot, dragged: all of it moves, with ⌥ the pivot alone; and
   // its turn, the handle on the line out of the pivot), then its shapes, its paint, its spikes, each a part of its own
   const face = (g) => {
@@ -238,6 +248,14 @@ export function poseParts() {
     const handles = [{ at: P.J[j], anchor: true, joint: true, set: (p) => setKey(`joints.${j}`, roundAll(p)) }];
     if (j === 'head') handles.push({ at: turnAt, size: true, set: (p) => { const d = minus(p, pivot); setKey('headAngle', +Math.atan2(d[1], d[0]).toFixed(2)); } });
     out.push({ sel: { type: 'joint', name: j }, group: 'Joints', label: j, ...(j === 'head' && { tip: 'The ring: its turn' }), obj: null, lines: j === 'head' ? [[pivot, turnAt]] : [], handles });
+  }
+  for (const n in build.bones || {}) { // (a bone: its turn, at its tip; where it is on what it is on, at its root)
+    const B = { ...build.bones[n], ...P.p.bones?.[n] }, f = (B.on ? F[B.on] : F.box) || null, bf = F[n];
+    if (!bf) continue;
+    const tip = world(bf, [Math.max(build.bones[n].length || 0, 2), 0]);
+    out.push({ sel: { type: 'bone', name: n }, group: 'Bones', label: n, tip: 'Its tip: its turn. Its root: where it is', obj: null, lines: [[bf.o, tip]],
+      handles: [{ at: tip, anchor: true, set: (p) => { const d = minus(local(f, p), B.at || [0, 0]); setKey(`bones.${n}.angle`, +Math.atan2(d[1], d[0]).toFixed(3)); } },
+        { at: bf.o, size: true, set: (p) => setKey(`bones.${n}.at`, roundAll(local(f, p))) }] });
   }
   for (const l in build.legs) {
     out.push({ sel: { type: 'paw', name: l }, group: 'Paws', label: l, obj: null, lines: [],

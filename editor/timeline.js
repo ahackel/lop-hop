@@ -36,8 +36,8 @@ const EASES = ['linear', 'smooth', 'sine', 'step'];
 // a clip's keys by what they set (a path: 'joints.chest', 'chains.tail.angle'), and the bone each is on: a row of the
 // timeline (the head's turn on the head, a leg's paw and root on the leg, the shapes on a row of their own)
 export const leaves = (o, pre = '', out = []) => { for (const k in o) { if (!pre && (k === 'at' || k === 'ease')) continue; const v = o[k], p = pre ? `${pre}.${k}` : k; if (v && typeof v === 'object' && !Array.isArray(v)) leaves(v, p, out); else out.push(p); } return out; };
-export const rowOf = (path) => { const [a, b] = path.split('.'); return a === 'eye' || a === 'mouth' ? 'face' : a === 'joints' ? b : a === 'headAngle' ? 'head' : a === 'paws' || a === 'roots' || a === 'chains' ? b : a === 'torso' ? 'torso' : ['shapes', 'paint', 'top', 'dots', 'ownShapes'].includes(a) ? 'shapes' : 'pose'; };
-const rowOfSel = () => (sel.type === 'joint' || sel.type === 'paw' || sel.type === 'chain' ? sel.name : null); // (null: every row)
+export const rowOf = (path) => { const [a, b] = path.split('.'); return a === 'eye' || a === 'mouth' ? 'face' : a === 'joints' ? b : a === 'headAngle' ? 'head' : a === 'paws' || a === 'roots' || a === 'chains' || a === 'bones' ? b : a === 'torso' ? 'torso' : ['shapes', 'paint', 'top', 'dots', 'ownShapes'].includes(a) ? 'shapes' : 'pose'; };
+const rowOfSel = () => (['joint', 'paw', 'chain', 'bone'].includes(sel.type) ? sel.name : null); // (null: every row)
 const getPath = (o, path) => path.split('.').reduce((x, k) => x?.[k], o);
 const setPath = (o, path, v) => { const ks = path.split('.'); let x = o; for (let i = 0; i < ks.length - 1; i++) x = x[ks[i]] ||= {}; x[ks[ks.length - 1]] = v; };
 function delPath(o, path) {
@@ -96,6 +96,7 @@ export function show(move, frame = 0) {
 $('move').onchange = () => show($('move').value);
 $('allHandles').onchange = draw;
 $('showBones').onchange = draw;
+$('showSwings').onchange = draw;
 $('fine').onchange = draw;
 $('onion').onchange = draw;
 // shading: the look the game draws in (see setStyle in art.js); off: the sprites' own colors, outlined in black.
@@ -122,9 +123,9 @@ export function timeline() {
     return;
   }
   // the rows: the spine's joints, the legs, the chains, then the torso, the shapes, the rest of the pose
-  const rows = new Map(), order = [...Object.keys(build.joints || {}), ...Object.keys(build.legs || {}), ...Object.keys(build.chains || {}), 'face', 'torso', 'shapes', 'pose'];
+  const rows = new Map(), order = [...Object.keys(build.joints || {}), ...Object.keys(build.bones || {}), ...Object.keys(build.legs || {}), ...Object.keys(build.chains || {}), 'face', 'torso', 'shapes', 'pose'];
   for (const k of clipKeys()) for (const p of leaves(k)) { const r = rowOf(p); if (!rows.has(r)) rows.set(r, new Map()); if (!rows.get(r).has(k.at)) rows.get(r).set(k.at, k.ease || 'linear'); }
-  const selOf = (r) => (r in (build.joints || {}) ? { type: 'joint', name: r } : r in (build.legs || {}) ? { type: 'paw', name: r } : r in (build.chains || {}) ? { type: 'chain', name: r } : { type: 'frame' });
+  const selOf = (r) => (r in (build.joints || {}) ? { type: 'joint', name: r } : r in (build.bones || {}) ? { type: 'bone', name: r } : r in (build.legs || {}) ? { type: 'paw', name: r } : r in (build.chains || {}) ? { type: 'chain', name: r } : { type: 'frame' });
   const dope = el('div', { className: 'dope', style: `grid-template-columns: 76px repeat(${n}, minmax(4px, 1fr))` });
   dope.append(el('span'));
   for (let i = 0; i < n; i++) dope.append(el('span', { className: `fno${i === view.frame ? ' now' : ''}`, textContent: n <= 24 || i % 10 === 0 ? i + 1 : '', onclick: () => goTo(i) }));
@@ -194,6 +195,10 @@ export function inspectMove(box) {
   } else if (sel.type === 'paw') {
     vec('paw', `paws.${row}`, pose.paws[row], { span: 4 });
     if (pose.roots?.[row]) vec('root', `roots.${row}`, pose.roots[row], { span: 3 });
+  } else if (sel.type === 'bone') {
+    const b = { angle: 0, at: [0, 0], ...build.bones[row], ...pose.bones?.[row] };
+    one('turn', `bones.${row}.angle`, b.angle, { step: 0.05, span: 1.5 }, 'radians on what it is on, + clockwise');
+    vec('place', `bones.${row}.at`, b.at, { span: 3 });
   } else if (sel.type === 'chain') {
     const c = { ...build.chains[row], ...pose.chains?.[row] };
     if (c.ear) vec('tip', `chains.${row}.tip`, c.tip, { span: 3 });
