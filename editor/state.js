@@ -53,16 +53,16 @@ const touched = () => [base, ...(skin ? [kind] : [])].filter(dirty); // (the fil
 // made again from its build, as the game makes it (rigOf): drawn anew, and the frames its parts are placed in (standing:
 // the pose the build's handles edit; a move's frame: the one its handles edit). One another is made from (the fox: the
 // wolf's) makes that one again too
-const assetOf = (k) => toAsset(k, builds[k], files[k]);
-export const rigFor = (k) => rigOf(k === base ? shown(assetOf(k)) : assetOf(k), files[k].of && (files[k].of === base ? shown(assetOf(files[k].of)) : assetOf(files[k].of)));
+const assetOf = (k) => toAsset(k, k === base ? shown(builds[k]) : builds[k], files[k]); // (hidden: left out of the build, as its shapes are)
+export const rigFor = (k) => rigOf(assetOf(k), files[k].of && assetOf(files[k].of));
 // what is hidden (its row's eye: the editor's only, never saved) left out of what is drawn: a group, a shape (one on a
 // bone: the bone not drawn), a marking, spikes, a dot. By what it is (dragged elsewhere, still hidden); an undo finds
 // it again where it was (see restore)
 export const isGroup = (G) => !!G && typeof G === 'object';
 export const hidden = new Set();
-function shown(rig) {
-  if (!hidden.size) return rig;
-  const r = { ...rig }, keep = (list) => list.filter((x) => !hidden.has(x));
+function shown(b) {
+  if (!hidden.size) return b;
+  const r = { ...b }, keep = (list) => list.filter((x) => !hidden.has(x));
   if (r.layers) r.layers = keep(r.layers).map((G) => (isGroup(G) ? { ...G, shapes: keep(G.shapes), ...(G.paint && { paint: keep(G.paint) }), ...(hidden.has(G.spikes) && { spikes: undefined }) } : G));
   if (r.dots) r.dots = keep(r.dots);
   return r;
