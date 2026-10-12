@@ -600,13 +600,13 @@ upright.addEventListener('change', () => { if (upright.matches) pause(); });
 
 function pause() {
   if (state !== 'run') return;
-  state = 'paused';
+  state = 'paused'; drawn = {}; sleepT = 0; // (asleep: see animalPose, sleepZs)
   fingers.clear(); duck(false); release();
   if (audio === 'on') music.pause(0.2);
 }
 function resume() {
   if (state !== 'paused') return;
-  state = 'run';
+  state = 'run'; drawn = {};
   if (audio === 'on') music.play();
 }
 // out of sight (another app, the home screen, the screen locked), the music stops on every screen, not only in a run: on
@@ -1182,8 +1182,9 @@ function autopilot(popcorn = false) {
 
 // blinking, now and then (t: the time; a little later for another animal)
 const blinking = (t = blinkT) => t % 3.2 < 0.12;
-// the animal's pose now → [pose, frame, blink]
-function animalPose() {
+// the animal's pose now → [pose, frame, blink]; paused, asleep where it is (its eyes shut)
+function animalPose() { const p = poseNow(); return state === 'paused' ? [p[0], p[1], true] : p; }
+function poseNow() {
   if (state === 'ko' && won) return alt > 0 ? ['jump', jumpFrame(kind, vAlt / (JUMP * T().jump)), false] : ['run', stride(kind, phase).frame, blinking()]; // (running off)
   if (state === 'ko') return [alt > 0 ? 'hurt' : 'ko', 0, false];
   if (state === 'title') return launch ? ['run', stride(kind, launch.phase).frame, false] : ['idle', idleFrame(kind, blinkT), blinking()];
@@ -1194,6 +1195,22 @@ function animalPose() {
   if (alt > 0) return ['jump', jumpFrame(kind, vAlt / (JUMP * T().jump)), blinking()];
   if (ducking) return ['duck', stride(kind, phase, 'duck').frame, blinking()];
   return [power && kind === 'elephant' ? 'spray' : 'run', stride(kind, phase).frame, blinking()]; // (splash: the trunk up)
+}
+// asleep (paused): Zs float up from its head one after another, drifting, growing, fading at the top
+let sleepT = 0;
+const ZS = [['xxxx', '..x.', '.x..', 'xxxx'], ['xxxxx', '...x.', '..x..', '.x...', 'xxxxx']];
+function sleepZs(pal) {
+  const [hx, hy] = headAt();
+  ctx.fillStyle = pal[COLOR.INK];
+  for (let i = 0; i < 3; i++) {
+    let p = sleepT * 0.45 - i / 3;
+    if (p < 0) continue;
+    p %= 1;
+    const z = ZS[p < 0.45 ? 0 : 1], x = Math.round(hx + 3 + p * 9 + Math.sin(p * 6 + i) * 1.5), y = Math.round(hy - 2 - p * 16);
+    ctx.globalAlpha = p > 0.8 ? (1 - p) / 0.2 : 1;
+    z.forEach((row, r) => { for (let c = 0; c < row.length; c++) if (row[c] === 'x') ctx.fillRect(x + c, y + r, 1, 1); });
+  }
+  ctx.globalAlpha = 1;
 }
 // the animal as it is drawn now (scale: the giant dino's); the same until it moves on (see update), however often drawn
 let drawn = {};
@@ -2019,6 +2036,7 @@ function scene(pal) {
     const [gx, gy, , , s] = giantBox();
     animalSprite(s).draw(ctx, gx + Math.round(homeX), gy, flashing ? golden(pal) : red ? flushed(pal) : pal); // (the giant: drawn bigger, still smooth; home: running off)
     ctx.globalAlpha = 1;
+    if (state === 'paused') sleepZs(pal);
     if (state === 'ko' && !won) dizzyBirds(pal, false);
     if (power > 0 && power <= ENDING && state === 'run') { // the seconds left, over its head (each a little hop as it comes)
       const [hx, hy] = headAt(), left = Math.ceil(power), hop = power - Math.floor(power) > 0.85 ? 1 : 0;
@@ -2163,6 +2181,7 @@ function frame(now) {
   if (FPS) rate.uneven += steps !== 120 / HZ;
   if (FPS && state === 'run' && ms > 50) { rate.long++; rate.longest = Math.max(rate.longest, ms); } // (running, a frame held three times over or more)
   for (let i = 0; i < steps; i++) if (state !== 'paused') { update(STEP); updateBits(STEP); }
+  if (state === 'paused') sleepT += (steps * STEP); // (the Zs of its sleep go on: see sleepZs)
   if (readied !== kind) { readied = kind; ready = readying(kind); }
   if (ready?.next().done) ready = null; // (the animal made ready to run, a piece a frame: see readying)
   draw();
