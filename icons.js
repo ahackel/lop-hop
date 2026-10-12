@@ -9,6 +9,8 @@ export const ICONS = {
   leave: ['.x...x.', 'xx...xx', '.......', '.......', '.......', 'xx...xx', '.x...x.'],
   home: ['...x...', '..xxx..', '.xxxxx.', 'xxxxxxx', '.x...x.', '.x.x.x.', '.x.x.x.'],
   back: ['...x...', '..xx...', '.xxxxxx', 'xxxxxxx', '.xxxxxx', '..xx...', '...x...'],
+  pause: ['.......', '.xx.xx.', '.xx.xx.', '.xx.xx.', '.xx.xx.', '.xx.xx.', '.......'],
+  play: ['..x....', '..xx...', '..xxx..', '..xxxx.', '..xxx..', '..xx...', '..x....'],
 };
 
 // the pads' (in the bottom corners: the animal before and after on the title, duck and jump on a phone)

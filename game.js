@@ -650,7 +650,7 @@ function toggleFull() {
 document.addEventListener('fullscreenchange', () => { if (document.fullscreenElement) stage.classList.remove('full'); });
 
 // the game's buttons, in its own pixels from the top left of the screen: sound, the high scores, the credits, full
-// screen, and after a knock-out, back to the animals; while running only an arrow back (home); on the high scores, the
+// screen, and after a knock-out, back to the animals; while running an arrow back (home) and pause (paused: on); on the high scores, the
 // credits, the gate and the shop none (BACK in the middle: see buttons). A button acts when the press ends on it (a
 // phone lets full screen start only then). Their icons: ICONS (icons.js).
 const ACTS = {
@@ -660,6 +660,7 @@ const ACTS = {
   share: () => shareRuns(),
   full: toggleFull,
   home: goHome,
+  pause: () => (state === 'paused' ? resume() : pause()),
   prev: () => chooseNext(1), // (the one to the left: the row goes right to left)
   next: () => chooseNext(-1),
   start: press,
@@ -683,7 +684,7 @@ let viewL = 0, viewR = W; // the world's x at the screen's left and right edges 
 let safeL = 0, safeR = 0, safeT = 0; // how much of the game a phone's notch (or its round corners), on the left and right, or a tablet's status bar, at the top, may cover (see fit)
 function buttons() {
   if (naming) return [{ id: 'sound', x: safeL + 4, y: 2 }, { id: 'named', text: 'button.ok', x: W / 2 - 15, y: NAME_BOX.y + 25, w: 31, h: 13, main: true }]; // (see drawName)
-  if (inRun()) return [{ id: 'home', icon: 'back', x: safeL + 4, y: 2 }, ...cheats()]; // (only the way home; the bars: in the middle, see bar)
+  if (inRun()) return [{ id: 'home', icon: 'back', x: safeL + 4, y: 2 }, { id: 'pause', icon: state === 'paused' ? 'play' : 'pause', x: safeL + 4 + BTN + 2, y: 2 }, ...cheats()]; // (the way home, a pause; the bars: in the middle, see bar)
   // the row of buttons (not on the high scores, the credits, the gate and the shop); in the row of the pads, in the
   // middle (in the world, from the top of the screen), the screen's main button: on the title the one that runs, on the
   // high scores (the credits, the gate, the shop) the one back, after a run with a new high score the one to name it

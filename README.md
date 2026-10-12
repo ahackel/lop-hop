@@ -33,7 +33,7 @@ A little endless runner: a lop-eared rabbit hops over bushes, cacti, rocks and l
 | jump (hold to jump higher) | <kbd>Space</kbd> / <kbd>↑</kbd> | tap the right half |
 | duck | <kbd>↓</kbd> | hold the left half |
 | pick an animal | <kbd>←</kbd> <kbd>→</kbd> on the title | tap it on the title |
-| pause, go on | <kbd>P</kbd> in a run (<kbd>Space</kbd> goes on too) | turn the phone upright; tap to go on |
+| pause, go on | <kbd>P</kbd> in a run (<kbd>Space</kbd> goes on too), or the pause button | the pause button at the top left (or the phone turned upright); tap to go on |
 | sound, high scores, credits, full screen | <kbd>M</kbd>, <kbd>H</kbd>, <kbd>C</kbd>, <kbd>F</kbd> | the buttons at the top left of the game |
 
 The music is [Stardrift](https://github.com/ahackel/stardrift-engine), a procedural chiptune engine for games: the song (`song.zip`: the song and the recordings it plays, as the editor's *Export for a game* writes it) has a mood for each state of play and stingers for its events, and the page shows the calls as the game makes them (with `?music`, on a computer; `?auto` lets the animal run by itself, to hear the moods come and go):
