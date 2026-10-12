@@ -167,7 +167,7 @@ function shapesTable(all) {
       <tr class=${rowClass(gp, ' layer')} .sel=${gp.sel} draggable=${dragging(gp).draggable} @click=${(e) => pick(gp.sel, e)} @mouseenter=${() => point({ sels: [gp.sel] })}
         @dblclick=${(e) => { if (!e.target.closest('button')) startRename(gp.sel); }}>
         <td>${eyeOf(gp)}</td>
-        <th colspan="2"><div>${chevron(`group:${G.name}`, kids.length + paint.length > 0 || !!spikes)}${typeIcon(['group', 'A group: drawn as one'])}<span class="sw" style=${`background:${gp.color}`}></span>${nameOf(gp)}
+        <th colspan="2"><div>${chevron(`group:${G.name}`, kids.length + paint.length > 0 || !!spikes)}${typeIcon(['group', 'A group: drawn as one'])}<span class="sw" style=${`background:${gp.color}`}></span>${nameOf(gp)}${G.swing ? html`<span class="flag" title="It swings as the body moves, about its pivot">${icon('swing')}</span>` : nothing}
           <span class="rules">${SWITCHES.map(([k, ic, yes, no]) => html`<button class=${`rule${switchOn(G, k) ? '' : ' off'}`} title=${`${switchOn(G, k) ? yes : no} (click: ${switchOn(G, k) ? 'off' : 'on'})`} @click=${stop(() => toggle(g, k))}>${icon(ic)}</button>`)}</span>
           <button class="icon" title="Add a shape to it" aria-label="Add a shape to it" @click=${stop(() => addShape(g))}>${icon('plus')}</button></div></th>
       </tr>

@@ -383,10 +383,23 @@ const defined = (o) => { for (const k in o) if (o[k] === undefined) delete o[k];
 const isGroup = (g) => !!g && typeof g === 'object';
 const bodyOf = (layers) => layers.find((g) => isGroup(g) && g.join && g.hits);
 function onLayers(b) {
-  const r = { ...b, layers: b.layers || [], torso: { r: 0, none: true } };
+  const r = { ...b, layers: swungGroups(b), torso: { r: 0, none: true } };
+  if (r.layers.some((g) => g.swung)) r.chains = { ...b.chains, ...Object.fromEntries(r.layers.filter((g) => g.swung).map((g) => [g.swung, g.swingBone])) };
   const spine = r.layers.filter(isGroup).flatMap((g) => g.shapes).find((s) => s.bone === 'spine');
   if (spine) r.torso = defined({ r: spine.r, ends: spine.ends });
   return r;
+}
+// a group that swings (swing: see asset.js): about its pivot, on a bone of its own (named ~ and its name), from its pivot
+// to the middle of its shapes (or below the pivot), as an ear swings; drawn turned as much as its bone is (see drawRig)
+const pointsOf = (s) => (s.triangle || (s.capsule ? [s.capsule.slice(0, 2), s.capsule.slice(2, 4)] : s.box ? [s.box.slice(0, 2), s.box.slice(2, 4)] : s.ellipse ? [s.ellipse.slice(0, 2)] : []));
+function swungGroups(b) {
+  return (b.layers || []).map((g, i) => {
+    const on = isGroup(g) && g.swing && g.shapes.length && !g.shapes.some((s) => s.bone) && g.shapes[0].on;
+    if (!on) return g;
+    const at = g.at || [0, 0], pts = g.shapes.flatMap(pointsOf), m = pts.reduce((a, q) => [a[0] + q[0] / pts.length, a[1] + q[1] / pts.length], [0, 0]), t = g.angle || 0; // (made before the helpers below: by hand)
+    const mid = [at[0] + m[0] * Math.cos(t) - m[1] * Math.sin(t), at[1] + m[0] * Math.sin(t) + m[1] * Math.cos(t)], tip = Math.hypot(mid[0] - at[0], mid[1] - at[1]) > 0.5 ? mid : [at[0], at[1] + 2];
+    return { ...g, swung: `~${g.name || i}`, swingBone: { on, ear: true, at, tip, stiffness: 600, damping: 12, weight: 60, ...g.swing } };
+  });
 }
 // a body's shapes in a pose: its own (on no bone), then the pose's (ownShapes: the pose's alone, in their place); those
 // on bones where they are
@@ -891,7 +904,14 @@ function drawRig(rig, P, blink, chains, S = 1, [dx, dy] = [0, 0], floor = Math.r
     const b = placedIn(s, grp);
     return { d: (x, y) => sd(b, x, y), box: b.box, near: b.k, smooth: s.smooth ?? 1, color };
   };
-  const layers = layersAt(rig, p).map((G) => (isGroup(G) ? { G, items: G.shapes.map((s) => itemOf(s, G)).filter(Boolean) } : G));
+  const swungBy = (G) => { // (a group that swings: turned about its pivot as much as its bone is from its rest, both to a quarter pixel)
+    const now = G.swung && chains[G.swung];
+    if (!now || !F[G.swingBone.on]) return G;
+    const rest = restPoints(chainRest(rig, P, G.swung)).map((q) => [quarter(q[0]), quarter(q[1])]), dir = (q) => Math.atan2(q[1][1] - q[0][1], q[1][0] - q[0][0]);
+    const d = Math.atan2(Math.sin(dir(now) - dir(rest)), Math.cos(dir(now) - dir(rest)));
+    return d ? { ...G, angle: (G.angle || 0) + d * F[G.swingBone.on].flip } : G;
+  };
+  const layers = layersAt(rig, p).map((G) => (isGroup(G) ? ((G = swungBy(G)), { G, items: G.shapes.map((s) => itemOf(s, G)).filter(Boolean) }) : G));
   const groups = layers.filter(isGroup), legs = groups.flatMap((l) => l.items.filter((it) => it.sock));
   const over = p.over ? legs.filter((it) => it.pad) : []; // (the paws drawn over the body, outlined: where they would hide in it)
   const dots = (p.dots || rig.dots || []).map((d) => [toWorld(d.on ? F[d.on] : F.box, d.at), NAMED[d.color] || OUT]);

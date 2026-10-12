@@ -74,6 +74,27 @@ function swingBox(o, on) {
   const no = !on && swingable(o);
   return field('swings', el('input', { type: 'checkbox', checked: on, disabled: !!no, onchange: () => { commit(() => (on ? swingOff(o) : swingOn(o))); listParts(); inspect(); } }), no || SWING_TIP);
 }
+// a group that swings: all of it, about its pivot, as the body moves (see swungGroups in art.js); on, its pivot at the top
+// of its shapes if it had none (where things hang from: drag it), its settings
+const GROUP_SWING_TIP = 'All of it swung about its pivot as the body moves (drag the pivot to where it hangs from)';
+const GROUP_SWING = { stiffness: 600, damping: 12, weight: 60 };
+function groupSwing(G) {
+  const on = !!G.swing, box = el('input', { type: 'checkbox', checked: on, onchange: () => {
+    commit(() => {
+      if (on) { delete G.swing; return; }
+      G.swing = {};
+      if (!G.at) { const m = middleOf(G), top = Math.min(...G.shapes.flatMap((x) => { const g = geomOf(x), v = x[g]; return g === 'triangle' ? v.map((q) => q[1]) : g === 'ellipse' ? [v[1] - v[3]] : [v[1], v[3]].map((y) => y - (g === 'capsule' ? v[4] : 0)); })); repivot(G, [m[0], +top.toFixed(3)]); }
+    });
+    listParts(); inspect();
+  } });
+  const out = [field('swings', box, GROUP_SWING_TIP)];
+  if (!on) return out;
+  const role = el('select', { onchange: () => { commit(() => { if (role.value) G.swing.role = role.value; else delete G.swing.role; }); inspect(); } });
+  for (const [v, label, tip] of ROLES.filter(([v]) => v === '' || v === 'ear')) role.append(el('option', { value: v, textContent: label, title: tip, selected: v === (G.swing.role || '') }));
+  const inner = el('div');
+  fields(withDefaults(G.swing, GROUP_SWING), inner, ['role'], true);
+  return [...out, field('role', role, ROLES.filter(([v]) => v === '' || v === 'ear').map(([, l, tip]) => `${l}: ${tip}`).join('\n')), ...inner.childNodes];
+}
 function chainFields(n, c) {
   const on = el('select', { onchange: () => reparent({ type: 'chain', name: n }, on.value) });
   for (const j of Object.keys(build.joints)) on.append(el('option', { value: j, textContent: j, selected: j === c.on }));
@@ -143,6 +164,7 @@ function groupFields(G, box) {
       field('pivot', stack(at.map((v, j) => numIn(v, (x) => { const q = (G.at || [0, 0]).slice(); q[j] = x; G.at = q; }, { label: 'xy'[j] }))), 'Drag the pivot: the group moves. ⌥-drag: the pivot alone.'),
       field('angle', numIn(G.angle || 0, (x) => { if (x) G.angle = x; else delete G.angle; }, { min: -3.14, max: 3.14, step: 0.01 }), 'Its shapes turned about the pivot'),
       el('div', { className: 'keys' }, iconBtn('pivot', 'Pivot to the middle', { title: 'The pivot in the middle of its shapes; they stay where they are', onclick: () => { commit(() => repivot(G, middleOf(G))); inspect(); } }))]));
+    box.append(section('Swing', groupSwing(G), GROUP_SWING_TIP));
   }
   const color = el('span', { className: 'keys' }, colorPick(G.color || build.fur, (c) => { commit(() => { if (c === build.fur) delete G.color; else G.color = c; }); listParts(); inspect(); }));
   box.append(section('Look', [field('color', color, 'Its color (its shapes’ own where they have one); the fur’s if none')]));
@@ -151,7 +173,7 @@ function groupFields(G, box) {
     iconBtn('plus', 'Paint', { title: 'A marking on it: a shape in a color, only where the group is', onclick: () => addPaint(g) }),
     G.spikes ? iconBtn('x', 'Spikes', { title: 'No spikes', onclick: () => setSpikes(g, false) }) : iconBtn('plus', 'Spikes', { title: 'Spikes where it bristles: ticks out of its outline (specks inside)', onclick: () => setSpikes(g, true) }))],
     'Its shapes, markings and spikes: each picked in the list (under it) or on the stage'));
-  fields(G, box, ['name', 'color', 'shapes', 'at', 'angle', 'paint', 'spikes', ...SWITCHES.map(([k]) => k)]);
+  fields(G, box, ['name', 'color', 'shapes', 'at', 'angle', 'paint', 'spikes', 'swing', ...SWITCHES.map(([k]) => k)]);
 }
 // a setting: its name, what sets it (what it is: the tooltip, not a note under it). A number's name drags it, as its own
 // does (see numIn)

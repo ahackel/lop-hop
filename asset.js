@@ -25,7 +25,8 @@
 //                round it), hits (what collisions test), far (in the far side's tone, where no group that hits covers
 //                it), at, angle (a pivot, in its shapes' joint's frame, and a turn about it: moved or turned, all of
 //                them go with it), paint (markings: shapes in a color, only on the group), spikes (where it bristles,
-//                see below) }. The body: the first group joined that hits, whose shapes, paint and spikes a pose changes; its legs'
+//                see below), swing (all of it swung about its pivot as the body moves, its shapes on a joint: { stiffness,
+//                damping, weight, role: ear or none }) }. The body: the first group joined that hits, whose shapes, paint and spikes a pose changes; its legs'
 //                socks are drawn with it, and the paws lying low (over) over it
 //   a shape      ellipse [x, y, rx, ry], capsule [ax, ay, bx, by, r], box [x0, y0, x1, y1, r] or triangle [[x, y] × 3]
 //                (an ellipse, a box: angle, turned about its middle, radians, + clockwise),
