@@ -141,7 +141,7 @@ function whereWhat(p) {
   if (t === 'dot') return [o.on || 'box', ['dot', 'A dot: one pixel']];
   if (t === 'spikes') return [o.on || 'box', ['spikes', 'Spikes: where it bristles']];
   const k = o.bone ? alongOf(o) : geomOf(o) || 'ellipse', own = ownChain(o);
-  if (own) return [own.on, [k, `A swing: ${KINDS[k].toLowerCase()} with a bone of its own, on ${own.on}`]];
+  if (own) return [own.on, [k, `${KINDS[k]} that swings, on ${own.on}`]];
   return [o.bone || o.on || 'box', [k, o.bone ? `${KINDS[k]}, drawn along ${o.bone}` : KINDS[k]]];
 }
 const eyeOf = (p) => html`<button class=${`eye${p.off ? ' off' : ''}`} title=${p.off ? 'Hidden: show it (H)' : 'Hide it, here only: not saved (H)'} @click=${stop(() => hide(p.obj))}>${icon(p.off ? 'eyeOff' : 'eye')}</button>`;
@@ -188,7 +188,7 @@ function shapeRow(p, depth = p.depth || 0) {
   return html`<tr class=${rowClass(p)} .sel=${p.sel} draggable=${p.sel.type === 'spikes' ? 'false' : dragging(p).draggable}
       @click=${(e) => pick(p.sel, e)} @dblclick=${(e) => { if (renames && !e.target.closest('.eye')) startRename(p.sel); }} @mouseenter=${() => point({ sels: [p.sel] })}>
     <td>${eyeOf(p)}</td>
-    <td><div class="name" style=${`padding-left:${depth * 12}px`}>${typeIcon(type)}${own && p.color ? html`<span class="sw" style=${`background:${p.color}`}></span>` : nothing}${nameOf(p)}${p.obj.grows ? html`<span class="flag" title="Grown out of the body: not outlined where it starts on it">${icon('joined')}</span>` : nothing}</div></td>
+    <td><div class="name" style=${`padding-left:${depth * 12}px`}>${typeIcon(type)}${own && p.color ? html`<span class="sw" style=${`background:${p.color}`}></span>` : nothing}${nameOf(p)}${p.obj.grows ? html`<span class="flag" title="Grown out of the body: not outlined where it starts on it">${icon('joined')}</span>` : nothing}${p.sel.type === 'item' && ownChain(p.obj) ? html`<span class="flag" title="It swings as the body moves">${icon('swing')}</span>` : nothing}</div></td>
     <td class="dim">${on}</td>
   </tr>`;
 }

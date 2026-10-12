@@ -2,7 +2,7 @@
 import { $, el, iconBtn } from './dom.js';
 import { faceFrames } from './face.js';
 import { inspectPlay } from './handling.js';
-import { SWITCHES, addPaint, addShape, addSwing, bodyIndex, itemDo, layers, rename, setSpikes, switchOn, toggle } from './layers.js';
+import { SWITCHES, addPaint, addShape, bodyIndex, itemDo, layers, rename, setSpikes, swingOff, swingOn, swingable, switchOn, toggle } from './layers.js';
 import { listParts, reparent } from './lists.js';
 import { colorPick, inspectPalette } from './palette.js';
 import { ALONG, alongOf, boneDefaults, current, geomOf, isOwn, middleOf, onChoices, ownChain, parts, repivot, withDefaults } from './parts.js';
@@ -40,10 +40,14 @@ export function inspect() {
   if (t === 'item' && o.bone) { // (a shape on a bone: all it can be; a bone of its own: that too)
     fields(withDefaults(o, boneDefaults(o)), box, ['name', 'bone', 'along']);
     const own = ownChain(o);
-    if (own) box.append(section('Swing', chainFields(o.name, own), 'A swing: its own bone, swung as the body moves (no bone in the list): where it hangs from, what the game does with it, how it swings'));
+    if (own) box.append(section('Swing', [swingBox(o, true), ...chainFields(o.name, own)], SWING_TIP));
     return;
   }
-  if (t === 'item') { fields(withDefaults(o, { color: undefined, smooth: 1, ...((o.ellipse || o.box) && { angle: 0 }) }), box, ['name', 'on']); return; } // (an ellipse, a box: turned)
+  if (t === 'item') { // (an ellipse, a box: turned)
+    fields(withDefaults(o, { color: undefined, smooth: 1, ...((o.ellipse || o.box) && { angle: 0 }) }), box, ['name', 'on']);
+    box.append(section('Swing', [swingBox(o, false)], SWING_TIP));
+    return;
+  }
   const skip = t === 'rig' ? ['joints', 'headPivot', 'layers', 'dots', 'legs', 'chains', 'face', 'moves', 'handling', 'recolor'] : t === 'paint' || t === 'dot' ? ['name'] : t === 'leg' || t === 'chain' ? ['on'] : []; // (a bone's joint: dragged onto another in the list)
   fields(o, box, t === 'face' ? ['frames'] : skip);
   if (t === 'face') faceFrames(box);
@@ -65,6 +69,11 @@ function attach(o) {
 // a swing: a shape's own bone (see ownChain): the joint it hangs from (moved onto another: where it is, see reparent), its role,
 // its settings
 const ROLES = [['', 'none', 'Only swung'], ['tail', 'tail', 'Wagged when petted'], ['ear', 'ear', 'Laid back when petted (a pointed one); a lop ear hangs as the head turns up'], ['trunk', 'trunk', 'Reaches for a treat; eats from its tip']];
+const SWING_TIP = 'Swung as the body moves, on a bone of its own made from it: a capsule bends from its first point to its second (a tail, a strand of hair), a triangle swings from its base (an ear), an ellipse or a box swings from below its middle. Off: the shape it is at rest';
+function swingBox(o, on) {
+  const no = !on && swingable(o);
+  return field('swings', el('input', { type: 'checkbox', checked: on, disabled: !!no, onchange: () => { commit(() => (on ? swingOff(o) : swingOn(o))); listParts(); inspect(); } }), no || SWING_TIP);
+}
 function chainFields(n, c) {
   const on = el('select', { onchange: () => reparent({ type: 'chain', name: n }, on.value) });
   for (const j of Object.keys(build.joints)) on.append(el('option', { value: j, textContent: j, selected: j === c.on }));
@@ -140,7 +149,6 @@ function groupFields(G, box) {
   box.append(section('Shapes', [el('div', { className: 'keys' },
     iconBtn('plus', 'Shape', { title: 'A shape in it: a copy of its last, moved a little', onclick: () => addShape(g) }),
     iconBtn('plus', 'Paint', { title: 'A marking on it: a shape in a color, only where the group is', onclick: () => addPaint(g) }),
-    iconBtn('plus', 'Swing', { title: 'A swing: a shape with a bone of its own, swung as the body moves (a tail, an ear, a strand of a mane)', onclick: () => addSwing(g) }),
     G.spikes ? iconBtn('x', 'Spikes', { title: 'No spikes', onclick: () => setSpikes(g, false) }) : iconBtn('plus', 'Spikes', { title: 'Spikes where it bristles: ticks out of its outline (specks inside)', onclick: () => setSpikes(g, true) }))],
     'Its shapes, markings and spikes: each picked in the list (under it) or on the stage'));
   fields(G, box, ['name', 'color', 'shapes', 'at', 'angle', 'paint', 'spikes', ...SWITCHES.map(([k]) => k)]);
