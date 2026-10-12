@@ -38,7 +38,8 @@ export function reparentBone(n, to) {
   commit(() => { b.at = into(f, g)(b.at || [0, 0]); b.angle = turnInto(f, g, b.angle || 0); setOn(b, to); });
   refresh();
 }
-// renamed: what is on it (a shape, a swing, a leg, a bone, a dot), what is drawn along it, its keys in the moves
+// renamed: what is on it (a shape, a swing, a leg, a bone, a dot), what is drawn along it, a bone reaching it, its keys in
+// the moves
 export function renameBone(was, to) {
   to = to.trim();
   if (!to || to === was || taken(to) || /[.\s]/.test(to)) { refresh(); return; }
@@ -48,7 +49,11 @@ export function renameBone(was, to) {
     if (o.bone === was) o.bone = to;
     if (o.bones && typeof o.bones === 'object' && !Array.isArray(o.bones) && was in o.bones) o.bones = renamed(o.bones);
   };
-  commit(() => { eachIn(build, put); setSel({ type: 'bone', name: to }); });
+  commit(() => {
+    eachIn(build, put);
+    for (const b of Object.values(build.bones)) if (b.to === was) b.to = to; // (one reaching it)
+    setSel({ type: 'bone', name: to });
+  });
   refresh();
 }
 // a shape moved from one frame into another, where it is
@@ -91,17 +96,30 @@ function rehome(n, f, g, to) {
   }
   for (const d of build.dots || []) if (d.on === n) { d.at = into(f, g)(d.at); setOn(d, on); }
 }
+// a bone reaching a joint or a bone (see bonesOn in art.js), where it is: its end where its tip was, as long as it was
+// (none long: as far as it is); or no more (''): turned as its first part was, as long as it was
+export function reachTo(n, to) {
+  const b = build.bones[n], f = frame(n), up = frame(b.on), tip = f.pts ? f.pts[f.pts.length - 1] : toWorld(f, [b.length || 0, 0]);
+  const { on, at, length = 0, bend, links } = b;
+  for (const k in b) delete b[k];
+  Object.assign(b, on && { on }, at && { at }); // (in the order a file has them)
+  if (to) Object.assign(b, { to, end: toLocal(frame(to), ...tip).map(r3), length: length || r3(Math.hypot(...minus(tip, f.o))) }, bend && { bend }, links && { links });
+  else { if (f.a !== up.a) b.angle = r3((f.a - up.a) * up.flip); if (length) b.length = length; }
+}
+// what a bone may reach: a joint, or a bone not on it (nor reaching it)
+export const reachChoices = (n) => { const no = under(n); return [...Object.keys(build.joints), ...Object.keys(build.bones || {}).filter((k) => !no.has(k) && build.bones[k].to !== n)]; };
 // a bone moved or turned alone (⌥-dragged): what is on it stays where it is
 export function moveAlone(n, at, angle) {
   const B = build.bones[n], up = frame(B.on), f = frame(n), g = { o: toWorld(up, at), a: up.a + angle * up.flip, flip: up.flip };
   rehome(n, f, g);
   B.at = at; B.angle = angle;
 }
-// deleted: what was on it on what it was on, where it is (see rehome); its keys in the moves gone
+// deleted: what was on it on what it was on, where it is (see rehome); one reaching it no more; its keys in the moves gone
 export function deleteBone(n) {
   const up = build.bones[n].on || '';
   commit(() => {
     rehome(n, frame(n), frame(up), up);
+    for (const k in build.bones) if (build.bones[k].to === n) reachTo(k, '');
     eachIn(build.moves, (o) => { if (o.bones && !Array.isArray(o.bones) && n in o.bones) { delete o.bones[n]; if (!Object.keys(o.bones).length) delete o.bones; } });
     delete build.bones[n];
     if (!Object.keys(build.bones).length) delete build.bones;

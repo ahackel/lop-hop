@@ -4,15 +4,16 @@ import { inspect } from './inspector.js';
 import { itemDo, many, placeOf } from './layers.js';
 import { listParts, startRename } from './lists.js';
 import { popup, unpop } from './palette.js';
+import { isOpen as libraryOpen, libraryKeys, show as showLibrary } from './browser.js';
 import { current, parts, plus, same, times } from './parts.js';
 import { draw, editing, withIt } from './stage.js';
-import { changed, gameToggle, hidden, hide, picked, place, rebuild, redo, remember, save, sel, setMode, undo, view, setAlso, setSel } from './state.js';
+import { changed, gameToggle, hidden, hide, kind, picked, place, rebuild, redo, remember, save, sel, setMode, undo, view, setAlso, setSel } from './state.js';
 import { frames, setPlay, timeline } from './timeline.js';
 import { deleteBone } from './bones.js';
 
 // the keyboard: what each key does (shown with ?), by when it works
 const KEYS = [
-  ['Everywhere', [['⌘Z', 'Undo'], ['⇧⌘Z', 'Redo'], ['⌘S', 'Save'], ['1 2 3', 'Setup, Animate, Play'], ['4', 'Game settings (the palette), and back'], ['?', 'These shortcuts'], ['Esc', 'Pick nothing (close a popup)']]],
+  ['Everywhere', [['⌘Z', 'Undo'], ['⇧⌘Z', 'Redo'], ['⌘S', 'Save'], ['1 2 3', 'Setup, Animate, Play'], ['4', 'Game settings (the palette), and back'], ['⌘O', 'Every asset (the library), to open one'], ['?', 'These shortcuts'], ['Esc', 'Pick nothing (close a popup)']]],
   ['Parts', [['Tab  ⇧Tab', 'The next part in the lists, the one before'], ['← → ↑ ↓', 'Move the part picked a tenth of a pixel (in a move: its key at the frame)'], ['⇧ + arrows', 'A whole pixel'],
     ['⌘ click  ⇧ click', 'Pick more shapes, markings, dots or groups (⇧: the rows between too)'], ['⌘A', 'Pick all in the list of the one picked'],
     ['⌘D', 'Copy what is picked'], ['⌫', 'Delete what is picked'], ['[  ]', 'Drawn earlier, later'], ['H', 'Hide or show what is picked'], ['Enter', 'Rename the shape or group picked (or double-click it)'], ['⌥H', 'Show everything hidden']]],
@@ -28,6 +29,7 @@ const KEYS = [
 }
 const LISTED = ['item', 'paint', 'dot', 'group']; // (in the shapes' list: copied, deleted, moved up or down, renamed)
 const flip = (id) => { const b = $(id); b.checked = !b.checked; b.dispatchEvent(new Event('change')); };
+const nextHandles = () => { const h = $('handles'), on = [...h.options].filter((o) => getComputedStyle(o).display !== 'none'); h.value = on[(on.findIndex((o) => o.value === h.value) + 1) % on.length].value; h.dispatchEvent(new Event('change')); }; // (a prop: no joints)
 // the part picked moved by d (in the world: as the screen shows it): its middle (a shape), else its handle (a joint, a
 // leg's root, a dot; in a move: a key at the frame); those picked with it, their middles. Keys held down: one undo for
 // the lot
@@ -63,6 +65,8 @@ document.addEventListener('keydown', (e) => {
   const typing = /INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName) && !['checkbox', 'range', 'button'].includes(document.activeElement.type);
   const cmd = e.metaKey || e.ctrlKey, k = e.key, low = k.length === 1 ? k.toLowerCase() : k;
   const take = () => { e.preventDefault(); return true; };
+  if (libraryKeys(e)) return; // (the library open: its own)
+  if (cmd && low === 'o' && view.mode !== 'game' && kind) { take(); showLibrary(); return; }
   if (k === 'Escape' && popup) { unpop(); return; }
   if (k === 'Escape' && !$('keys').hidden) { $('keys').hidden = true; return; }
   if (cmd && low === 'z' && !typing) { take(); e.shiftKey ? redo() : undo(); return; }
@@ -80,7 +84,7 @@ document.addEventListener('keydown', (e) => {
   if (view.mode === 'play' || view.mode === 'game') return;
   if (low === 'b') { take(); flip('showBones'); return; }
   if (low === 'w') { take(); flip('showSwings'); return; }
-  if (low === 'a') { take(); flip('allHandles'); return; }
+  if (low === 'a') { take(); nextHandles(); return; }
   if (low === 'o' && view.mode === 'animate') { take(); flip('onion'); return; }
   if (low === 'p' && view.mode === 'setup') { take(); flip('fine'); return; }
   if (e.code === 'KeyH' && e.altKey) { take(); hidden.clear(); rebuild(); listParts(); draw(); return; }

@@ -32,7 +32,7 @@ export default {
       shapes: [
         { name: 'torso', bone: 'spine', along: 'ellipse', r: 3.8, ends: 3 },
         { name: 'hump', on: 'spine', triangle: [[-0.8, -2.4], [3.2, -6.6], [7, -2.4]] },
-        { name: 'neck', on: 'chest', capsule: [1.6, -0.2, 5.8, -3.4, 1.3], smooth: 0.5, role: 'neck' },
+        { name: 'neck', bone: 'neck', along: 'capsule', r: 1.3, smooth: 0.5 },
         { name: 'head', on: 'head', capsule: [-0.8, 0, 2.6, 0.8, 1.5] },
         { name: 'lip', on: 'head', ellipse: [2.6, 2, 1.1, 0.8] },
         {
@@ -87,7 +87,7 @@ export default {
       joints: { hip: [6.5, 15.4], chest: [14, 15.4], head: [21.9, 14.6] },
       torso: { thicker: -0.8, longer: 0.8 },
       ownShapes: true,
-      shapes: [{ on: 'spine', ellipse: [3.2, -2, 3.6, 1.8] }, { on: 'chest', capsule: [1.6, 0, 6, -0.6, 1.2] }, { use: 'head' }, { use: 'lip' }],
+      shapes: [{ on: 'spine', ellipse: [3.2, -2, 3.6, 1.8] }, { use: 'head' }, { use: 'lip' }],
       paint: [{ use: 'muzzle' }],
       chains: { tail: { at: [-3.6, -0.8], angle: 1.8 }, hump: { at: [3.2, -2.4] }, ear: { tip: [-2.321, -2.077] } },
       pad: [1.8, 1],
@@ -133,7 +133,7 @@ export default {
           joints: { hip: [7, 15.4], chest: [13.5, 15.4], head: [21.4, 14.6] },
           torso: { thicker: -0.8, longer: 0.6 },
           ownShapes: true,
-          shapes: [{ on: 'spine', ellipse: [3.2, -2, 3.6, 1.8] }, { on: 'chest', capsule: [1.6, 0, 6, -0.6, 1.2] }, { use: 'head' }, { use: 'lip' }],
+          shapes: [{ on: 'spine', ellipse: [3.2, -2, 3.6, 1.8] }, { use: 'head' }, { use: 'lip' }],
           paint: [{ use: 'muzzle' }],
           chains: { tail: { at: [-3.6, -0.8], angle: 1.8 }, hump: { at: [3.2, -2.4] }, ear: { tip: [-2.321, -2.077] } },
           flip: true,
@@ -201,4 +201,5 @@ export default {
       ],
     },
   },
+  bones: { neck: { on: 'chest', at: [1.6, -0.2], to: 'head', end: [-1.8, 1.6], length: 5.28, bend: -1 } },
 };

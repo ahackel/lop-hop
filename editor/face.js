@@ -10,7 +10,7 @@ import { NAMED, build, changed, commit, hist, kind, nice, paints, remember, snap
 // its file (as the usual one again: gone from it). The stage shows the frame on the animal as it is drawn. Inks: any
 // color of the palette (one not among FACE_INKS: one of the face's own inks, by a letter given it when it is first drawn
 // with; one no frame uses: gone)
-export const faceEdit = { part: 'eye', name: 'open', ink: 'outline' }; // (ink: a color by its name; '.': erasing)
+export const faceEdit = { part: 'eye', name: 'open', ink: 'black' }; // (ink: a color by its name; '.': erasing)
 const CELLS = 9, MID = 4, CELL = 22;
 export const frameNames = (part) => [...new Set([...Object.keys(FACE_FRAMES[part]), ...Object.keys(build.face?.frames?.[part] || {})])];
 const frameNow = (part = faceEdit.part, name = faceEdit.name) => build.face?.frames?.[part]?.[name] || FACE_FRAMES[part][name] || { at: [0, 0], rows: ['.'] };

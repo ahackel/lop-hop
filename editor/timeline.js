@@ -94,7 +94,7 @@ export function show(move, frame = 0) {
   place(); refresh();
 }
 $('move').onchange = () => show($('move').value);
-$('allHandles').onchange = draw;
+$('handles').onchange = draw;
 $('showBones').onchange = draw;
 $('showSwings').onchange = draw;
 $('fine').onchange = draw;

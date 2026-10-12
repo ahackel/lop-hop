@@ -24,6 +24,8 @@ import yak from './assets/yak.js';
 import ostrich from './assets/ostrich.js';
 import dromedary from './assets/dromedary.js';
 import gorilla from './assets/gorilla.js';
+import foods from './assets/food/index.js';
+import obstacles from './assets/obstacles/index.js';
 
 export const W = 300, H = 90, GROUND = 78; // the world in art pixels; GROUND: the y of the ground line
 
@@ -333,7 +335,7 @@ export const FACE_FRAMES = {
     happy: { at: [0, 0], rows: ['x.', '.x'] },
   },
 };
-export const FACE_INKS = { x: 'outline', w: 'white', p: 'pink', r: 'red', k: 'ink' };
+export const FACE_INKS = { x: 'black', w: 'white', p: 'pink', r: 'red', k: 'ink' };
 const faceFrame = (head, part, name) => head.frames?.[part]?.[name] || FACE_FRAMES[part][name];
 // (put: a pixel of the sprite's grid; at: the one the anchor goes on; n: how big a pixel of the frame is there)
 function faceDraw(put, frame, [X, Y], n, inks) {
@@ -377,11 +379,11 @@ const FILES = { rabbit, guineapig, cat, dog, pig, fox, hedgehog, squirrel, otter
 const rawRig = (asset, of = FILES[asset.of]) => { const b = toBuild(asset); return of ? { ...rawRig(of), ...b } : { ...b, poses: b.moves || {} }; };
 export const rigOf = (asset, of = FILES[asset.of]) => onLayers(rawRig(asset, of));
 // its look (see asset.js): one list of groups, back to front, each drawn as one, and 'face' (where the face is drawn).
-// The body: the first group joined into one that hits, whose own shapes, paint and spikes a pose changes (see
+// The body: the first group that hits (not the far side), whose own shapes, paint and spikes a pose changes (see
 // layersAt). The torso: the first shape on the spine (a move's torso: thicker, longer)
 const defined = (o) => { for (const k in o) if (o[k] === undefined) delete o[k]; return o; };
 const isGroup = (g) => !!g && typeof g === 'object';
-const bodyOf = (layers) => layers.find((g) => isGroup(g) && g.join && g.hits);
+const bodyOf = (layers) => layers.find((g) => isGroup(g) && g.hits && !g.far);
 // (the vectors: here, as a rig is made while this file loads, see RIGS)
 const plus = (a, b) => [a[0] + b[0], a[1] + b[1]], minus = (a, b) => [a[0] - b[0], a[1] - b[1]], times = (a, k) => [a[0] * k, a[1] * k];
 const turn = ([x, y], t) => [x * Math.cos(t) - y * Math.sin(t), x * Math.sin(t) + y * Math.cos(t)]; // (+: clockwise on screen)
@@ -478,6 +480,17 @@ function reach(root, target, a, b, bend) {
   const d = minus(target, root), dist = clamp(Math.hypot(d[0], d[1]), Math.abs(a - b) + 0.01, a + b - 0.01), dir = unit(d);
   const knee = plus(root, times(turn(dir, bend * Math.acos(clamp((a * a + dist * dist - b * b) / (2 * a * dist), -1, 1))), a));
   return [knee, plus(knee, times(unit(minus(target, knee)), b))];
+}
+// a bone from a root to an end, len long, as an arc through both (bend 1: bowed to the left of the way it goes, as seen
+// on the screen; -1: to the right; 0, or as far apart as it is long: straight, stretched) → its points, links + 1
+export function arcPoints(a, b, len, bend, links = 2) {
+  const d = minus(b, a), dist = Math.hypot(d[0], d[1]), n = Math.max(1, links);
+  if (!bend || !(len > dist + 0.001) || dist < 0.001) return [...Array(n + 1).keys()].map((i) => mix(a, b, i / n));
+  let lo = 0, hi = 2 * Math.PI; // (the arc's angle θ: sin(θ/2) / (θ/2) = dist / len, found by halving)
+  for (let i = 0; i < 24; i++) { const t = (lo + hi) / 2; if (Math.sin(t / 2) / (t / 2) > dist / len) lo = t; else hi = t; }
+  const t = (lo + hi) / 2, R = len / t, u = times(d, 1 / dist), nm = times([u[1], -u[0]], Math.sign(bend));
+  const c = minus(mix(a, b, 0.5), times(nm, R * Math.cos(t / 2))), s = u[0] * nm[1] - u[1] * nm[0] > 0 ? -1 : 1; // (its middle; which way round)
+  return [...Array(n + 1).keys()].map((i) => plus(c, turn(minus(a, c), (s * t * i) / n)));
 }
 
 // a frame of a gait (a move worked out from the stride: the run, the crawl): where the stride is (frame / frames) → the
@@ -623,16 +636,22 @@ function posedAs(rig, p) {
   return { p, J, F, a, torso: rig.torso?.none ? { r: 0 } : torsoBy(rig.torso, p.torso) }; // (none: no shape on the spine)
 }
 // the bones (see asset.js): each a frame, from where it is on what it is on (a joint, a leg's part, a bone; none: the box),
-// turned by its angle as the pose has it. One on what has no frame yet: left for later (on a leg's part, see posedAs)
+// turned by its angle as the pose has it; one that reaches (to: a joint or a bone) from there to its end on it (end, in
+// its frame), bowed as an arc as long as it is (bend, links; its points: pts, its turn: its first link's). One on (or
+// reaching) what has no frame yet: left for later (on a leg's part, see posedAs)
 function bonesOn(rig, p, F) {
   const B = rig.bones;
   if (!B) return;
-  const put = (n, seen) => { // (seen: those it is on, below it: made when one is on a bone not put yet)
+  const need = (k, n, seen) => !k || F[k] || (B[k] && !seen?.has(k) && put(k, (seen || new Set()).add(n))); // (seen: those it is on, below it: made when one is on a bone not put yet)
+  const put = (n, seen) => {
     if (F[n]) return true;
     const b = p.bones?.[n] ? { ...B[n], ...p.bones[n] } : B[n];
-    if (b.on && !F[b.on] && (!B[b.on] || seen?.has(b.on) || !put(b.on, (seen ||= new Set()).add(n)))) return false;
-    const f = b.on ? F[b.on] : F.box, base = f || { a: 0, flip: 1 };
-    F[n] = { o: toWorld(f, b.at || [0, 0]), a: base.a + (b.angle || 0) * base.flip, flip: base.flip };
+    if (!need(b.on, n, seen) || !need(b.to, n, seen)) return false;
+    const f = b.on ? F[b.on] : F.box, base = f || { a: 0, flip: 1 }, o = toWorld(f, b.at || [0, 0]);
+    if (b.to) {
+      const pts = arcPoints(o, toWorld(F[b.to], b.end || [0, 0]), b.length || 0, (b.bend || 0) * base.flip, b.links || 2), d = minus(pts[1], o);
+      F[n] = { o, a: Math.atan2(d[1], d[0]), flip: base.flip, pts };
+    } else F[n] = { o, a: base.a + (b.angle || 0) * base.flip, flip: base.flip };
     return true;
   };
   for (const n in B) put(n);
@@ -690,7 +709,7 @@ function onBone(rig, P, chains, s, far = false, first = false) {
   } else if (c && chains[n]) {
     pts = chains[n];
     if (c.ear) { rf = F[c.on]; at = c.at; } else rf = { ...F[c.on], o: pts[0] };
-  } else if (rig.bones?.[n] && F[n]) { pts = [F[n].o, toWorld(F[n], [rig.bones[n].length || 0, 0])]; rf = F[n]; } // (a bone: from where it is on, as long as it is)
+  } else if (rig.bones?.[n] && F[n]) { pts = F[n].pts || [F[n].o, toWorld(F[n], [rig.bones[n].length || 0, 0])]; rf = F[n]; } // (a bone: from where it is on, as long as it is; one that reaches: its arc)
   else return null;
   const t = n === 'spine' ? (first ? { ...s, r: P.torso.r, ends: P.torso.ends } : torsoBy(s, p.torso)) : s; // (another on the spine: changed as much)
   const kind = s.along || (n === 'spine' ? (s.round ? 'capsule' : 'ellipse') : c?.ear ? 'triangle' : 'capsule'); // (none: as its bone had it)
@@ -1273,262 +1292,67 @@ export const rigParts = { posed: (kind, move, frame) => posed(RIGS[kind], move, 
 const birds = [0, 1].map((f) => {
   const g = new Grid(9, 7);
   g.layer([ellipse(3.5, 4, 2.6, 1.8), ellipse(5.5, 2.8, 1.6, 1.6), f ? capsule(3, 4, 1.5, 5.5, 0.8) : capsule(3, 3.5, 1.5, 1.2, 0.8)], YELLOW, OUT);
-  g.dot(8, 3, ORANGE); g.dot(5, 2, OUT);
+  g.dot(8, 3, ORANGE); g.dot(5, 2, NAMED.black);
   return sprite(g, new Uint8Array(g.w * g.h));
 });
 export const bird = (f) => birds[f];
+
+// ------------------------------------------------------------------------------------------------------------ props
+// a prop (see asset.js: food, an obstacle; size [w, h]) as a sprite: its layers in order, each its shapes filled in its
+// color (only where clip, [x0, y0, x1, y1], lets a pixel's middle be), outlined round them (outline: a color, else the
+// outline's; false: not), its paint inside it, its dots. A shape is tested at a pixel's middle (a turned one, or a box,
+// by its distance). The collision mask: the layers that hit (all but hits: false), filled. up: its top row drawn on up,
+// so many rows more (a branch's trunk, up into the sky: the sprite starts that far above where it is put). S: drawn S
+// times finer (the editor's screen pixels: its outlines still one pixel, a dot S by S)
+const propShape = (s) => (s.angle || s.box ? (x, y) => { const [t, f] = turned(s, null), q = f ? toLocal(f, x + 0.5, y + 0.5) : [x + 0.5, y + 0.5]; return sdShape(t, q[0], q[1]) <= 0; }
+  : s.ellipse ? ellipse(...s.ellipse) : s.capsule ? capsule(...s.capsule) : triangle(...s.triangle.flat()));
+export function prop(a, S = 1) {
+  const [w, h] = a.size, up = (a.up || 0) * S, g = new Grid(w * S, h * S), mask = new Uint8Array(g.w * g.h);
+  const fine = (t) => (S === 1 ? t : (x, y) => t((x + 0.5) / S - 0.5, (y + 0.5) / S - 0.5)); // (a pixel's middle, in the prop's)
+  for (const G of a.layers) {
+    if (!isGroup(G)) continue;
+    const shapes = G.shapes.map((s) => fine(propShape(s))), c = G.clip, inClip = c && ((x, y) => x + 0.5 > c[0] * S && y + 0.5 > c[1] * S && x + 0.5 < c[2] * S && y + 0.5 < c[3] * S);
+    const m = g.layer(inClip ? [(x, y) => inClip(x, y) && inAny(shapes, x, y)] : shapes, NAMED[G.color] || OUT, G.outline === false ? 0 : NAMED[G.outline] || OUT);
+    for (const s of G.paint || []) g.paint([fine(propShape(s))], NAMED[s.color], m);
+    for (const d of G.dots || []) for (let i = 0; i < S * S; i++) g.dot(Math.round(d.at[0]) * S + (i % S), Math.round(d.at[1]) * S + Math.floor(i / S), NAMED[d.color]);
+    if (G.hits !== false) for (let i = 0; i < m.length; i++) mask[i] |= m[i];
+  }
+  if (!up) return sprite(g, mask);
+  const t = new Grid(g.w, g.h + up), tm = new Uint8Array(t.w * t.h); // (the top row, on up)
+  for (let y = 0; y < up; y++) { t.px.set(g.px.subarray(0, g.w), y * g.w); tm.set(mask.subarray(0, g.w), y * g.w); }
+  t.px.set(g.px, up * g.w); tm.set(mask, up * g.w);
+  return sprite(t, tm, { oy: -up });
+}
 
 // ------------------------------------------------------------------------------------------------------- obstacles
 // low obstacles (jump them): cacti, rocks, logs; high ones (duck under them): branches, crows at head height.
 // A high obstacle's mask ends on row DUCK_UNDER (above the ground): every animal stands taller, ducks lower.
 export const DUCK_UNDER = GROUND - 11;
+export const TRUNK = 160; // (how far a branch's trunk goes on above the world's top, into the sky a tall screen adds: see its up)
 
-// a cactus, different each time (rnd: () => 0…1): a tall saguaro with arms, or a small barrel, prickly pear or sprout
-export function cactus(rnd, big) {
-  const type = big ? 'saguaro' : ['barrel', 'pear', 'sprout'][Math.floor(rnd() * 3)];
-  const h = type === 'saguaro' ? 16 + Math.floor(rnd() * 5) : 9 + Math.floor(rnd() * 3), w = type === 'saguaro' ? 19 : type === 'sprout' ? 12 : 14;
-  const g = new Grid(w, h + 3), base = h + 3, cx = w / 2, parts = []; // each part: [shape, axis x or null, half width, rib]
-  let flower = null;
-  if (type === 'saguaro') {
-    const sides = rnd() < 0.3 ? [rnd() < 0.5 ? -1 : 1] : [-1, 1];
-    for (const s of sides) {
-      const ay = base - h * (0.4 + rnd() * 0.2), ax = cx + s * 5.4, top = ay - 3.5 - rnd() * 3;
-      parts.push([capsule(cx, ay, ax, ay, 1.6), null, 1.6], [capsule(ax, ay, ax, top, 1.7), ax, 1.7]);
-    }
-    parts.push([capsule(cx, base - h + 2.6, cx, base + 3, 2.6), cx, 2.6, true]);
-    if (rnd() < 0.5) flower = [Math.floor(cx), base - h - 1];
-  } else if (type === 'barrel') {
-    const rx = 4.5 + rnd(), ry = h / 2 + 0.5;
-    parts.push([ellipse(cx, base - ry + 1, rx, ry), cx, rx, true]);
-    flower = [Math.floor(cx), base - h - 1];
-  } else if (type === 'pear') {
-    parts.push([ellipse(cx - 2.8, base - h + 3.5, 2.5, 3.2), cx - 2.8, 2.5], [ellipse(cx + 3, base - h + 4.5, 2.4, 3), cx + 3, 2.4],
-      [ellipse(cx, base - 4.5, 3.4, 5), cx, 3.4]);
-  } else {
-    parts.push([capsule(cx + 2.6, base - h + 4, cx + 2.6, base + 2, 1.8), cx + 2.6, 1.8], [capsule(cx - 1.8, base - h + 1.8, cx - 1.8, base + 2, 2.1), cx - 1.8, 2.1, true]);
-  }
-  const mask = g.layer(parts.map((p) => p[0]), GREEN, OUT);
-  // shading: the left side lit, the right in shadow, a rib down the middle; arms lit on top
-  for (const [shape, axis, r, rib] of parts) {
-    for (let y = 0; y < g.h; y++) for (let x = 0; x < g.w; x++) {
-      if (!shape(x, y)) continue;
-      const i = y * g.w + x;
-      if (axis === null) { g.px[i] = !shape(x, y - 1) ? LIGHT_GREEN : !shape(x, y + 1) ? DARK_GREEN : GREEN; continue; }
-      const d = x + 0.5 - axis;
-      g.px[i] = d < -r + 1.1 ? LIGHT_GREEN : d > r - 1.1 ? DARK_GREEN : rib && Math.abs(d) < 0.6 ? DARK_GREEN : GREEN;
-    }
-  }
-  if (type === 'pear') for (let i = 0; i < mask.length; i++) if (mask[i] && g.px[i] === GREEN && rnd() < 0.12) g.px[i] = DARK_GREEN;
-  // spines: little ticks out of the outline, now and then
-  const outline = g.px.map((c, i) => c === OUT && !mask[i]);
-  for (let y = 0; y < g.h - 2; y++) for (let x = 0; x < g.w; x++) {
-    if (!outline[y * g.w + x] || rnd() > 0.22) continue;
-    for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1]]) {
-      if (g.get(x - dx, y - dy) === 0 || !mask[(y - dy) * g.w + x - dx]) continue;
-      if (g.get(x + dx, y + dy) === 0) g.dot(x + dx, y + dy, OUT);
-    }
-  }
-  if (type === 'pear') for (const [x, y] of [[cx - 2.8, base - h + 0.3], [cx + 3, base - h + 1.5]]) if (rnd() < 0.7) g.layer([ellipse(x, y, 1.2, 1.2)], RED, OUT);
-  if (flower) {
-    const [fx, fy] = flower;
-    for (const [dx, dy, c] of [[0, 0, YELLOW], [-1, 0, PINK], [1, 0, PINK], [0, -1, PINK], [-1, 1, PINK], [1, 1, PINK]]) g.dot(fx + dx, fy + dy, c);
-  }
-  return sprite(g, mask);
-}
-
-// a rock, in a land's colours (see ROCKS): grey, the desert's sandstone, the canyon's red, snowed on
-const ROCKS = { grey: [FAINT, BG, INK], sand: [SAND, WHITE, OUT], red: [RUST, TAN, OUT], snowy: [FAINT, BG, INK] };
-export function rock(rnd, look = 'grey') {
-  const [fill, light, out] = ROCKS[look], w = 9 + Math.floor(rnd() * 4), g = new Grid(w + 2, 8);
-  const mask = g.layer([ellipse(w / 2 + 1, 7, w / 2, 5)], fill, out);
-  g.dot(w / 2 - 1, 4, light); g.dot(w / 2, 3, light); g.dot(w / 2 + 1, 3, light);
-  if (look === 'snowy') snowOn(g, mask, 2);
-  return sprite(g, mask);
-}
-
-// a fallen log, its cut end toward the runner (snowy: snowed on)
-export function log(rnd, snowy = false) {
-  const w = 14 + Math.floor(rnd() * 6), g = new Grid(w + 2, 9);
-  const mask = g.layer([capsule(3.5, 5, w - 3, 5, 3.4)], BROWN, OUT);
-  for (let x = 4; x < w - 5; x += 3 + Math.floor(rnd() * 2)) g.dot(x, 3 + Math.floor(rnd() * 4), BROWN);
-  g.layer([ellipse(3.5, 5, 2.4, 3.4)], SAND, OUT);
-  g.dot(3, 4, BROWN); g.dot(3, 5, BROWN);
-  if (snowy) snowOn(g, mask, 2);
-  return sprite(g, mask);
-}
-
-// snow on top of something: the top `rows` rows of each column of the mask, white (a little less now and then)
-function snowOn(g, mask, rows) {
-  for (let x = 0; x < g.w; x++) {
-    let y = 0;
-    while (y < g.h && !mask[y * g.w + x]) y++;
-    for (let k = 0, n = rows - (x % 3 === 2 ? 1 : 0); k < n && y + k < g.h; k++) if (mask[(y + k) * g.w + x]) g.px[(y + k) * g.w + x] = WHITE;
-  }
-}
-
-// the meadow's: a round bush, berries on it now and then; a sunflower, tall on its stem, its face to the runner
-export function bush(rnd) {
-  const w = 12 + Math.floor(rnd() * 3), h = 8 + Math.floor(rnd() * 3), g = new Grid(w + 2, h + 3), b = g.h - 1, cx = g.w / 2;
-  const mask = g.layer([ellipse(cx - w * 0.22, b - h * 0.42, w * 0.3, h * 0.42), ellipse(cx + w * 0.22, b - h * 0.4, w * 0.3, h * 0.42),
-    ellipse(cx, b - h * 0.58, w * 0.3, h * 0.45), capsule(cx - w * 0.3, b - 1.5, cx + w * 0.3, b - 1.5, 2)], GREEN, OUT);
-  for (let y = 0; y < g.h; y++) for (let x = 0; x < g.w; x++) {
-    const i = y * g.w + x;
-    if (!mask[i]) continue;
-    if (!mask[i - g.w]) g.px[i] = x < cx ? LIGHT_GREEN : GREEN; // (lit from the top left)
-    else if (y === b || (x + 0.5 > cx + 1 && (x * 5 + y * 3) % 7 === 0)) g.px[i] = DARK_GREEN;
-  }
-  if (rnd() < 0.5) for (let k = 0; k < 3; k++) g.dot(cx - 4 + k * 3 + Math.floor(rnd() * 2), b - h * 0.5 + rnd() * 3, RED);
-  return sprite(g, mask);
-}
-export function sunflower(rnd) {
-  const h = 16 + Math.floor(rnd() * 4), g = new Grid(13, h + 2), b = g.h - 1, cx = 6.5, top = b - h + 4.8;
-  const stem = g.layer([capsule(cx, top, cx, b + 1, 0.9), ellipse(cx - 2.6, b - h * 0.45, 2.4, 1.1), ellipse(cx + 2.6, b - h * 0.28, 2.4, 1.1)], GREEN, OUT);
-  const head = g.layer([ellipse(cx, top, 4.3, 4.3)], YELLOW, OUT);
-  for (let a = 0; a < 8; a++) g.dot(cx - 0.5 + Math.cos(a * 0.785 + 0.4) * 3.6, top - 0.5 + Math.sin(a * 0.785 + 0.4) * 3.6, ORANGE); // (petals' tips)
-  g.layer([ellipse(cx - 0.5, top, 2.1, 2.1)], BROWN);
-  g.dot(cx - 2, top - 2, BROWN);
-  return sprite(g, union(stem, head));
-}
-
-// the forest's: a toadstool (red, spotted); a young pine (snowy: snowed on); a tree stump, its rings on top
-export function toadstool(rnd) {
-  const w = 11 + Math.floor(rnd() * 3), h = 9 + Math.floor(rnd() * 3), g = new Grid(w + 2, h + 2), b = g.h - 1, cx = g.w / 2, capY = b - h + 4.6;
-  const stem = g.layer([capsule(cx, capY, cx, b + 1, 2.2)], WHITE, OUT);
-  for (let y = 0; y < g.h; y++) for (let x = 0; x < g.w; x++) if (stem[y * g.w + x] && x + 0.5 > cx + 1) g.px[y * g.w + x] = FAINT;
-  const cap = g.layer([ellipse(cx, capY, w / 2, 3.8)], RED, OUT, [0, 0, g.w, Math.ceil(capY + 0.6)]);
-  for (const [dx, dy] of [[-2.5, -1.5], [1, -2.6], [3, -0.6], [-0.5, 0]]) if (rnd() < 0.8) g.dot(cx + dx, capY + dy, WHITE);
-  return sprite(g, union(stem, cap));
-}
-export function pine(rnd, snowy = false) {
-  const h = 16 + Math.floor(rnd() * 4), g = new Grid(15, h + 2), b = g.h - 1, cx = g.w / 2, top = b - h + 0.8, step = (h - 4) / 3.2;
-  const trunk = g.layer([capsule(cx, b - 4, cx, b + 1, 1.3)], BROWN, OUT);
-  const crown = g.layer([0, 1, 2].map((k) => { const y0 = top + k * step, y1 = y0 + (h - 4) / 2.2, half = 3 + k * 1.7; return triangle(cx, y0, cx - half, y1, cx + half, y1); }), DARK_GREEN, OUT);
-  for (let y = 0; y < g.h; y++) for (let x = 0; x < g.w; x++) {
-    const i = y * g.w + x;
-    if (crown[i] && !crown[i - 1] && x + 0.5 < cx) g.px[i] = GREEN; // (its left edges lit)
-  }
-  if (snowy) { // snow on each tier's shoulders
-    for (let y = 1; y < g.h; y++) for (let x = 0; x < g.w; x++) { const i = y * g.w + x; if (crown[i] && !crown[i - g.w] && rnd() < 0.85) g.px[i] = WHITE; }
-  }
-  return sprite(g, union(trunk, crown));
-}
-export function stump(rnd) {
-  const w = 11 + Math.floor(rnd() * 3), h = 8 + Math.floor(rnd() * 3), g = new Grid(w + 4, h + 2), b = g.h - 1, cx = g.w / 2, topY = b - h + 2.6;
-  const body = g.layer([(x, y) => Math.abs(x + 0.5 - cx) <= w / 2 - 0.5 && y + 0.5 >= topY, ellipse(cx, b + 0.5, w / 2 + 1.2, 1.6)], BROWN, OUT);
-  for (let x = Math.round(cx - w / 2 + 2); x < cx + w / 2 - 1; x += 3) for (let y = Math.ceil(topY + 2); y < b; y++) if ((x + y) % 4) g.dot(x, y, BROWN);
-  const top = g.layer([ellipse(cx, topY, w / 2 - 0.5, 1.7)], SAND, OUT);
-  g.dot(cx - 0.5, topY - 0.5, BROWN); g.dot(cx + 1.5, topY - 0.5, TAN); g.dot(cx - 2.5, topY - 0.5, TAN);
-  return sprite(g, union(body, top));
-}
-
-// the mountains': a big rock with a smaller one on top (and a pebble)
-export function boulders(rnd) {
-  const g = new Grid(20, 19), b = g.h - 1, cx = 10, off = (rnd() - 0.5) * 4;
-  const shapes = [ellipse(cx, b - 3.6, 8.6, 5.6), ellipse(cx + off, b - 10.6, 5.2, 4.6)];
-  if (rnd() < 0.6) shapes.push(ellipse(cx + (off > 0 ? -6 : 6), b - 1.5, 2.6, 2));
-  const mask = g.layer(shapes, FAINT, INK);
-  for (let y = 0; y < g.h; y++) for (let x = 0; x < g.w; x++) { const i = y * g.w + x; if (mask[i] && !mask[i + 1] && !mask[i + g.w + 1] && y < b) g.px[i] = COLOR.DIM; } // (shadowed on the right)
-  for (const [x, y] of [[cx - 4, b - 7], [cx - 3, b - 8], [cx + off - 2, b - 13], [cx + off - 1, b - 14]]) g.dot(x, y, BG);
-  g.dot(cx + 3, b - 4, INK); g.dot(cx + 4, b - 3, INK); // (a crack)
-  return sprite(g, mask);
-}
-
-// the canyon's: a spire of red rock, banded; a tumbleweed (rolling in from the desert too)
-export function spire(rnd) {
-  const h = 16 + Math.floor(rnd() * 4), g = new Grid(14, h + 2), b = g.h - 1, cx = 7, o = rnd() * 6;
-  const mask = g.layer([(x, y) => { const t = (b + 1 - (y + 0.5)) / h; return t <= 1 && Math.abs(x + 0.5 - cx) <= 5 - 2.4 * t + Math.sin(y * 1.3 + o) * 0.5; }], RUST, OUT);
-  for (let y = 0; y < g.h; y++) for (let x = 0; x < g.w; x++) {
-    const i = y * g.w + x;
-    if (!mask[i]) continue;
-    if (!mask[i + 1]) g.px[i] = BROWN; // (its right side in shadow)
-    else if ((y + Math.floor(o)) % 4 === 0 || !mask[i - g.w]) g.px[i] = TAN; // (bands, and the top)
-  }
-  return sprite(g, mask);
-}
-export function tumbleweed(rnd) {
-  const r = 4.5 + rnd(), n = Math.ceil(2 * r) + 2, g = new Grid(n, n), b = g.h - 1, cx = n / 2, cy = b + 1 - r;
-  const mask = g.layer([ellipse(cx, cy, r, r)], TAN);
-  for (let y = 0; y < g.h; y++) for (let x = 0; x < g.w; x++) {
-    const i = y * g.w + x, d = Math.hypot(x + 0.5 - cx, y + 0.5 - cy);
-    if (!mask[i]) continue;
-    g.px[i] = d > r - 1 ? (rnd() < 0.75 ? BROWN : TAN) : rnd() < 0.4 ? TAN : rnd() < 0.35 ? BROWN : 0; // (twigs, the light through them)
-  }
-  return sprite(g, mask);
-}
-
-// the snow's: a snowman (a hat now and then, a carrot nose turned to the runner, stick arms); a block of ice, snowed on
-export function snowman(rnd) {
-  const hat = rnd() < 0.5, g = new Grid(15, hat ? 20 : 19), b = g.h - 1, cx = 7.5, balls = [[b - 3.6, 4.6], [b - 10.2, 3.4], [b - 15, 2.6]];
-  g.layer([capsule(cx - 3, balls[1][0], cx - 6.5, balls[1][0] - 3, 0.5), capsule(cx + 3, balls[1][0], cx + 6.5, balls[1][0] - 2.5, 0.5)], BROWN);
-  const mask = g.layer(balls.map(([y, r]) => ellipse(cx, y, r, r)), WHITE, OUT);
-  for (let y = 0; y < g.h; y++) for (let x = 0; x < g.w; x++) {
-    const i = y * g.w + x, [by, r] = balls.find(([cy, cr]) => Math.abs(y + 0.5 - cy) <= cr) || balls[0];
-    if (mask[i] && x + 0.5 - cx + (y + 0.5 - by) > r * 0.95) g.px[i] = BLUE; // (shaded blue, lower right)
-  }
-  const [hy] = balls[2];
-  g.dot(cx - 2, hy - 1, INK); g.dot(cx, hy - 1, INK); g.dot(cx - 3, hy, ORANGE); g.dot(cx - 4, hy, ORANGE);
-  g.dot(cx - 0.5, balls[1][0] - 1, INK); g.dot(cx - 0.5, balls[1][0] + 1, INK);
-  if (hat) { const m = g.layer([(x, y) => (y + 0.5 >= hy - 5 && y + 0.5 <= hy - 2.2 && Math.abs(x + 0.5 - cx) <= 2) || (Math.abs(y + 0.5 - (hy - 2.2)) < 0.6 && Math.abs(x + 0.5 - cx) <= 3.4)], INK); for (let i = 0; i < m.length; i++) mask[i] |= m[i]; }
-  return sprite(g, mask);
-}
-export function ice(rnd) {
-  const w = 10 + Math.floor(rnd() * 3), h = 8 + Math.floor(rnd() * 3), g = new Grid(w + 2, h + 2), b = g.h - 1;
-  const mask = g.layer([(x, y) => x >= 1 && x <= w && y >= b - h + 1], BLUE, OUT);
-  for (let k = 0; k < 3; k++) g.dot(3 + k, b - 3 - k, WHITE); // (a glint)
-  g.dot(w - 1, b - 1, WHITE);
-  snowOn(g, mask, 2);
-  return sprite(g, mask);
-}
-
-// a leafy branch hanging from the trees above, down to DUCK_UNDER: its leaves in a land's colours (LEAVES: leaf, shade,
-// berries?, the stem's colour, spines?): the desert's a cactus hanging down, green and spiny
-const LEAVES = { green: [GREEN, DARK_GREEN, true], cactus: [GREEN, DARK_GREEN, false, DARK_GREEN, true], needles: [DARK_GREEN, DEEP_GREEN, false], autumn: [TAN, RUST, true], snowy: [WHITE, FAINT, false] };
-export const TRUNK = 160; // (a branch's trunk goes on this far above the world's top: up into the sky a tall screen adds)
-export function branch(rnd, [leaf, dark, berries, wood = BROWN, spiny = false] = LEAVES.green) {
-  const T = TRUNK, g = new Grid(26, T + DUCK_UNDER + 1), b = g.h - 1, x0 = 6 + rnd() * 6;
-  const stem = [capsule(x0, 0, x0, T - 2, 1.5), capsule(x0, T - 2, x0 + 3, b - 12, 1.5), capsule(x0 + 3, b - 12, 13, b - 5, 1.2)];
-  const leaves = [ellipse(13, b - 3.2, 6.5, 3.6), ellipse(7.5, b - 5, 4.2, 3.2), ellipse(19, b - 5.5, 4.2, 3.2), ellipse(12.5, b - 7.5, 4.5, 3),
-    ...Array.from({ length: 4 }, (_, i) => ellipse(x0 + 0.8 * i + (i % 2 ? 4 : -3), T + 6 + i * ((b - T - 20) / 4), 2.6, 1.6))];
-  const mask = union(g.layer(stem, wood, OUT), g.layer(leaves, leaf, OUT));
-  for (let y = 1; y < g.h; y++) for (let x = 0; x < g.w; x++) {
-    const i = y * g.w + x;
-    if (g.px[i] === leaf && (!mask[i + g.w] || y === g.h - 1 || (x * 7 + y * 3) % 11 === 0)) g.px[i] = dark;
-  }
-  for (let k = 0; k < 3; k++) if (rnd() < 0.5 && berries) g.layer([ellipse(7 + k * 5 + rnd() * 2, b - 2 + rnd() * 1.5, 1.2, 1.2)], RED, OUT);
-  if (spiny) { // spines: little ticks out of the outline, now and then, sideways and up (none below: it ends on DUCK_UNDER)
-    for (let i = g.w; i < g.px.length; i++) if (g.px[i] === leaf && !mask[i - g.w]) g.px[i] = LIGHT_GREEN; // (lit from above)
-    const outline = g.px.map((c, i) => c === OUT && !mask[i]);
-    for (let y = T - 10; y < g.h; y++) for (let x = 0; x < g.w; x++) {
-      if (!outline[y * g.w + x] || rnd() > 0.3) continue;
-      for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1]]) if (mask[(y - dy) * g.w + x - dx] && g.get(x + dx, y + dy) === 0) g.dot(x + dx, y + dy, OUT);
-    }
-    g.dot(13, b - 9, PINK); g.dot(12, b - 9, YELLOW); g.dot(14, b - 9, PINK); g.dot(13, b - 10, PINK); // (a flower on top)
-  }
-  return sprite(g, mask, { oy: -T });
-}
+// every obstacle (an asset of its own: assets/obstacles/<name>.js, see asset.js: a prop), drawn once, by name (the
+// editor's: as edited)
+export const OBSTACLES = Object.fromEntries(obstacles.map((a) => [a.name, prop(a)]));
+// one of these kinds at random, any of each kind's variants (rock: rock, rock2, rock3)
+const oneOf = (...kinds) => {
+  const names = Object.keys(OBSTACLES).filter((n) => kinds.includes(n.replace(/\d+$/, ''))).sort();
+  return (rnd) => OBSTACLES[names[Math.floor(rnd() * names.length)]];
+};
 
 // a crow flying left; frame 0 wings up, 1 down
-const crows = [0, 1].map((f) => {
-  const g = new Grid(17, 11);
-  const mask = g.layer([ellipse(9, 6.5, 5, 2.4), ellipse(3.8, 5.3, 2.2, 2), capsule(13, 6.5, 16, 5.5, 1.1), capsule(1.5, 5.6, 0.2, 6, 0.6),
-    f ? capsule(9, 7, 11, 9.3, 1.4) : capsule(9, 6, 11, 1, 1.4)], INK);
-  g.dot(3, 4, BG);
-  return sprite(g, mask);
-});
-export const crow = (f) => crows[f];
+export const crow = (f) => OBSTACLES[f ? 'crowdown' : 'crowup'];
 // the lowest row of a crow's mask, in either frame
-export const CROW_BOTTOM = Math.max(...crows.map((c) => Math.max(...[...c.mask.keys()].filter((i) => c.mask[i]).map((i) => Math.floor(i / c.w)))));
+export const CROW_BOTTOM = Math.max(...[0, 1].map(crow).map((c) => Math.max(...[...c.mask.keys()].filter((i) => c.mask[i]).map((i) => Math.floor(i / c.w)))));
 
 // The lands a run goes through, a day each (then round again), each with obstacles of its own: what is jumped (big:
-// tall; small: low, in packs at speed; other: the rest, now and then) and the leaves on the branches ducked under
-const pick = (rnd, ...makes) => makes[Math.floor(rnd() * makes.length)](rnd);
+// tall; small: low, in packs at speed; other: the rest, now and then) and the branches ducked under
 export const LANDS = [
-  { name: 'THE MEADOW', big: sunflower, small: bush, other: (r) => pick(r, rock, log), leaves: LEAVES.green },
-  { name: 'THE DESERT', big: (r) => cactus(r, true), small: (r) => cactus(r, false), other: (r) => pick(r, (q) => rock(q, 'sand'), tumbleweed), leaves: LEAVES.cactus },
-  { name: 'THE FOREST', big: pine, small: toadstool, other: (r) => pick(r, stump, log), leaves: LEAVES.needles },
-  { name: 'THE MOUNTAINS', big: boulders, small: rock, other: (r) => pick(r, (q) => rock(q, 'snowy'), log), leaves: LEAVES.green },
-  { name: 'THE CANYON', big: spire, small: (r) => pick(r, tumbleweed, (q) => rock(q, 'red')), other: (r) => rock(r, 'sand'), leaves: LEAVES.autumn },
-  { name: 'THE SNOW', big: (r) => pick(r, snowman, (q) => pine(q, true)), small: ice, other: (r) => pick(r, (q) => rock(q, 'snowy'), (q) => log(q, true)), leaves: LEAVES.snowy },
+  { name: 'THE MEADOW', big: oneOf('sunflower'), small: oneOf('bush'), other: oneOf('rock', 'log'), branch: oneOf('branch') },
+  { name: 'THE DESERT', big: oneOf('saguaro'), small: oneOf('barrel', 'pear', 'sprout'), other: oneOf('sandrock', 'tumbleweed'), branch: oneOf('cactusbranch') },
+  { name: 'THE FOREST', big: oneOf('pine'), small: oneOf('toadstool'), other: oneOf('stump', 'log'), branch: oneOf('pinebranch') },
+  { name: 'THE MOUNTAINS', big: oneOf('boulders'), small: oneOf('rock'), other: oneOf('snowyrock', 'log'), branch: oneOf('branch') },
+  { name: 'THE CANYON', big: oneOf('spire'), small: oneOf('tumbleweed', 'redrock'), other: oneOf('sandrock'), branch: oneOf('autumnbranch') },
+  { name: 'THE SNOW', big: oneOf('snowman', 'snowypine'), small: oneOf('ice'), other: oneOf('snowyrock', 'snowylog'), branch: oneOf('snowybranch') },
 ];
 
 // each animal's face, for the high scores: its whole head as it runs (the ears too), cut out of the animal drawn smaller
@@ -1551,109 +1375,8 @@ export function face(kind) {
 }
 
 // ------------------------------------------------------------------------------------------------------------- food
-function bone() {
-  const g = new Grid(12, 7);
-  g.layer([capsule(3, 3.5, 9, 3.5, 1.2), ellipse(2.2, 2.4, 1.6, 1.6), ellipse(2.2, 4.6, 1.6, 1.6), ellipse(9.8, 2.4, 1.6, 1.6), ellipse(9.8, 4.6, 1.6, 1.6)], WHITE, OUT);
-  return sprite(g, new Uint8Array(g.w * g.h));
-}
-function fish() {
-  const g = new Grid(12, 8);
-  g.layer([ellipse(6.5, 4, 3.8, 2.4), triangle(0.5, 1.2, 0.5, 6.8, 3.4, 4)], BLUE, OUT);
-  g.dot(8, 3, OUT); g.dot(6, 4, BG); g.dot(4, 3, BG);
-  return sprite(g, new Uint8Array(g.w * g.h));
-}
-function carrot() {
-  const g = new Grid(9, 12);
-  g.layer([capsule(4.5, 3.5, 2.6, 0.8, 0.6), capsule(4.5, 3.5, 4.5, 0.4, 0.6), capsule(4.5, 3.5, 6.4, 0.9, 0.6)], GREEN);
-  const m = g.layer([ellipse(4.5, 4.8, 2.4, 1.5), triangle(2.1, 4.8, 6.9, 4.8, 4.6, 11.2)], ORANGE, OUT);
-  g.paint([capsule(3.5, 6.5, 4.4, 6.5, 0.4), capsule(4.6, 8.5, 5.2, 8.5, 0.4)], RUST, m); // its rings
-  g.dot(3, 5, BG);
-  return sprite(g, new Uint8Array(g.w * g.h));
-}
-// grapes, for the fox (the sour ones of the fable, within reach now)
-function grapes() {
-  const g = new Grid(10, 11);
-  g.layer([capsule(5, 0.5, 5.5, 2.5, 0.6)], GREEN);
-  for (const [x, y] of [[2.5, 4], [5, 3.8], [7.5, 4], [3.8, 6.3], [6.2, 6.3], [5, 8.6]]) { g.layer([ellipse(x, y, 1.5, 1.5)], PURPLE, OUT); g.dot(x - 1, y - 1, BG); }
-  return sprite(g, new Uint8Array(g.w * g.h));
-}
-// the later animals' food: an apple, an acorn, a shell, a beetle, a sausage, a mushroom
-const food = (w, h, draw) => { const g = new Grid(w, h); draw(g); return sprite(g, new Uint8Array(w * h)); };
-const apple = food(8, 9, (g) => {
-  g.layer([capsule(4, 0.6, 4.2, 2.2, 0.5)], BROWN); g.layer([ellipse(5.8, 1.3, 1.3, 0.7)], GREEN);
-  g.layer([ellipse(4, 5.4, 3, 3)], RED, OUT); g.dot(3, 4, BG);
-});
-// (no food is yellow or golden: that is the golden food's, for a super power)
-const acorn = food(8, 9, (g) => {
-  g.layer([ellipse(4, 5.8, 2.4, 2.6)], RUST, OUT); g.layer([ellipse(4, 3.3, 3.2, 1.7)], BROWN, OUT); g.dot(4, 0, BROWN); g.dot(3, 5, BG);
-});
-const shell = food(10, 8, (g) => {
-  const m = g.layer([ellipse(5, 4.4, 4.2, 3.4), ellipse(5, 7, 1.6, 0.9)], WHITE, OUT);
-  g.paint([capsule(5, 7, 2, 2, 0.4), capsule(5, 7, 5, 1.5, 0.4), capsule(5, 7, 8, 2, 0.4)], PINK, m);
-});
-const beetle = food(9, 7, (g) => {
-  for (const [x1, y1, x2, y2] of [[2, 4, 0.5, 6], [4.5, 4.5, 4.5, 6.5], [7, 4, 8.5, 6], [3, 2, 1.5, 0.5], [6, 2, 7.5, 0.5]]) g.layer([capsule(x1, y1, x2, y2, 0.4)], OUT);
-  g.layer([ellipse(4.5, 3.5, 3, 2.3)], DARK_GREEN, OUT); g.dot(4, 2, BG); g.dot(4, 3, OUT); g.dot(4, 4, OUT);
-});
-const sausage = food(12, 7, (g) => {
-  g.layer([capsule(2.5, 4, 9.5, 3, 1.8)], ORANGE, OUT); g.dot(4, 2, BG); g.dot(5, 2, BG); g.dot(0, 5, OUT); g.dot(11, 2, OUT);
-});
-const mushroom = food(9, 9, (g) => {
-  g.layer([capsule(4.5, 5, 4.5, 7.6, 1.2)], WHITE, OUT);
-  const m = g.layer([(x, y) => y < 4.5 && ellipse(4.5, 4.4, 4, 3.6)(x, y)], RED, OUT);
-  g.paint([ellipse(3, 2.5, 0.7, 0.7), ellipse(6, 2, 0.7, 0.7), ellipse(5, 3.6, 0.5, 0.5)], WHITE, m);
-});
-const berries = food(10, 8, (g) => {
-  g.layer([ellipse(6.8, 1.3, 1.5, 0.8)], GREEN);
-  for (const [x, y] of [[3, 3.5], [6, 3.6], [4.5, 5.8], [7.6, 6]]) { g.layer([ellipse(x, y, 1.6, 1.6)], BLUE, OUT); g.dot(x - 1, y - 1, BG); }
-});
-const leaf = food(10, 7, (g) => {
-  const m = g.layer([ellipse(5.5, 3.5, 4.2, 2.4)], GREEN, OUT); g.paint([capsule(1.5, 3.5, 9, 3.5, 0.45)], DARK_GREEN, m); g.layer([capsule(0, 4.5, 1.5, 3.5, 0.4)], DARK_GREEN);
-});
-const drumstick = food(11, 8, (g) => {
-  g.layer([capsule(1.5, 6, 4, 4, 0.7), ellipse(1.2, 6.8, 1, 1)], WHITE, OUT);
-  g.layer([ellipse(6.8, 3.5, 3.6, 2.8)], ORANGE, OUT); g.dot(6, 2, BG);
-});
-// the dino's: a big roasted leg, its bone sticking out with a knobbed end (the biggest food, for the biggest animal)
-const roast = food(16, 12, (g) => {
-  g.layer([capsule(3.2, 9.2, 8, 5.5, 0.8), ellipse(2.4, 8.2, 1.2, 1.2), ellipse(4, 10.3, 1.2, 1.2)], WHITE, OUT);
-  g.layer([ellipse(10.5, 4.6, 4.6, 3.6)], BROWN, OUT); g.layer([ellipse(10.2, 3.5, 2.6, 1.5)], TAN); g.dot(9, 2, BG);
-});
-// the elephant's: a peanut in its shell, pinched in the middle, its pits in a darker brown
-const peanut = food(11, 7, (g) => {
-  const m = g.layer([ellipse(3.2, 3.6, 2.6, 2.4), ellipse(7.6, 3.4, 2.7, 2.5), capsule(3.5, 3.6, 7.3, 3.4, 1.7)], TAN, OUT);
-  g.paint([ellipse(2.6, 3, 0.5, 0.5), ellipse(4, 4.6, 0.5, 0.5), ellipse(7, 2.6, 0.5, 0.5), ellipse(8.4, 4.2, 0.5, 0.5), ellipse(6.2, 4.4, 0.5, 0.5)], BROWN, m);
-  g.dot(7, 1, BG);
-});
-// the newer animals': a cucumber (the guinea pig's), a truffle (the pig's), a bundle of hay (the yak's), a slice of melon
-// (the ostrich's), a date (the dromedary's), a fig (the gorilla's)
-const cucumber = food(12, 6, (g) => {
-  const m = g.layer([capsule(2.4, 3.2, 9.6, 2.6, 2)], DARK_GREEN, OUT);
-  g.paint([capsule(3, 2.2, 8, 1.8, 0.4)], GREEN, m); g.dot(4, 4, LIGHT_GREEN); g.dot(7, 3, LIGHT_GREEN); g.dot(10, 2, GREEN);
-});
-// (a truffle: a dark knobbly lump, dug up)
-const truffle = food(9, 8, (g) => {
-  const m = g.layer([ellipse(4.5, 4.4, 3.4, 2.9), ellipse(3, 2.8, 1.6, 1.4), ellipse(6.4, 3.2, 1.5, 1.3)], BROWN, OUT);
-  g.paint([ellipse(3.4, 4.6, 0.6, 0.6), ellipse(5.8, 5.4, 0.6, 0.6), ellipse(5, 3.2, 0.5, 0.5)], DARK_BROWN, m); g.dot(3, 2, TAN);
-});
-const hay = food(11, 9, (g) => {
-  const m = g.layer([capsule(2.5, 1.6, 2.5, 7.2, 1.4), capsule(5.5, 1.2, 5.5, 7.6, 1.4), capsule(8.5, 1.6, 8.5, 7.2, 1.4)], SAND, OUT);
-  g.paint([capsule(1, 4.4, 10, 4.4, 0.6)], RUST, m); g.dot(4, 2, BG);
-});
-const melon = food(12, 8, (g) => { // (flat side up, the rind below)
-  const m = g.layer([(x, y) => y >= 1 && ellipse(6, 1, 5.4, 6)(x, y)], DARK_GREEN, OUT);
-  g.paint([ellipse(6, 1, 4.6, 5)], GREEN, m); g.paint([ellipse(6, 1, 4.2, 4.4)], RED, m);
-  g.dot(4, 2, OUT); g.dot(8, 2, OUT); g.dot(6, 3, OUT);
-});
-const date = food(9, 7, (g) => {
-  g.layer([ellipse(4.5, 3.6, 3.6, 2.3)], BROWN, OUT); g.dot(3, 2, RUST); g.dot(4, 2, RUST); g.dot(8, 2, DARK_BROWN);
-});
-const fig = food(9, 9, (g) => {
-  g.layer([capsule(4.5, 0.6, 4.5, 2, 0.5)], DARK_GREEN);
-  g.layer([ellipse(4.5, 5.6, 3.2, 3), capsule(4.5, 5, 4.5, 2.4, 1.2)], PURPLE, OUT); g.dot(3, 4, BG); g.dot(4, 7, PINK);
-});
-export const FOOD = { carrot: carrot(), bone: bone(), fish: fish(), grapes: grapes(), apple, acorn, shell, beetle, sausage, mushroom, berries, drumstick, leaf, peanut, roast,
-  cucumber, truffle, hay, melon, date, fig };
+// each animal's food: an asset of its own (assets/food/<name>.js, see asset.js: a prop), drawn as a prop is (see prop)
+export const FOOD = Object.fromEntries(foods.map((a) => [a.name, prop(a)]));
 
 // ---------------------------------------------------------------------------------------------------------- the sky
 // the far hills: how high they are at u (art pixels along them)

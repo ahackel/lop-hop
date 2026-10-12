@@ -47,6 +47,7 @@
   body.setup :is(.animate, .play, .game):not(.setup), body.animate :is(.setup, .play, .game):not(.animate), body.play :is(.setup, .animate, .game):not(.play),
   body.game :is(.setup, .animate, .play):not(.game) { display: none; }
   body.game :is(#files, #modes) { display: none; } /* (the game's own: no animal, none of its modes) */
+  body.prop :is([data-mode=animate], [data-mode=play]), body.prop :is(.animate, .play):not(.setup), body.prop #stageWrap label:has(#showBones, #showSwings), body.prop #handles option[value=joints], body.prop #bonesCard, body.prop #previewCard .bar > :not(:has(#light)) { display: none; } /* (a prop: Setup only, no bones) */
   .gameTitle { font-weight: 600; }
   body.game #stage { cursor: pointer; }
   #gameMode.on { background: var(--accent-soft); font-weight: 600; }
@@ -233,23 +234,32 @@
   #files .dim { color: var(--dim); }
   #files .chev svg.i { width: 12px; height: 12px; color: var(--dim); }
   canvas.pic { image-rendering: pixelated; display: block; }
-  .pop.files { width: min(560px, calc(100vw - 16px)); padding: 10px; display: flex; flex-direction: column; gap: 8px; }
-  .pop.files input[type=search] { width: 100%; background: var(--panel); border: 1px solid var(--line); border-radius: 5px; padding: 4px 7px; }
-  .filesList { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px; max-height: min(60vh, 520px); overflow: auto; align-items: start; }
-  .fileCard { border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
-  .fileCard.on { border-color: var(--sel); }
-  .fileCard button { display: flex; align-items: center; gap: 6px; width: 100%; border: 0; border-radius: 0; background: none; text-align: left; }
-  .fileCard button:hover { background: var(--bg); }
-  .fileCard button.on { background: var(--accent-soft); }
-  .fileCard .file { flex-direction: column; padding: 6px; }
-  .fileCard .file .pic { height: 40px; max-width: 100%; object-fit: contain; }
-  .fileCard .skins { border-top: 1px solid var(--line); }
-  .fileCard .skin { padding: 3px 6px; font-size: 12px; }
-  .fileCard .skin .pic { height: 16px; }
-  .fileCard .name { display: flex; align-items: center; gap: 4px; }
-  .fileCard .dot { width: 6px; height: 6px; border-radius: 3px; background: var(--accent); flex: none; }
-  .fileCard .tag { font-size: 10px; color: var(--dim); border: 1px solid var(--line); border-radius: 4px; padding: 0 3px; }
-  .filesActs { display: flex; gap: 6px; border-top: 1px solid var(--line); padding-top: 8px; }
+  /* the library (browser.js): every asset, full screen; a bar (search, the kinds, new ones), then cards */
+  .library { position: fixed; inset: 0; z-index: 30; display: flex; flex-direction: column; background: var(--bg); }
+  .library[hidden] { display: none; }
+  .libTop { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 18px; border-bottom: 1px solid var(--line); background: var(--panel); }
+  .libTitle { font-size: 15px; }
+  .libSearch { display: flex; align-items: center; gap: 6px; padding: 0 8px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); color: var(--dim); }
+  .libSearch:focus-within { border-color: var(--sel); }
+  .libSearch svg.i { width: 14px; height: 14px; }
+  .libSearch input { width: 220px; border: 0; background: none; padding: 5px 0; color: var(--ink); outline: none; }
+  .libTop .modes .count { margin-left: 6px; font-size: 11px; color: var(--dim); font-weight: 400; }
+  .libTop .grow { flex: 1; }
+  .libActs { display: flex; gap: 6px; }
+  .libItems { flex: 1; min-height: 0; overflow: auto; padding: 6px 18px 24px; }
+  .libHead { margin: 16px 0 8px; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--dim); }
+  .libGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 8px; }
+  .libCard { display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 6px 6px 8px; border: 1px solid transparent; border-radius: 8px; background: none; text-align: center; min-width: 0; }
+  .libCard:hover { background: var(--panel); }
+  .libCard.on { border-color: var(--sel); box-shadow: inset 0 0 0 1px var(--sel); }
+  .libCard.base { border-color: var(--sel); border-style: dashed; }
+  .libPic { display: grid; place-items: center; height: 84px; }
+  .libPic .pic { image-rendering: pixelated; }
+  .libCard .name { display: flex; align-items: center; justify-content: center; gap: 5px; min-width: 0; font-weight: 600; padding: 0 2px; }
+  .libCard .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .libCard small { color: var(--dim); font-size: 11px; padding: 0 2px; }
+  .libCard .dot { width: 6px; height: 6px; border-radius: 3px; background: var(--accent); flex: none; }
+  .libCard .tag { font-size: 10px; font-weight: 400; color: var(--dim); border: 1px solid var(--line); border-radius: 4px; padding: 0 3px; }
   input[type=color] { width: 32px; height: 24px; padding: 0 2px; border: 1px solid var(--line); border-radius: 5px; background: var(--panel); }
   .sw.big { display: inline-block; width: 22px; height: 22px; border-radius: 4px; border: 1px solid rgba(0,0,0,.2); }
   .tones { display: grid; grid-template-columns: 40px repeat(4, 1fr); gap: 4px; align-items: center; justify-items: start; font-size: 11px; }
@@ -272,7 +282,7 @@
   <h1>Lop Hop Editor</h1>
   <button id="leaveGame" class="game" data-icon="back" title="Back to the animal, as you left it (4)">Back</button>
   <span class="game gameTitle">Game settings</span>
-  <button id="files" class="withIcon" title="The animal and its skin: another, or a new one" aria-haspopup="dialog"></button>
+  <button id="files" class="withIcon" title="The asset open. Click: every asset, to open another or make a new one (⌘O)" aria-haspopup="dialog"></button>
   <span class="modes" id="modes">
     <button data-mode="setup" title="Its bones and shapes: the build every move is made from. Its moves are in Animate (1)">Setup</button>
     <button data-mode="animate" title="Its moves: keys over frames, or a gait's settings (2)">Animate</button>
@@ -303,7 +313,7 @@
       <label class="animate">Move <select id="move"></select></label>
       <button class="animate" id="play" data-icon="play" title="Play the move, stop (Space)"></button>
       <label class="animate" title="The frames before (blue) and after (orange), faded (O)"><input id="onion" type="checkbox" checked> Onion skin</label>
-      <label class="setup animate" title="Every part’s handle, not only the joints’ (A)"><input id="allHandles" type="checkbox" checked> All handles</label>
+      <label class="setup animate" title="Which handles the stage shows, besides the picked part’s: none (Picked), the joints’ too (Joints), every part’s (All). Click a shape to pick it either way (A: the next)">Handles <select id="handles"><option value="picked" title="Only the picked part’s handles">Picked</option><option value="joints" title="The picked part’s, and every joint’s">Joints</option><option value="all" selected title="Every part’s handle (its middle): drag one to move that part">All</option></select></label>
       <label class="setup animate" title="The bones as lines: how they hang together (dashed: what a leg or a chain hangs from) (B)"><input id="showBones" type="checkbox" checked> Bones</label>
       <label class="setup animate" title="The swings’ bones, as the pose has them at rest: cyan, a dot at each link (W)"><input id="showSwings" type="checkbox" checked> Swings</label>
       <label class="setup" title="Drawn a screen pixel a pixel: the shapes as they are, not yet in the game’s pixels (the grid: its pixels) (P)"><input id="fine" type="checkbox"> Screen pixels</label>

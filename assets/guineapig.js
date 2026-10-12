@@ -21,18 +21,24 @@ export default {
         { name: 'muzzle', on: 'head', ellipse: [3.2, 1.4, 2.4, 2.2] },
         { name: 'hindNear', bone: 'hindNear', along: 'capsule', r: 0.9, smooth: 0.5 },
         { name: 'frontNear', bone: 'frontNear', along: 'capsule', r: 0.9, smooth: 0.5 },
-        {
-          name: 'strand6',
-          chain: { on: 'head', at: [0.5, -3.8], angle: -0.886, links: 3, length: 4.2, curl: 0.1, stiffness: 300, damping: 8, weight: 80 },
-          along: 'capsule',
-          r: [0.8, 0.4],
-        },
       ],
       paint: [
         { name: 'rump', color: 'tan', on: 'spine', ellipse: [-3.5, 0, 4.5, 6] },
         { name: 'saddle', color: 'charcoal', on: 'spine', ellipse: [4.2, -4.4, 3, 3] },
         { name: 'head', color: 'tan', on: 'head', ellipse: [-0.6, -0.8, 4, 3.8] },
         { name: 'blaze', color: 'white', on: 'head', capsule: [3.4, -4.4, 4.2, 1.5, 0.9] },
+      ],
+    },
+    {
+      name: 'tuft',
+      shapes: [
+        {
+          name: 'tuft',
+          chain: { on: 'head', at: [0.5, -3.8], angle: -0.886, links: 3, length: 4.2, curl: 0.1, stiffness: 300, damping: 8, weight: 80 },
+          along: 'capsule',
+          r: [0.8, 0.4],
+          grows: true,
+        },
       ],
     },
     { name: 'ear', color: 'pink', shapes: [{ on: 'head', ellipse: [-1.8, -3.9, 1.5, 1.2] }] },

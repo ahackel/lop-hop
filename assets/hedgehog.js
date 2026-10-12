@@ -52,10 +52,10 @@ export default {
     'face',
   ],
   legs: {
-    hindFar: { on: 'hip', at: [1, 5.2], thigh: 1.2, shin: 1.2, bend: 1 },
-    frontFar: { on: 'chest', at: [1.5, 5.2], thigh: 1.2, shin: 1.2, bend: -1 },
-    hindNear: { on: 'hip', at: [0, 5.2], thigh: 1.2, shin: 1.2, bend: 1 },
-    frontNear: { on: 'chest', at: [1, 5.2], thigh: 1.2, shin: 1.2, bend: -1 },
+    hindFar: { on: 'hip', at: [1, 6], thigh: 1.2, shin: 1.2, bend: 1 },
+    frontFar: { on: 'chest', at: [1.5, 6], thigh: 1.2, shin: 1.2, bend: -1 },
+    hindNear: { on: 'hip', at: [0, 6], thigh: 1.2, shin: 1.2, bend: 1 },
+    frontNear: { on: 'chest', at: [1, 6], thigh: 1.2, shin: 1.2, bend: -1 },
   },
   chains: {},
   face: { eye: [1, -0.6], nose: [5.5, 1.4] },
@@ -69,7 +69,7 @@ export default {
         reach: 2.64,
         lift: 1.128,
         bob: 0.6,
-        ground: 18.4,
+        ground: 18.8,
         legs: { hindNear: [0, -0.5], hindFar: [0.1, -0.5], frontNear: [0.5, 0.8], frontFar: [0.6, 0.8] },
       },
     },
@@ -106,10 +106,7 @@ export default {
         },
       ],
     },
-    hurt: {
-      frames: 1,
-      keys: [{ at: 0, eye: 'hurt', paws: { hindFar: [10, 18.4], frontFar: [16.5, 18.4], hindNear: [8.5, 18.4], frontNear: [14.5, 18.4] } }],
-    },
+    hurt: { frames: 1, keys: [{ at: 0, eye: 'hurt', paws: { hindFar: [10, 19], frontFar: [16.5, 19], hindNear: [8.5, 19], frontNear: [14.5, 19] } }] },
     ko: {
       frames: 1,
       keys: [

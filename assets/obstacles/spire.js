@@ -1,0 +1,47 @@
+// spire: an asset (see asset.js), written by the editor; data only
+export default {
+  format: 1,
+  name: 'spire',
+  size: [14, 18],
+  layers: [
+    {
+      name: 'rock',
+      color: 'rust',
+      shapes: [
+        { box: [4, 2, 10, 4] },
+        { box: [5, 4, 9, 18] },
+        { box: [4, 5, 5, 18] },
+        { box: [9, 5, 10, 18] },
+        { box: [3, 6, 4, 8] },
+        { box: [10, 6, 11, 8] },
+        { box: [3, 10, 4, 18] },
+        { box: [10, 10, 11, 18] },
+        { box: [2, 12, 3, 13] },
+        { box: [11, 12, 12, 13] },
+        { box: [2, 15, 3, 18] },
+        { box: [11, 15, 12, 18] },
+      ],
+      paint: [
+        { color: 'tan', box: [4, 2, 9, 4] },
+        { color: 'tan', box: [3, 6, 4, 8] },
+        { color: 'tan', box: [4, 7, 10, 8] },
+        { color: 'tan', box: [3, 10, 4, 12] },
+        { color: 'tan', box: [4, 11, 10, 12] },
+        { color: 'tan', box: [2, 15, 11, 16] },
+        { color: 'brown', box: [9, 2, 10, 4] },
+        { color: 'brown', box: [10, 6, 11, 8] },
+        { color: 'brown', box: [9, 8, 10, 10] },
+        { color: 'brown', box: [10, 10, 11, 12] },
+        { color: 'brown', box: [10, 13, 11, 15] },
+        { color: 'brown', box: [11, 15, 12, 18] },
+      ],
+      dots: [
+        { at: [8, 4], color: 'brown' },
+        { at: [4, 5], color: 'tan' },
+        { at: [9, 5], color: 'brown' },
+        { at: [2, 12], color: 'tan' },
+        { at: [11, 12], color: 'brown' },
+      ],
+    },
+  ],
+};

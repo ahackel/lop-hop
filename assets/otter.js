@@ -28,7 +28,7 @@ export default {
       hits: true,
       shapes: [
         { name: 'torso', bone: 'spine', along: 'capsule', r: 3.8, ends: 0 },
-        { name: 'neck', on: 'chest', capsule: [0, 0, 4, -1.9, 2.8], role: 'neck' },
+        { name: 'neck', bone: 'neck', along: 'capsule', r: 2.8 },
         { name: 'head', on: 'head', ellipse: [0, 0, 3.4, 3.3] },
         { name: 'snout', on: 'head', ellipse: [2.7, 1.2, 1.8, 1.5] },
         {
@@ -177,4 +177,5 @@ export default {
       ],
     },
   },
+  bones: { neck: { on: 'chest', at: [0, 0], to: 'head', end: [-1.332, 0.747], length: 4.428, bend: 1 } },
 };

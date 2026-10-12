@@ -1,7 +1,7 @@
 // What the editor edits (see editor.js): every animal's file and build, the game's palette; the animal shown, the mode,
 // the part picked; undo, saving, the toolbar. The other modules read it from here; what they change of it, by its
 // setter (setSel, setDrag, setLastMove)
-import { ANIMALS, PALETTES, rigOf, rigParts, setPalette, setRig } from '../art.js';
+import { ANIMALS, FOOD, OBSTACLES, PALETTES, prop, rigOf, rigParts, setPalette, setRig } from '../art.js';
 import { toAsset } from '../asset.js';
 import paletteFile from '../assets/palette.js';
 import { fileLabel } from './browser.js';
@@ -44,7 +44,13 @@ export const inGame = (k) => k in GAME_ANIMALS;
 export const view = { mode: 'setup', move: 'edit', frame: 0, play: false, t: 0 }; // (play: a move playing, in Animate)
 export let lastMove = 'idle'; // (the move Animate shows)
 
-export const editable = () => !!build.joints;
+export const editable = () => !!build.joints || isProp();
+// a prop (see asset.js: a food, assets/food/<name>.js; an obstacle, assets/obstacles/<name>.js): shapes in layers, in
+// its box, no bones; edited in Setup only. Its folder (food, obstacles), and what the game takes it from
+export const isProp = (k = kind) => !!files[k]?.size;
+export const folderOf = (k = kind) => k.split('/')[0];
+const propsOf = (k) => (folderOf(k) === 'food' ? FOOD : OBSTACLES);
+export const propSprite = (S = 1) => prop({ ...shown(build), up: 0 }, S); // (as the game draws it, S times finer; what is hidden left out; a branch: not its trunk on up)
 export const hist = () => (histories[view.mode === 'game' ? '' : kind] ||= { past: [], future: [] }); // (Game: one of its own)
 export const snapshot = () => JSON.stringify(view.mode === 'game' ? palette : { build, skin });
 export const dirty = (k) => JSON.stringify(builds[k]) !== saved[k];
@@ -64,7 +70,7 @@ export const hidden = new Set();
 function shown(b) {
   if (!hidden.size) return b;
   const r = { ...b }, keep = (list) => list.filter((x) => !hidden.has(x));
-  if (r.layers) r.layers = keep(r.layers).map((G) => (isGroup(G) ? { ...G, shapes: keep(G.shapes), ...(G.paint && { paint: keep(G.paint) }), ...(hidden.has(G.spikes) && { spikes: undefined }) } : G));
+  if (r.layers) r.layers = keep(r.layers).map((G) => (isGroup(G) ? { ...G, shapes: keep(G.shapes), ...(G.paint && { paint: keep(G.paint) }), ...(G.dots && { dots: keep(G.dots) }), ...(hidden.has(G.spikes) && { spikes: undefined }) } : G));
   if (r.dots) r.dots = keep(r.dots);
   return r;
 }
@@ -75,18 +81,20 @@ function pathOf(o) {
     if (!isGroup(G)) continue;
     if (G === o) return [g];
     if (G.spikes === o) return [g, 'spikes'];
-    for (const k of ['shapes', 'paint']) if (G[k]?.includes(o)) return [g, k, G[k].indexOf(o)];
+    for (const k of ['shapes', 'paint', 'dots']) if (G[k]?.includes(o)) return [g, k, G[k].indexOf(o)];
   }
   return null;
 }
 const atPath = (q) => (q[0] === 'dots' ? build.dots?.[q[1]] : q.reduce((o, k) => o?.[k], build.layers));
 export function hide(...os) { for (const o of os) if (!hidden.delete(o)) hidden.add(o); rebuild(); listParts(); draw(); }
 export function rebuild() {
+  if (isProp()) { propsOf(base)[files[base].name] = prop(build); place(); return; } // (the game's as edited: Play feeds it, runs past it)
   setRig(base, rigFor(base));
   for (const k of skinsOf(base)) setRig(k, rigFor(k));
   place();
 }
 export function place() {
+  if (isProp()) { P = { F: { box: null }, J: {}, p: {} }; G = [1, [0, 0]]; return; } // (in its box: no frames but the box's)
   if (view.move !== 'edit') view.frame = Math.min(view.frame, frames(view.move) - 1);
   P = view.move === 'edit' ? rigParts.posed(kind, 'hurt', 0) : rigParts.posed(kind, view.move, view.frame);
   G = rigParts.growth(kind, view.move === 'edit' ? 'hurt' : view.move); // (the bigger animals: drawn grown, their handles with them)
@@ -115,13 +123,20 @@ export function choose(k) {
   kind = k; base = baseOf(k); build = builds[base]; skin = k === base ? null : builds[k]; also = []; sel = { type: view.move === 'edit' ? 'rig' : 'frame' };
   pv.body = {};
   const url = new URL(location.href); url.searchParams.set('animal', k); window.history.replaceState(null, '', url);
+  document.body.classList.toggle('prop', isProp());
+  if (isProp()) { // (Setup: a move, Play, are an animal's)
+    view.move = 'edit'; sel = { type: 'rig' }; setPlay(false);
+    if (view.mode === 'animate' || view.mode === 'play') setMode('setup'); else { rebuild(); refresh(); }
+    status(); fileLabel(); return;
+  }
   fillMoves(); rebuild(); sandbox.reset(k); refresh(); status(); fileLabel();
 }
 // the mode: Setup (the build: what every move is made from), Animate (a move), Play (see play.js); Game (the game's own)
 let before = 'setup'; // (the mode Game was opened from: back to it)
 export function setMode(m) {
-  if (m === 'game' && view.mode !== 'game') { before = view.mode || 'setup'; $('leaveGame').querySelector('span').textContent = `Back to the ${kind}`; }
-  view.mode = m; document.body.className = m;
+  if (isProp() && (m === 'animate' || m === 'play')) m = 'setup'; // (a prop: Setup, or Game)
+  if (m === 'game' && view.mode !== 'game') { before = view.mode || 'setup'; $('leaveGame').querySelector('span').textContent = `Back to the ${kind.replace(/^\w+\//, '')}`; }
+  view.mode = m; document.body.className = m; document.body.classList.toggle('prop', isProp());
   for (const b of $('modes').children) b.classList.toggle('on', b.dataset.mode === m);
   $('gameMode').classList.toggle('on', m === 'game');
   setPlay(false);
@@ -143,7 +158,7 @@ export function status() {
   const s = $('status'), mine = touched(), others = KINDS.filter((k) => k !== kind && k !== base && dirty(k)), files = [base, ...(skin ? [kind] : [])].map(fileOf).join(' + ');
   s.className = mine.length || others.length ? 'dirty' : '';
   if (paletteDirty()) others.push('the palette');
-  s.textContent = (mine.length ? `unsaved changes in ${mine.map(fileOf).join(', ')}` : files) + (inGame(kind) ? '' : ' · not in the game yet') + (others.length ? ` · also unsaved: ${others.join(', ')}` : '');
+  s.textContent = (mine.length ? `unsaved changes in ${mine.map(fileOf).join(', ')}` : files) + (inGame(kind) || isProp() ? '' : ' · not in the game yet') + (others.length ? ` · also unsaved: ${others.join(', ')}` : '');
   $('undo').disabled = !hist().past.length; $('redo').disabled = !hist().future.length;
   $('revert').disabled = !mine.length; $('save').disabled = !mine.length && !paletteDirty();
 }
@@ -165,10 +180,11 @@ export async function save() {
 }
 
 // new ones (see browser.js): an animal (a copy of the one shown, skin and all), a skin of it (colors as they are)
-const named = (what) => { // (a name for a new one: lower case letters, not taken)
-  const n = prompt(`A name for the new ${what} (lower case letters)`)?.trim().toLowerCase();
+const named = (what, folder = null, start = '') => { // (a name for a new one: lower case letters (a prop's: a number after them, a variant), not taken)
+  const n = prompt(`A name for the new ${what} (lower case letters${folder === 'obstacles' ? ', a number after them for a variant of one: rock2' : ''})`, start)?.trim().toLowerCase();
   if (!n) return null;
-  if (!/^[a-z]+$/.test(n) || files[n]) { alert(files[n] ? `There is a ${n} already.` : 'Only the letters a to z.'); return null; }
+  const taken = files[n] || files[`food/${n}`] || files[`obstacles/${n}`];
+  if (!(folder === 'obstacles' ? /^[a-z]+\d*$/ : /^[a-z]+$/).test(n) || taken) { alert(taken ? `There is a ${n} already.` : 'Only the letters a to z (then a number, for an obstacle).'); return null; }
   return n;
 };
 function create(k, b, of) {
@@ -185,6 +201,18 @@ export function newAnimal() {
   create(n, b);
 }
 export function newSkin() { const n = named('skin'); if (n) create(n, { recolor: {} }, base); }
+// a new prop in a folder (food, obstacles): a copy of the one shown, if it is one there (else of the carrot, the rock);
+// an obstacle's name offered: its next variant (rock: rock4)
+export function newProp(folder) {
+  const from = isProp() && folderOf() === folder ? base : folder === 'food' ? 'food/carrot' : 'obstacles/rock', stem = files[from].name.replace(/\d+$/, '');
+  let next = '';
+  if (folder === 'obstacles') for (let i = 2; !next; i++) if (!files[`obstacles/${stem}${i}`]) next = `${stem}${i}`;
+  const n = named(folder === 'food' ? 'food' : 'obstacle', folder, next);
+  if (!n) return;
+  const k = `${folder}/${n}`, { size, up } = files[from];
+  files[k] = { format: 1, name: n, size: [...size], ...(up && { up }) }; builds[k] = JSON.parse(JSON.stringify(builds[from])); saved[k] = null; KINDS.push(k);
+  choose(k); status();
+}
 $('undo').onclick = undo; $('redo').onclick = redo; $('save').onclick = save;
 export const gameToggle = () => setMode(view.mode === 'game' ? before : 'game');
 $('gameMode').onclick = gameToggle;

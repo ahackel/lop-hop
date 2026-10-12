@@ -35,3 +35,6 @@ function block(v, indent, lead) {
 
 // an asset's file: the object as data, a module the game imports as it is
 export const formatAsset = (asset) => `// ${asset.name}: an asset (see asset.js), written by the editor; data only\nexport default ${block(asset, 0, 'export default '.length)};\n`;
+
+// a folder of props' index (assets/food/index.js, assets/obstacles/index.js): every file in it, as the game takes them
+export const formatIndex = (folder, names) => `// ${folder}: every one in this folder, as the game takes them (written by the dev server as one is saved); data only\n${names.map((n) => `import ${n} from './${n}.js';`).join('\n')}\n\nexport default [${names.join(', ')}];\n`;

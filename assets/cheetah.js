@@ -95,10 +95,10 @@ export default {
       gait: {
         frames: 8,
         stance: 0.4,
-        reach: 8.5,
+        reach: 8.2,
         lift: 3.15,
-        bob: 1.1,
-        ground: 17.475,
+        bob: 0.9,
+        ground: 18.8,
         legs: { hindNear: [0, -0.5], hindFar: [0.1, -0.5], frontNear: [0.5, 0.8], frontFar: [0.6, 0.8] },
       },
     },

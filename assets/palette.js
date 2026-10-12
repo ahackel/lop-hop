@@ -10,6 +10,7 @@ export default {
     dim: { day: '#9a9a94', night: '#6a7090' },
   },
   colors: {
+    black: '#232328',
     white: '#fdfbf6',
     cream: '#ece4d0',
     beige: '#e3d2c2',

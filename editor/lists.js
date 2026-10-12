@@ -2,12 +2,12 @@
 import { $, el, icon } from './dom.js';
 import { playHelp } from './handling.js';
 import { inspect } from './inspector.js';
-import { SWITCHES, addDot, addGroup, addShape, many, moveMany, rename, switchOn, toggle } from './layers.js';
+import { addDot, addGroup, addShape, many, moveMany, rename, switchOn, switchesNow, toggle } from './layers.js';
 import { html, nothing, render } from './lit/lit-html.js';
 import { listPalette } from './palette.js';
 import { alongOf, geomOf, ownChain, parts, same } from './parts.js';
 import { draw, editing } from './stage.js';
-import { P, also, build, commit, editable, hide, isGroup, kind, picked, refresh, sel, view, setAlso, setSel } from './state.js';
+import { P, also, build, commit, editable, hide, isGroup, isProp, kind, picked, refresh, sel, view, setAlso, setSel } from './state.js';
 import { ABOUT, keysAt, kindOf, leaves, pathsOf, rowOf } from './timeline.js';
 import { addBone, moveOnto, reparentBone, under } from './bones.js';
 
@@ -27,6 +27,7 @@ export function listParts() {
   if (view.mode === 'game') { bt.textContent = 'Palette'; bt.title = 'The game’s colors: everything is drawn in them'; show(html`${filled(listPalette)}`); return; }
   bt.textContent = playing ? 'Play' : 'Bones'; bt.title = playing ? 'What to try on the stage, as the home screen does it, by the game’s own code (the row of animals and the treats it has left out)' : 'The skeleton: what moves';
   if (playing) { show(html`${filled(playHelp)}`, note('Shapes are set in Setup.')); return; }
+  if (isProp()) { show(nothing, shapesTable(parts())); return; } // (no bones: their panel hidden, see index.html)
   if (!editable()) { show(note(`The ${kind} has no bones.`)); return; }
   if (view.move !== 'edit' && kindOf(view.move) !== 'clip') { show(html`<p class="note" style="padding:4px 10px" title=${ABOUT[kindOf(view.move)]}>a ${kindOf(view.move)}</p>`); return; }
   const all = parts();
@@ -151,11 +152,11 @@ const KINDS = { ellipse: 'An ellipse', capsule: 'A capsule', box: 'A box', trian
 function whereWhat(p) {
   const o = p.obj, t = p.sel.type;
   if (t === 'face') return ['head', ['face', 'The face']];
-  if (t === 'dot') return [o.on || 'box', ['dot', 'A dot: one pixel']];
+  if (t === 'dot') return [isProp() ? '' : o.on || 'box', ['dot', 'A dot: one pixel']];
   if (t === 'spikes') return [o.on || 'box', ['spikes', 'Spikes: where it bristles']];
   const k = o.bone ? alongOf(o) : geomOf(o) || 'ellipse', own = ownChain(o);
   if (own) return [own.on, [k, `${KINDS[k]} that swings, on ${own.on}`]];
-  return [o.bone || o.on || 'box', [k, o.bone ? `${KINDS[k]}, drawn along ${o.bone}` : KINDS[k]]];
+  return [isProp() ? '' : o.bone || o.on || 'box', [k, o.bone ? `${KINDS[k]}, drawn along ${o.bone}` : KINDS[k]]];
 }
 const eyeOf = (p) => html`<button class=${`eye${p.off ? ' off' : ''}`} title=${p.off ? 'Hidden: show it (H)' : 'Hide it, here only: not saved (H)'} @click=${stop(() => hide(p.obj))}>${icon(p.off ? 'eyeOff' : 'eye')}</button>`;
 const nameOf = (p) => (renamingSel && same(renamingSel, p.sel)
@@ -175,23 +176,24 @@ function shapesTable(all) {
       </tbody>`;
     }
     const gp = all.find((p) => p.sel.type === 'group' && p.sel.g === g), kids = all.filter((p) => p.sel.g === g && p.sel.type === 'item');
-    const paint = all.filter((p) => p.sel.g === g && p.sel.type === 'paint'), spikes = all.find((p) => p.sel.g === g && p.sel.type === 'spikes');
+    const paint = all.filter((p) => p.sel.g === g && p.sel.type === 'paint'), spikes = all.find((p) => p.sel.g === g && p.sel.type === 'spikes'), dots = all.filter((p) => p.sel.g === g && p.sel.type === 'dot');
     return html`<tbody>
       <tr class=${rowClass(gp, ' layer')} .sel=${gp.sel} draggable=${dragging(gp).draggable} @click=${(e) => pick(gp.sel, e)} @mouseenter=${() => point({ sels: [gp.sel] })}
         @dblclick=${(e) => { if (!e.target.closest('button')) startRename(gp.sel); }}>
         <td>${eyeOf(gp)}</td>
-        <th colspan="2"><div>${chevron(`group:${G.name}`, kids.length + paint.length > 0 || !!spikes)}${typeIcon(['group', 'A group: drawn as one'])}<span class="sw" style=${`background:${gp.color}`}></span>${nameOf(gp)}${G.swing ? html`<span class="flag" title="It swings as the body moves, about its pivot">${icon('swing')}</span>` : nothing}
-          <span class="rules">${SWITCHES.map(([k, ic, yes, no]) => html`<button class=${`rule${switchOn(G, k) ? '' : ' off'}`} title=${`${switchOn(G, k) ? yes : no} (click: ${switchOn(G, k) ? 'off' : 'on'})`} @click=${stop(() => toggle(g, k))}>${icon(ic)}</button>`)}</span>
+        <th colspan="2"><div>${chevron(`group:${G.name}`, kids.length + paint.length + dots.length > 0 || !!spikes)}${typeIcon(['group', 'A group: drawn as one'])}<span class="sw" style=${`background:${gp.color}`}></span>${nameOf(gp)}${G.swing ? html`<span class="flag" title="It swings as the body moves, about its pivot">${icon('swing')}</span>` : nothing}
+          <span class="rules">${switchesNow().map(([k, ic, yes, no]) => html`<button class=${`rule${switchOn(G, k) ? '' : ' off'}`} title=${`${switchOn(G, k) ? yes : no} (click: ${switchOn(G, k) ? 'off' : 'on'})`} @click=${stop(() => toggle(g, k))}>${icon(ic)}</button>`)}</span>
           <button class="icon" title="Add a shape to it" aria-label="Add a shape to it" @click=${stop(() => addShape(g))}>${icon('plus')}</button></div></th>
       </tr>
       ${folded(`group:${G.name}`) ? nothing : html`${kids.map((p) => shapeRow(p))}
       ${paint.length ? html`<tr class="sub"><td></td><td colspan="2" title="Markings: shapes in a color, only where the group is">paint</td></tr>${paint.map((p) => shapeRow(p, 2))}` : nothing}
-      ${spikes ? shapeRow(spikes) : nothing}`}
+      ${spikes ? shapeRow(spikes) : nothing}
+      ${dots.length ? html`<tr class="sub"><td></td><td colspan="2" title="Single pixels, drawn after its shapes and paint">dots</td></tr>${dots.map((p) => shapeRow(p, 2))}` : nothing}`}
     </tbody>`;
   };
   return html`<table class="list shapesList" @mouseleave=${() => point(null)}>
     <colgroup><col class="cEye"><col><col class="cOn"></colgroup>
-    <thead><tr><th></th><th>Name</th><th>Bone</th></tr></thead>
+    <thead><tr><th></th><th>Name</th><th>${isProp() ? '' : 'Bone'}</th></tr></thead>
     ${(build.layers || []).map(group)}
     <tbody><tr class="sub"><td></td><td colspan="2"><button class="withIcon" title="A new group, drawn before the face" @click=${addGroup}>${icon('plus')}<span>Group</span></button></td></tr></tbody>
   </table>`;
@@ -213,7 +215,7 @@ let dragged = null;
 const modeOf = (from, to) => {
   if (!from || same(from, to)) return null;
   if (from.type === 'item' || from.type === 'paint') return to.type === from.type ? 'line' : to.type === 'group' ? 'into' : null;
-  if (from.type === 'dot') return to.type === 'dot' ? 'line' : null;
+  if (from.type === 'dot') return to.type === 'dot' ? 'line' : to.type === 'group' && from.g !== undefined ? 'into' : null; // (a prop's: into another layer too)
   if (from.type === 'group' || from.type === 'face') return to.type === 'group' || to.type === 'face' ? 'group' : null;
   return null;
 };

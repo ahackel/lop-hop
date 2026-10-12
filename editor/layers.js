@@ -4,13 +4,15 @@
 import { inspect } from './inspector.js';
 import { listParts } from './lists.js';
 import { ON_BONE, alongOf, geomOf, ownChain, r3, shiftShape, turnBy } from './parts.js';
-import { also, build, commit, eachIn, hidden, isGroup, refresh, restPoints, sel, setAlso, setSel } from './state.js';
+import { also, build, commit, eachIn, hidden, isGroup, isProp, refresh, restPoints, sel, setAlso, setSel } from './state.js';
 import { freeBone, taken } from './bones.js';
 
 export const layers = () => (build.layers ||= []);
-export const bodyIndex = () => layers().findIndex((G) => isGroup(G) && G.join && G.hits); // (the body: the first group joined that hits)
+export const bodyIndex = () => layers().findIndex((G) => isGroup(G) && G.hits && !G.far); // (the body: the first group that hits, not the far side)
 const clone = (o) => JSON.parse(JSON.stringify(o));
-const prune = (G) => { if (G?.paint && !G.paint.length) delete G.paint; };
+const prune = (G) => { if (G?.paint && !G.paint.length) delete G.paint; if (G?.dots && !G.dots.length) delete G.dots; };
+// the dots a dot is among: a prop's, its layer's (g); an animal's, the build's
+const dotsOf = (s, make = false) => (s.g === undefined ? (make ? (build.dots ||= []) : build.dots) : make ? (layers()[s.g].dots ||= []) : layers()[s.g].dots);
 const among = (s) => (s.type === 'group' || s.type === 'face' ? 'g' : 'i'); // (a group is where it is among the groups)
 
 // the list a pick is in, and where in it
@@ -18,7 +20,7 @@ export function placeOf(s) {
   const G = layers()[s.g];
   if (s.type === 'item') return { arr: G.shapes, at: s.i };
   if (s.type === 'paint') return { arr: G.paint, at: s.i };
-  if (s.type === 'dot') return { arr: build.dots, at: s.i };
+  if (s.type === 'dot') return { arr: dotsOf(s), at: s.i };
   if (s.type === 'group' || s.type === 'face') return { arr: layers(), at: s.g };
   return null;
 }
@@ -124,6 +126,7 @@ export function selOf(x) {
     if (!isGroup(G)) continue;
     if (G.shapes.includes(x)) return { type: 'item', g, i: G.shapes.indexOf(x) };
     if (G.paint?.includes(x)) return { type: 'paint', g, i: G.paint.indexOf(x) };
+    if (G.dots?.includes(x)) return { type: 'dot', g, i: G.dots.indexOf(x) };
   }
   return null;
 }
@@ -154,7 +157,7 @@ function manyDo(what, d) {
       ownCopies(copies, own);
       repick(copies[0], copies.slice(1), sel);
     } else {
-      const G = sel.type === 'item' || sel.type === 'paint' ? layers()[sel.g] : null, own = ownIn(objs); // (picked after: its group, if left)
+      const G = sel.g !== undefined && sel.type !== 'group' ? layers()[sel.g] : null, own = ownIn(objs); // (picked after: its group, if left)
       for (const [arr, xs] of arrs) for (const x of xs) { const i = arr.indexOf(x); if (i >= 0) arr.splice(i, 1); hidden.delete(x); }
       dropOwn(own);
       for (const L of layers()) if (isGroup(L)) prune(L);
@@ -178,9 +181,9 @@ export function itemDo(what, d) {
     else if (what === 'delete') {
       const own = ownIn([arr[at]]), [x] = arr.splice(at, 1);
       hidden.delete(x); dropOwn(own);
-      if (sel.type === 'paint') prune(layers()[sel.g]);
-      if (sel.type === 'dot' && !arr.length) delete build.dots;
-      setSel(sel.type === 'item' || sel.type === 'paint' ? { type: 'group', g: sel.g } : { type: 'rig' });
+      if (sel.type === 'paint' || (sel.type === 'dot' && sel.g !== undefined)) prune(layers()[sel.g]);
+      if (sel.type === 'dot' && sel.g === undefined && !arr.length) delete build.dots;
+      setSel(sel.type !== 'group' && sel.g !== undefined ? { type: 'group', g: sel.g } : { type: 'rig' });
     }
   });
   refresh();
@@ -191,11 +194,11 @@ export function moveMany(froms, g, i) {
   if (froms.length < 2) { moveTo(froms[0], g, i); return; }
   const type = froms[0].type, whole = type === 'group' || type === 'face';
   const order = (s) => [s.g ?? 0, s.i ?? 0], objs = [...froms].sort((a, b) => order(a)[0] - order(b)[0] || order(a)[1] - order(b)[1]).map(objOf);
-  const dstOf = () => (whole ? layers() : type === 'dot' ? build.dots : type === 'paint' ? (layers()[g].paint ||= []) : layers()[g].shapes);
-  const dst = whole ? layers() : type === 'dot' ? build.dots : type === 'paint' ? layers()[g].paint || [] : layers()[g].shapes;
+  const dstOf = () => (whole ? layers() : type === 'dot' ? dotsOf({ g }, true) : type === 'paint' ? (layers()[g].paint ||= []) : layers()[g].shapes);
+  const dst = whole ? layers() : type === 'dot' ? dotsOf({ g }) || [] : type === 'paint' ? layers()[g].paint || [] : layers()[g].shapes;
   let before = dst[whole ? g : i]; // (what they go before: the first after it not moved)
   for (let k = dst.indexOf(before); before !== undefined && objs.includes(before); k++) before = dst[k + 1];
-  const shown = objOf(sel), G = !whole && type !== 'dot' && layers()[g];
+  const shown = objOf(sel), G = !whole && g !== undefined && layers()[g];
   commit(() => {
     for (const x of objs) { const s = selOf(x), { arr, at } = placeOf(s); arr.splice(at, 1); }
     const to = dstOf(), at = before === undefined ? to.length : to.indexOf(before);
@@ -209,16 +212,16 @@ export function moveMany(froms, g, i) {
 // before; none: at its end)
 export function moveTo(from, g, i) {
   const src = placeOf(from), whole = from.type === 'group' || from.type === 'face';
-  const dstOf = () => (whole ? layers() : from.type === 'paint' ? (layers()[g].paint ||= []) : from.type === 'dot' ? build.dots : layers()[g].shapes);
-  const same = whole || from.type === 'dot' || from.g === g;
-  let to = whole ? g ?? layers().length : i ?? ((from.type === 'paint' ? layers()[g].paint?.length : from.type === 'dot' ? build.dots.length : layers()[g].shapes.length) || 0);
+  const dstOf = () => (whole ? layers() : from.type === 'paint' ? (layers()[g].paint ||= []) : from.type === 'dot' ? dotsOf({ g }, true) : layers()[g].shapes);
+  const same = whole || from.g === g;
+  let to = whole ? g ?? layers().length : i ?? ((from.type === 'paint' ? layers()[g].paint?.length : from.type === 'dot' ? dotsOf({ g })?.length : layers()[g].shapes.length) || 0);
   if (same && to > src.at) to--;
   if (same && to === src.at) return;
   commit(() => {
     const [x] = src.arr.splice(src.at, 1);
     dstOf().splice(to, 0, x);
-    if (from.type === 'paint') prune(layers()[from.g]);
-    setSel(whole ? { ...from, g: to } : from.type === 'dot' ? { ...from, i: to } : { ...from, g, i: to });
+    if (from.type === 'paint' || (from.type === 'dot' && from.g !== undefined)) prune(layers()[from.g]);
+    setSel(whole ? { ...from, g: to } : from.type === 'dot' && from.g === undefined ? { ...from, i: to } : { ...from, g, i: to });
   });
   listParts(); inspect();
 }
@@ -226,25 +229,28 @@ export function moveTo(from, g, i) {
 // a group (before the face), a dot
 export function addShape(g) {
   const G = layers()[g], last = [...G.shapes].reverse().find((s) => !s.bone && geomOf(s));
-  const s = last ? clone(last) : { on: 'spine', ellipse: [2, 0, 2, 1.5] };
+  const s = last ? clone(last) : isProp() ? { ellipse: [build.size[0] / 2, build.size[1] / 2, 2, 1.5] } : { on: 'spine', ellipse: [2, 0, 2, 1.5] }; // (a prop's: in the middle of its box)
   if (last) { delete s.name; shiftShape(s, [1, 0]); } else s.name = 'shape';
   commit(() => { G.shapes.push(s); setSel({ type: 'item', g, i: G.shapes.length - 1 }); });
   refresh();
 }
 export function addPaint(g) {
   const G = layers()[g];
-  commit(() => { (G.paint ||= []).push({ name: 'marking', color: 'white', on: G.shapes.find((s) => !s.bone)?.on || 'spine', ellipse: [2, 0, 2, 1.5] }); setSel({ type: 'paint', g, i: G.paint.length - 1 }); });
+  const m = isProp() ? { color: 'white', ellipse: [...(geomOf(G.shapes[0] || {}) === 'ellipse' ? G.shapes[0].ellipse.slice(0, 2) : [build.size[0] / 2, build.size[1] / 2]), 1, 1] } // (a prop's: on its first shape)
+    : { name: 'marking', color: 'white', on: G.shapes.find((s) => !s.bone)?.on || 'spine', ellipse: [2, 0, 2, 1.5] };
+  commit(() => { (G.paint ||= []).push(m); setSel({ type: 'paint', g, i: G.paint.length - 1 }); });
   refresh();
 }
 export function addGroup() {
   const names = new Set(layers().filter(isGroup).map((G) => G.name)), at = layers().indexOf('face');
   let name = 'group';
   for (let n = 2; names.has(name); n++) name = `group${n}`;
-  const g = at < 0 ? layers().length : at;
-  commit(() => { layers().splice(g, 0, { name, shapes: [{ on: 'head', ellipse: [0, -3, 1, 1] }] }); setSel({ type: 'group', g }); });
+  const g = at < 0 ? layers().length : at, G = isProp() ? { name, color: 'brown', shapes: [{ ellipse: [build.size[0] / 2, build.size[1] / 2, 2, 2] }] } : { name, shapes: [{ on: 'head', ellipse: [0, -3, 1, 1] }] };
+  commit(() => { layers().splice(g, 0, G); setSel({ type: 'group', g }); });
   refresh();
 }
-export function addDot() {
+export function addDot(g) { // (a prop's: in its layer g, in the middle of its box)
+  if (isProp()) { commit(() => { const d = dotsOf({ g }, true); d.push({ at: build.size.map((v) => Math.floor(v / 2)), color: 'background' }); setSel({ type: 'dot', g, i: d.length - 1 }); }); refresh(); return; }
   commit(() => { (build.dots ||= []).push({ name: 'dot', on: 'head', at: [0, 0], color: 'outline' }); setSel({ type: 'dot', i: build.dots.length - 1 }); });
   refresh();
 }
@@ -255,16 +261,18 @@ export const SWITCHES = [
   ['hits', 'hits', 'Collisions test it', 'Collisions don’t test it', 'hits'],
   ['far', 'far', 'In the far side’s tone (where nothing nearer covers it)', 'Not in the far side’s tone', 'far tone'],
 ];
-// a group's switch flipped: joined, outlined (on unless off), hits, far
+// a group's switch flipped: joined, outlined (on unless off), hits (a prop's: on unless off), far
+const onUnlessOff = (key) => key === 'outline' || (key === 'hits' && isProp());
 export function toggle(g, key) {
   const G = layers()[g];
   commit(() => {
-    if (key === 'outline') { if (G.outline === false) delete G.outline; else G.outline = false; }
+    if (onUnlessOff(key)) { if (G[key] === false) delete G[key]; else G[key] = false; }
     else if (G[key]) delete G[key]; else G[key] = true;
   });
   refresh();
 }
-export const switchOn = (G, key) => (key === 'outline' ? G.outline !== false : !!G[key]);
+export const switchOn = (G, key) => (onUnlessOff(key) ? G[key] !== false : !!G[key]);
+export const switchesNow = () => (isProp() ? SWITCHES.filter(([k]) => k === 'outline' || k === 'hits') : SWITCHES); // (a prop's layer: outlined or not, bumped into or not)
 // spikes on a group, or none
 export function setSpikes(g, on) {
   const G = layers()[g];

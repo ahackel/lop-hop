@@ -2,13 +2,13 @@
 import { $, el, iconBtn } from './dom.js';
 import { faceFrames } from './face.js';
 import { inspectPlay } from './handling.js';
-import { SWITCHES, addPaint, addShape, bodyIndex, itemDo, layers, rename, setSpikes, swingOff, swingOn, swingable, switchOn, toggle } from './layers.js';
+import { SWITCHES, addDot, addPaint, addShape, bodyIndex, itemDo, layers, rename, setSpikes, swingOff, swingOn, swingable, switchOn, switchesNow, toggle } from './layers.js';
 import { listParts, reparent } from './lists.js';
 import { colorPick, inspectPalette } from './palette.js';
 import { ALONG, ON_BONE, alongOf, boneChoices, boneDefaults, current, geomOf, isOwn, middleOf, onChoices, ownChain, parts, repivot, withDefaults } from './parts.js';
-import { COLOR_KEYS, GEOMS, GROUP_SWING, also, base, build, builds, changed, choose, commit, editable, isGroup, kind, newAnimal, newSkin, nice, paints, refresh, remember, sel, skin, skinsOf, status, view, setSel } from './state.js';
+import { COLOR_KEYS, GEOMS, GROUP_SWING, also, base, build, builds, changed, choose, commit, editable, isGroup, isProp, kind, folderOf, newAnimal, newProp, newSkin, nice, paints, refresh, remember, sel, skin, skinsOf, status, view, setSel } from './state.js';
 import { inspectMove, timeline } from './timeline.js';
-import { addBone, deleteBone, renameBone, reparentBone, under } from './bones.js';
+import { addBone, deleteBone, reachChoices, reachTo, renameBone, reparentBone, under } from './bones.js';
 
 export function inspect() {
   const box = $('inspector'); box.textContent = '';
@@ -25,7 +25,7 @@ export function inspect() {
     title.append(acts);
     if (also.length) box.append(el('p', { className: 'note', textContent: `${also.length + 1} selected`, title: `Moved, copied, deleted, hidden and dragged together; below: ${p.label}, picked last` }));
     const name = el('input', { type: 'text', value: o.name || '', placeholder: p.label, onchange: () => rename(sel, o, name.value) }), head = [field('name', name, 'Its name (Enter, or double-click its row): a move uses it by it')];
-    if (t === 'item') head.push(field('bone', attach(o), 'The bone it is on: a joint (in its frame; the box: none), or a bone it is drawn along (as the pose has it)'));
+    if (t === 'item' && !isProp()) head.push(field('bone', attach(o), 'The bone it is on: a joint (in its frame; the box: none), or a bone it is drawn along (as the pose has it)'));
     if (t === 'item' || t === 'paint') head.push(field('shape', shapeKind(o), o.bone ? 'What it is drawn as along its bone' : 'What it is: fitted to where it was'));
     box.append(section(t === 'group' ? 'Group' : 'Shape', head));
   }
@@ -47,14 +47,15 @@ export function inspect() {
     return;
   }
   if (t === 'item') { // (an ellipse, a box: turned)
-    fields(withDefaults(o, { color: undefined, smooth: 1, ...((o.ellipse || o.box) && { angle: 0 }) }), box, ['name', 'on']);
-    box.append(section('Swing', [swingBox(o, false)], SWING_TIP));
+    fields(withDefaults(o, { color: undefined, ...(!isProp() && { smooth: 1 }), ...((o.ellipse || o.box) && { angle: 0 }) }), box, ['name', 'on']);
+    if (!isProp()) box.append(section('Swing', [swingBox(o, false)], SWING_TIP));
     return;
   }
-  const skip = t === 'rig' ? ['joints', 'headPivot', 'layers', 'dots', 'legs', 'chains', 'face', 'moves', 'handling', 'recolor'] : t === 'paint' || t === 'dot' ? ['name'] : t === 'leg' || t === 'chain' ? ['on'] : []; // (a bone's joint: dragged onto another in the list)
+  const skip = t === 'rig' ? ['joints', 'headPivot', 'layers', 'dots', 'legs', 'chains', 'face', 'moves', 'handling', 'recolor'] : (t === 'paint' && !isProp()) || t === 'dot' ? ['name'] : t === 'leg' || t === 'chain' ? ['on'] : []; // (a bone's joint: dragged onto another in the list)
   fields(o, box, t === 'face' ? ['frames'] : skip);
   if (t === 'face') faceFrames(box);
-  if (t === 'rig') rootMore(box);
+  if (t === 'rig' && isProp()) box.append(el('div', { className: 'keys' }, iconBtn('plus', `New ${folderOf() === 'food' ? 'food' : 'obstacle'} from this…`, { title: `A new ${folderOf() === 'food' ? 'food' : 'obstacle (a variant: the same name, a number after it)'}: a copy of this one, to change as it likes`, onclick: () => newProp(folderOf()) })));
+  else if (t === 'rig') rootMore(box);
   if (t === 'leg' || t === 'chain') farSide(box);
 }
 // the bone a shape is on: a joint (in its frame; the box: none) or a bone it is drawn along (what it is kept: an ellipse
@@ -89,10 +90,19 @@ function boneFields(n, B, box, title) {
   const name = el('input', { type: 'text', value: n, onchange: () => renameBone(n, name.value) });
   const on = el('select', { onchange: () => reparentBone(n, on.value) }), no = under(n);
   for (const c of onChoices().filter((x) => !no.has(x))) on.append(el('option', { value: c, textContent: c.replace('.', ' ') || 'the box', selected: c === (B.on || '') }));
+  const reaches = el('select', { onchange: () => { commit(() => reachTo(n, reaches.value)); inspect(); } });
+  for (const c of ['', ...reachChoices(n)]) reaches.append(el('option', { value: c, textContent: c || 'nothing', selected: c === (B.to || '') }));
+  const xy = (k) => stack((B[k] || [0, 0]).map((v, j) => numIn(v, (x) => { const q = (B[k] || [0, 0]).slice(); q[j] = x; B[k] = q; }, { label: 'xy'[j] })));
+  const bend = el('select', { onchange: () => commit(() => { if (+bend.value) B.bend = +bend.value; else delete B.bend; }) });
+  for (const [v, t] of [[1, 'up / back'], [0, 'straight'], [-1, 'down / forward']]) bend.append(el('option', { value: v, textContent: t, selected: v === (B.bend || 0) }));
   box.append(section('Bone', [field('name', name, 'Its name: what is on it, and its keys in the moves, go by it'), field('on', on, 'What it is on: it goes with it (where it is, kept)'),
-    field('at', stack((B.at || [0, 0]).map((v, j) => numIn(v, (x) => { const q = (B.at || [0, 0]).slice(); q[j] = x; B.at = q; }, { label: 'xy'[j] }))), 'Where it is on what it is on (in its frame)'),
-    field('angle', numIn(B.angle || 0, (x) => { B.angle = x; }, { min: -3.14, max: 3.14, step: 0.01 }), 'Its turn on what it is on, radians (+: clockwise); a move turns it from there'),
-    field('length', numIn(B.length || 0, (x) => { B.length = x; }, { min: 0 }), 'How long it is: a shape drawn along it is so long (none: a joint, only turned)'),
+    field('at', xy('at'), 'Where it is on what it is on (in its frame)'),
+    field('reaches', reaches, 'A joint or a bone it reaches: from where it is to its end there, wherever a pose puts it, bowed to keep its length (a neck reaching the head)'),
+    ...(B.to ? [field('end', xy('end'), 'Where it ends on what it reaches (in its frame)'),
+      field('bend', bend, 'Which way it bows when what it reaches comes nearer (as it goes from its root to its end)'),
+      field('links', numIn(B.links || 2, (x) => { if (x === 2) delete B.links; else B.links = x; }, { step: 1, min: 1, max: 12, whole: true }), 'How smooth its bow: so many straight parts')]
+      : [field('angle', numIn(B.angle || 0, (x) => { B.angle = x; }, { min: -3.14, max: 3.14, step: 0.01 }), 'Its turn on what it is on, radians (+: clockwise); a move turns it from there')]),
+    field('length', numIn(B.length || 0, (x) => { B.length = x; }, { min: 0 }), B.to ? 'How long it is along its bow: further apart than that, it stretches straight' : 'How long it is: a shape drawn along it is so long (none: a joint, only turned)'),
     el('div', { className: 'keys' }, iconBtn('plus', 'Bone', { title: 'A new bone on this one, at its end', onclick: () => addBone(n) }))], 'A bone of its own: shapes, swings, legs and bones go on it'));
 }
 // a group that swings: all of it, about its pivot, as the body moves (see swungGroup in art.js); on, its pivot at the top
@@ -171,8 +181,8 @@ function tidy(o) {
 // shapes, paint and spikes added here, each picked in the list or on the stage
 function groupFields(G, box) {
   const g = sel.g;
-  box.append(section('Drawn', SWITCHES.map(([k, , yes, no, label]) => field(label, el('input', { type: 'checkbox', checked: switchOn(G, k), onchange: () => toggle(g, k) }), `${yes}. Off: ${no}`)), 'How the group is drawn: as one, in the order of the list'));
-  if (G.shapes.length && !G.shapes.some((s) => s.bone)) {
+  box.append(section('Drawn', switchesNow().map(([k, , yes, no, label]) => field(label, el('input', { type: 'checkbox', checked: switchOn(G, k), onchange: () => toggle(g, k) }), `${yes}. Off: ${no}`)), 'How the group is drawn: as one, in the order of the list'));
+  if (G.shapes.length && !G.shapes.some((s) => s.bone) && !isProp()) {
     const on = el('select', { onchange: () => { commit(() => { for (const s of G.shapes) { if (on.value) s.on = on.value; else delete s.on; } }); listParts(); } });
     for (const c of onChoices()) on.append(el('option', { value: c, textContent: c.replace('.', ' ') || 'the box', selected: c === (G.shapes[0]?.on || '') }));
     const at = G.at || [0, 0];
@@ -183,13 +193,14 @@ function groupFields(G, box) {
     box.append(section('Swing', groupSwing(G), GROUP_SWING_TIP));
   }
   const color = el('span', { className: 'keys' }, colorPick(G.color || build.fur, (c) => { commit(() => { if (c === build.fur) delete G.color; else G.color = c; }); listParts(); inspect(); }));
-  box.append(section('Look', [field('color', color, 'Its color (its shapes’ own where they have one); the fur’s if none')]));
+  const outline = isProp() && G.outline !== false && el('span', { className: 'keys' }, colorPick(G.outline || 'outline', (c) => { commit(() => { if (c === 'outline') delete G.outline; else G.outline = c; }); inspect(); }));
+  box.append(section('Look', [field('color', color, 'Its color (its shapes’ own where they have one); the fur’s if none'), ...(outline ? [field('outline', outline, 'The color it is outlined in')] : [])]));
   box.append(section('Shapes', [el('div', { className: 'keys' },
     iconBtn('plus', 'Shape', { title: 'A shape in it: a copy of its last, moved a little', onclick: () => addShape(g) }),
     iconBtn('plus', 'Paint', { title: 'A marking on it: a shape in a color, only where the group is', onclick: () => addPaint(g) }),
-    G.spikes ? iconBtn('x', 'Spikes', { title: 'No spikes', onclick: () => setSpikes(g, false) }) : iconBtn('plus', 'Spikes', { title: 'Spikes where it bristles: ticks out of its outline (specks inside)', onclick: () => setSpikes(g, true) }))],
+    isProp() ? iconBtn('plus', 'Dot', { title: 'A single pixel, drawn after its shapes and paint', onclick: () => addDot(g) }) : G.spikes ? iconBtn('x', 'Spikes', { title: 'No spikes', onclick: () => setSpikes(g, false) }) : iconBtn('plus', 'Spikes', { title: 'Spikes where it bristles: ticks out of its outline (specks inside)', onclick: () => setSpikes(g, true) }))],
     'Its shapes, markings and spikes: each picked in the list (under it) or on the stage'));
-  fields(G, box, ['name', 'color', 'shapes', 'at', 'angle', 'paint', 'spikes', 'swing', ...SWITCHES.map(([k]) => k)]);
+  fields(G, box, ['name', 'color', 'shapes', 'at', 'angle', 'paint', 'spikes', 'swing', 'dots', ...SWITCHES.map(([k]) => k)]);
 }
 // a setting: its name, what sets it (what it is: the tooltip, not a note under it). A number's name drags it, as its own
 // does (see numIn)

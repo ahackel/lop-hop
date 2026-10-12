@@ -1,0 +1,40 @@
+// snowypine2: an asset (see asset.js), written by the editor; data only
+export default {
+  format: 1,
+  name: 'snowypine2',
+  size: [15, 20],
+  layers: [
+    { name: 'trunk', color: 'brown', shapes: [{ capsule: [7.5, 15, 7.5, 20, 1.3] }] },
+    {
+      name: 'needles',
+      color: 'darkGreen',
+      shapes: [
+        { triangle: [[7.5, 1.8], [4.5, 8.164], [10.5, 8.164]] },
+        { triangle: [[7.5, 6.175], [2.8, 12.539], [12.2, 12.539]] },
+        { triangle: [[7.5, 10.55], [1.1, 16.914], [13.9, 16.914]] },
+      ],
+      dots: [
+        { at: [6, 4], color: 'white' },
+        { at: [6, 5], color: 'green' },
+        { at: [5, 6], color: 'white' },
+        { at: [9, 6], color: 'white' },
+        { at: [5, 7], color: 'green' },
+        { at: [6, 8], color: 'green' },
+        { at: [5, 9], color: 'white' },
+        { at: [9, 9], color: 'white' },
+        { at: [4, 10], color: 'white' },
+        { at: [10, 10], color: 'white' },
+        { at: [4, 11], color: 'green' },
+        { at: [3, 12], color: 'green' },
+        { at: [11, 12], color: 'white' },
+        { at: [5, 13], color: 'green' },
+        { at: [4, 14], color: 'green' },
+        { at: [10, 14], color: 'white' },
+        { at: [3, 15], color: 'white' },
+        { at: [11, 15], color: 'white' },
+        { at: [2, 16], color: 'white' },
+        { at: [12, 16], color: 'white' },
+      ],
+    },
+  ],
+};

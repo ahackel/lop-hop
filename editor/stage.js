@@ -8,11 +8,13 @@ import { hover, isPicked, listParts, togglePick } from './lists.js';
 import { castHit, drawCast, setHue } from './palette.js';
 import { current, isOwn, minus, parts, plus, same, setStep, setAlt } from './parts.js';
 import * as sandbox from './play.js';
-import { G, P, also, build, changed, drag, editable, hist, kind, nice, place, reach, remember, restPoints, sel, snapshot, status, toWorld, view, setAlso, setSel, setDrag } from './state.js';
+import { G, P, also, build, changed, drag, editable, hist, isProp, kind, nice, place, propSprite, reach, remember, restPoints, sel, snapshot, status, toWorld, view, setAlso, setSel, setDrag } from './state.js';
 import { frames, kindOf, markFrames, setPlay, timeline } from './timeline.js';
 
-// the stage shows art pixels from (X0, Y0), VW × VH of them (the 26×20 box and room around it), Z screen pixels each
-const X0 = -12, Y0 = -9, VW = 50, VH = 31;
+// the stage shows art pixels from (X0, Y0), VW × VH of them (the 26×20 box and room around it; a prop: its box and a
+// little room), Z screen pixels each
+let X0 = -12, Y0 = -9, VW = 50, VH = 31;
+const frameView = () => { if (isProp()) { const [w, h] = build.size, m = 3; [X0, Y0, VW, VH] = [-m, -m, w + 2 * m, h + 2 * m]; } else [X0, Y0, VW, VH] = [-12, -9, 50, 31]; };
 export let Z = 16;
 
 const toScreen = ([x, y]) => { const [g, [dx, dy]] = G; return [(x * g + dx - X0) * Z, (y * g + dy - Y0) * Z]; };
@@ -22,10 +24,13 @@ export const editing = () => editable() && (view.move === 'edit' || kindOf(view.
 // (the build: standing, its face as the frames being drawn have it, else open and shut)
 const setupLook = () => ({ eye: faceEdit.part === 'eye' ? faceEdit.name : 'open', mouth: faceEdit.part === 'mouth' ? faceEdit.name : 'shut' });
 // (screen pixels: the build drawn Z times finer, a screen pixel a pixel, by the game's own code (as the giant dino is
-// drawn bigger); half as fine while a handle is dragged, to keep up)
+// drawn bigger; a prop: see prop); half as fine while a handle is dragged, to keep up)
 const fine = () => view.mode === 'setup' && view.move === 'edit' && $('fine').checked;
 const fineness = () => (fine() ? (drag ? Math.max(2, Math.round(Z / 2)) : Z) : 1);
-function sprite(S = 1) { return view.move === 'edit' ? animal(kind, 'hurt', 0, { look: setupLook(), scale: S }) : animal(kind, view.move, view.frame); }
+function sprite(S = 1) { return isProp() ? { ox: 0, ...propSprite(S), oy: 0 } : view.move === 'edit' ? animal(kind, 'hurt', 0, { look: setupLook(), scale: S }) : animal(kind, view.move, view.frame); }
+
+// a handle of a part not picked: shown (and grabbed) as Handles says (picked: none; joints: a joint's; all: every one)
+const shows = (h) => h.anchor && ($('handles').value === 'all' || (h.joint && $('handles').value === 'joints'));
 
 export function draw() {
   const c = $('stage'), ctx = c.getContext('2d');
@@ -37,6 +42,7 @@ export function draw() {
     sandbox.draw(c, Z);
     return;
   }
+  frameView();
   Z = Math.max(4, Math.floor(Math.min(box.clientWidth / VW, box.clientHeight / VH))) || 16;
   if (c.width !== VW * Z || c.height !== VH * Z) { c.width = VW * Z; c.height = VH * Z; c.style.width = `${VW * Z}px`; c.style.height = `${VH * Z}px`; }
   ctx.fillStyle = PALETTES.day.bg; ctx.fillRect(0, 0, c.width, c.height); // (the game's day: its outlines show)
@@ -47,7 +53,7 @@ export function draw() {
   };
   grid(0.08);
   const pal = PALETTES.day;
-  ctx.fillStyle = pal[COLOR.FAINT]; ctx.fillRect(0, (FOOT - Y0) * Z, c.width, Z); // the ground's row
+  if (!isProp()) { ctx.fillStyle = pal[COLOR.FAINT]; ctx.fillRect(0, (FOOT - Y0) * Z, c.width, Z); } // the ground's row
   place();
   const S = fineness(), s = sprite(S), n = view.move === 'edit' ? 1 : frames(view.move);
   const pixels = (sp, color) => {
@@ -78,12 +84,12 @@ export function draw() {
   } else pixels(s);
   // the box every animal is placed by (dashed), the frame's own bounds (dotted)
   ctx.lineWidth = 1.5; ctx.setLineDash([6, 4]); ctx.strokeStyle = css('--dim');
-  ctx.strokeRect(-X0 * Z, -Y0 * Z, 26 * Z, 20 * Z);
+  ctx.strokeRect(-X0 * Z, -Y0 * Z, (isProp() ? build.size[0] : 26) * Z, (isProp() ? build.size[1] : 20) * Z);
   ctx.setLineDash([2, 3]); ctx.strokeStyle = css('--accent');
   ctx.strokeRect((s.ox / S - X0) * Z, (s.oy / S - Y0) * Z, (s.w / S) * Z, (s.h / S) * Z);
   ctx.setLineDash([]);
-  if ($('showBones').checked && editable() && view.mode !== 'play') drawBones(ctx);
-  if ($('showSwings').checked && editable() && view.mode !== 'play') drawSwings(ctx);
+  if ($('showBones').checked && editable() && view.mode !== 'play' && !isProp()) drawBones(ctx);
+  if ($('showSwings').checked && editable() && view.mode !== 'play' && !isProp()) drawSwings(ctx);
   if (editing() && !view.play) drawHandles(ctx);
   markFrames();
 }
@@ -122,10 +128,11 @@ function drawBones(ctx) {
     for (let i = 1; i < pts.length; i++) bone(pts[i - 1], pts[i]);
     if (f) hangs.push([f.o, r.root]);
   }
-  for (const n in build.bones || {}) { // (a bone: from its root, as long as it is (none long: a little way, its turn))
+  for (const n in build.bones || {}) { // (a bone: from its root, as long as it is (none long: a little way, its turn); one that reaches: along its arc)
     const f = F[n], up = F[build.bones[n].on];
     if (!f) continue;
-    bone(f.o, toWorld(f, [Math.max(build.bones[n].length || 0, 1.5), 0]));
+    if (f.pts) for (let i = 1; i < f.pts.length; i++) bone(f.pts[i - 1], f.pts[i]);
+    else bone(f.o, toWorld(f, [Math.max(build.bones[n].length || 0, 1.5), 0]));
     if (up) hangs.push([up.o, f.o]);
   }
   ctx.setLineDash([3, 3]); ctx.strokeStyle = 'rgba(40,40,56,0.45)';
@@ -164,7 +171,7 @@ function drawHandles(ctx) {
   if (also.length) { ctx.save(); ctx.strokeStyle = accent; ctx.lineWidth = 1.5; for (const p of all) if (p !== on && !p.off && isPicked(p.sel)) p.lines.forEach(stroke); ctx.restore(); }
   for (const p of all) {
     if (p === on || p.off) continue;
-    for (const h of p.handles) if (h.anchor && (h.joint || $('allHandles').checked)) dot(h.at, h.joint ? 6 : 4, h.joint ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.6)', h.joint ? '#333' : 'rgba(60,60,60,0.6)');
+    for (const h of p.handles) if (shows(h)) dot(h.at, h.joint ? 6 : 4, h.joint ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.6)', h.joint ? '#333' : 'rgba(60,60,60,0.6)');
   }
   if (on) for (const h of on.handles) dot(h.at, h.joint || h.move ? 6 : 5, h.size ? '#fff' : accent, h.size ? accent : '#fff');
 }
@@ -181,7 +188,7 @@ $('stage').addEventListener('pointerdown', (e) => {
   const p = toArt(e), near = (h) => Math.hypot(...minus(toScreen(h.at), toScreen(p))) < 9;
   const all = parts(), on = current();
   let hit = on?.handles.find(near), owner = on;
-  if (!hit) for (const q of all) { if (q.off) continue; const h = q.handles.find((x) => x.anchor && (x.joint || $('allHandles').checked) && near(x)); if (h) { hit = h; owner = q; break; } }
+  if (!hit) for (const q of all) { if (q.off) continue; const h = q.handles.find((x) => shows(x) && near(x)); if (h) { hit = h; owner = q; break; } }
   if (hit) {
     if (owner !== on && isPicked(owner.sel)) { setAlso([...also.filter((x) => !same(x, owner.sel)), sel]); setSel(owner.sel, true); listParts(); inspect(); }
     else if (owner !== on) { setSel(owner.sel); listParts(); inspect(); }

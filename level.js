@@ -13,7 +13,7 @@
 //                                         edge comes in at the right of the screen; items (obstacles), food and gold
 //                                         from there (dx)
 //   pace(kind, d) → speed               hardness(kind, s), drain(kind, s), dayOf(kind, s), nightAt(kind, day), chaserOf(kind)
-import { W, GROUND, ANIMALS, DUCK_UNDER, CROW_BOTTOM, JUMP, GRAVITY, FOOD, LANDS, branch, crow, hitbox, stride, jumpFrame } from './art.js';
+import { W, GROUND, ANIMALS, DUCK_UNDER, CROW_BOTTOM, JUMP, GRAVITY, FOOD, LANDS, crow, hitbox, stride, jumpFrame } from './art.js';
 
 // ------------------------------------------------------------------------------------------------------------- tuning
 export const START_SPEED = 110, MAX_SPEED = 255, ACCEL = 3; // art pixels per second (per second, as it runs: see pace)
@@ -25,7 +25,7 @@ export const BRANCHES_FROM = 150, CROWS_FROM = 300, FAST_FROM = 700; // the scor
 export const DAY = 1000, NIGHT = 600, HUNT = 170, PALE = 220, HEAD = 0.06;
 // for every day of hardness: faster (px/s), gaps closer (down to MIN_TIGHT), more crows and branches (up to their
 // most), packs more often, food rarer (down to LEAST_FOOD), more tiring
-const DAY_SPEED = 22, DAY_TIGHT = 0.07, MIN_TIGHT = 0.5, DAY_CROWS = 0.035, MOST_CROWS = 0.42, MOST_BRANCHES = 0.62, DAY_PACKS = 0.25;
+const DAY_SPEED = 22, DAY_TIGHT = 0.07, MIN_TIGHT = 0.45, DAY_CROWS = 0.035, MOST_CROWS = 0.42, MOST_BRANCHES = 0.62, DAY_PACKS = 0.25;
 const DAY_FOOD = 0.05, LEAST_FOOD = 0.45, DRAIN = 1.85, DAY_DRAIN = 0.27;
 export const CHASE = 1.12; // the world goes faster while the chaser is after the animal
 const REACT = 0.15; // seconds: what a gap leaves, at the least, to act after a jump lands (or a duck ends)
@@ -119,7 +119,7 @@ export function course(kind) {
       return { items, at, w: items[0].sprite.w, h: GROUND + 1 - bottom + CROW_BOTTOM, needs: where === 'low' ? 'jump' : where === 'head' ? 'duck' : 'under', fly: 20, rnd };
     }
     if (s >= BRANCHES_FROM - T(kind).early && r < Math.min(MOST_BRANCHES, 0.38 + 2 * DAY_CROWS * h)) {
-      items.push({ kind: 'branch', sprite: branch(rnd, land.leaves), dx: 0, y: 0, fly: 0, duck: true });
+      items.push({ kind: 'branch', sprite: land.branch(rnd), dx: 0, y: 0, fly: 0, duck: true });
       return { items, at, w: items[0].sprite.w, h: 0, needs: 'duck', fly: 0, rnd };
     }
     const k = rnd();

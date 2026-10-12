@@ -25,7 +25,7 @@ export default {
         { name: 'torso', bone: 'spine', along: 'ellipse', r: 0 },
         { name: 'body', on: 'spine', capsule: [-0.5, 0.8, 3.5, -2.8, 3.6] },
         { name: 'belly', on: 'spine', ellipse: [2.2, 1.6, 3.3, 2.9] },
-        { name: 'neck', on: 'chest', capsule: [0, -3, 2.3, -7.2, 2.3], role: 'neck' },
+        { name: 'neck', bone: 'neck', along: 'capsule', r: 2.3 },
         { name: 'thigh', on: 'hip', ellipse: [0.4, 2, 2.3, 2.7] },
         { name: 'arm', on: 'chest', capsule: [1.9, -1.4, 3.7, -0.4, 0.6], smooth: 0.2 },
         { name: 'skull', on: 'head', box: [-3.5, -2.5, 5.5, 1.3, 1.5] },
@@ -135,4 +135,5 @@ export default {
       ],
     },
   },
+  bones: { neck: { on: 'chest', at: [0, -3], to: 'head', end: [-1.2, 1.3], length: 4.789, bend: 1 } },
 };

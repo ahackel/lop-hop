@@ -52,8 +52,8 @@ setWidths();
 window.addEventListener('beforeunload', (e) => { if (KINDS.some((k) => builds[k] && dirty(k)) || paletteDirty()) e.preventDefault(); });
 new ResizeObserver(() => kind && draw()).observe($('stageBox')); // (the window, or the timeline under it, changing)
 
-// every file in assets/ (as the dev server lists them; without it, the game's), the game's first; one not in the game
-// yet is given what the game knows of the one it is made from
+// every file in assets/ (as the dev server lists them, the food's as food/<name>; without it, the game's animals), the
+// game's first; one not in the game yet is given what the game knows of the one it is made from
 const listed = await fetch('/assets.json').then((r) => r.json()).catch(() => Object.keys(GAME_ANIMALS));
 for (const k of [...Object.keys(GAME_ANIMALS), ...listed.filter((k) => !(k in GAME_ANIMALS)).sort()]) {
   files[k] = (await import(`../assets/${k}.js`)).default;
@@ -61,7 +61,7 @@ for (const k of [...Object.keys(GAME_ANIMALS), ...listed.filter((k) => !(k in GA
   saved[k] = JSON.stringify(builds[k]);
   KINDS.push(k);
 }
-for (const k of KINDS) if (!ANIMALS[k]) { ANIMALS[k] = { ...ANIMALS[baseOf(k)] || ANIMALS.cat, name: k.toUpperCase() }; setRig(k, rigFor(k)); }
+for (const k of KINDS) if (!ANIMALS[k] && !files[k].size) { ANIMALS[k] = { ...ANIMALS[baseOf(k)] || ANIMALS.cat, name: k.toUpperCase() }; setRig(k, rigFor(k)); } // (a food: no rig)
 const asked = new URLSearchParams(location.search).get('animal');
 await choose(KINDS.includes(asked) ? asked : 'cat');
 setMode(['setup', 'animate', 'play', 'game'].includes(new URLSearchParams(location.search).get('mode')) ? new URLSearchParams(location.search).get('mode') : 'setup');

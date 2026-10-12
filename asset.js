@@ -5,11 +5,22 @@
 // the palette (assets/palette.js, format 1): the game's colors, all of them, by name; everything is drawn in them (a
 // color in an asset: its name). The shaded look works out each color's tones (outline, underside, far leg) by rule,
 // always darker (see TONES in art.js): no color is needed for shading, only for markings. At most 63, roles and all
-//   roles        colors with a job, not to paint with (but outline: dots, a nose), each { day, night }: outline, ink
-//                (eyes, words), background (the sky; what is drawn in it looks like the sky), faint, dim
-//   colors       { name: its color by day }, named for the color (orange, darkGreen), never for what wears it
+//   roles        colors with a job, not to paint with, each { day, night }: outline, ink (words; light by night),
+//                background (the sky; what is drawn in it looks like the sky), faint, dim
+//   colors       { name: its color by day }, named for the color (orange, darkGreen), never for what wears it (but black:
+//                eyes, seeds, small dark marks)
 //   night        the colors by night, each channel: day × contrast + lift (toward the middle: dark ones lighter, light
 //                ones darker, to show against the night sky)
+//
+// a prop (format 1): a thing drawn, not moved, in its box: size [w, h] in pixels. The food (assets/food/<name>.js), the
+// obstacles (assets/obstacles/<name>.js: one standing on the box's bottom row; the game picks one of a kind at random,
+// its variants named on in numbers: rock, rock2, rock3; a branch hangs from the world's top). The game takes those its
+// folder's index.js lists (written by the dev server as one is saved)
+//   layers       drawn one after another, each { name, color, outline (a color, else the outline's; false: none), clip
+//                ([x0, y0, x1, y1]: only where a pixel's middle is inside), shapes (ellipse, capsule, box, triangle,
+//                angle: as an animal's, in the box), paint (shapes in a color of their own, only on the layer), dots
+//                ({ at: [x, y], color }: single pixels), hits: false (not bumped into: a cactus's flower, a snowman's arms) }
+//   up           its top row drawn on up, so many rows more (a branch's trunk, on up into the sky)
 //
 // format 5, an animal (2D, from the side; x forward, y down, in the 26 × 20 box, its feet on row 19). Its bones are what
 // moves (joints, legs, chains), only that; all it looks like is shapes, in groups, each shape in the box, on a joint, or
@@ -26,7 +37,7 @@
 //                it), at, angle (a pivot, in its shapes' joint's frame, and a turn about it: moved or turned, all of
 //                them go with it), paint (markings: shapes in a color, only on the group), spikes (where it bristles,
 //                see below), swing (all of it swung about its pivot as the body moves, its shapes on a joint: { stiffness,
-//                damping, weight, role: ear or none }) }. The body: the first group joined that hits, whose shapes, paint and spikes a pose changes; its legs'
+//                damping, weight, role: ear or none }) }. The body: the first group that hits (not far), whose shapes, paint and spikes a pose changes; its legs'
 //                socks are drawn with it, and the paws lying low (over) over it
 //   a shape      ellipse [x, y, rx, ry], capsule [ax, ay, bx, by, r], box [x0, y0, x1, y1, r] or triangle [[x, y] × 3]
 //                (an ellipse, a box: angle, turned about its middle, radians, + clockwise),
@@ -48,7 +59,10 @@
 //   bones        bones of its own, by name, each: on (a joint, a leg's thigh or shin, another bone; none: the box), at (where,
 //                in its frame), angle (its turn on it, radians, + clockwise), length (a shape drawn along it: so long; none:
 //                a joint only). What is on it (shapes, groups, swings, legs, dots, bones) goes with it; a move turns it
-//                (bones { name: { angle, at } })
+//                (bones { name: { angle, at } }). One that reaches (to: a joint or a bone; end: where on it, in its frame)
+//                runs from where it is to there wherever a pose puts it, bowed as an arc as long as it is (bend: 1 to the
+//                left of the way it goes, -1 to the right, none: straight; links: how many straight parts, 2 if none;
+//                further apart than its length: straight, stretched), its turn its first part's: a neck reaching the head
 //   legs         bones that bend to reach their paws, each: on (hip or chest), at (where it joins), thigh, shin, bend (1:
 //                the knee back, -1: forward)
 //   chains       bones swung by the body's motion, by name: a tail (on, at, angle from straight up, more: further back;

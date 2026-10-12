@@ -1,13 +1,14 @@
 // Minimal static dev server. Sends no-store so the browser never runs stale engine code
 // (AudioWorklet module imports are cached aggressively and survive normal reloads). The editor (editor/) saves through it:
 // POST /save {kind, build, of} writes an animal's build into its file, assets/<kind>.js (see asset.js and
-// tools/rig-format.js; a new one: made from of, if it is a skin), GET /assets.json lists the files there; POST /palette writes the palette, assets/palette.js. The game sends its runs to it: POST /runs [run, …] adds those not there yet to data/runs.jsonl
+// tools/rig-format.js; a new one: made from of, if it is a skin; a prop, kind food/<name> or obstacles/<name>: its file
+// there, and its folder's index.js, every one in it), GET /assets.json lists the files there (a prop's as its kind); POST /palette writes the palette, assets/palette.js. The game sends its runs to it: POST /runs [run, …] adds those not there yet to data/runs.jsonl
 // (a run a line; see the runs in game.js), which the balance page reads (tools/balance.html).
 import http from 'node:http';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { formatAsset } from './rig-format.js';
+import { formatAsset, formatIndex } from './rig-format.js';
 import { toAsset } from '../asset.js';
 
 const root = path.resolve(process.argv[2] || '.');
@@ -22,6 +23,14 @@ async function save(req, res) {
   let body = '';
   for await (const chunk of req) body += chunk;
   const { kind, build, of } = JSON.parse(body);
+  const prop = PROP.exec(kind); // (a prop: its file as the build is, see asset.js; its folder's index, every one in it)
+  if (prop && build && Array.isArray(build.size) && Array.isArray(build.layers)) {
+    const [, folder, name] = prop, dir = path.join(root, 'assets', folder);
+    await fs.writeFile(path.join(dir, `${name}.js`), formatAsset({ format: 1, name, size: build.size, ...(build.up && { up: +build.up }), layers: build.layers }));
+    await fs.writeFile(path.join(dir, 'index.js'), formatIndex(folder, await propsIn(folder)));
+    res.writeHead(200, { 'Content-Type': 'text/plain' }).end(`saved assets/${kind}.js`);
+    return;
+  }
   if (!/^[a-z]+$/.test(kind) || GLOBAL.includes(kind) || !build || typeof build !== 'object' || (of !== undefined && !/^[a-z]+$/.test(of))) throw new Error('which animal?');
   const file = path.join(root, 'assets', `${kind}.js`); // (of: kept, see toAsset; a new one's: as sent)
   const was = (await import(`${pathToFileURL(file).href}?at=${Date.now()}`).catch(() => null))?.default || (of ? { of } : {});
@@ -51,11 +60,16 @@ async function runs(req, res) {
   res.writeHead(200, { 'Content-Type': 'text/plain' }).end(`${fresh.length} new`);
 }
 
+// the props' folders (see asset.js: a prop), one's kind (folder/name), the props in one (by name: not its index)
+const FOLDERS = ['food', 'obstacles'], PROP = /^(food|obstacles)\/([a-z]+\d*)$/;
+const propsIn = async (folder) => (await fs.readdir(path.join(root, 'assets', folder)).catch(() => [])).filter((f) => /^[a-z]+\d*\.js$/.test(f) && f !== 'index.js').map((f) => f.slice(0, -3)).sort();
+
 // the assets there (for the editor: the animals not in the game yet too; not the game's own: GLOBAL)
 const GLOBAL = ['palette'];
 async function assets(req, res) {
   const names = (await fs.readdir(path.join(root, 'assets'))).filter((f) => /^[a-z]+\.js$/.test(f)).map((f) => f.slice(0, -3)).filter((n) => !GLOBAL.includes(n));
-  res.writeHead(200, { 'Content-Type': TYPES['.json'], 'Cache-Control': 'no-store' }).end(JSON.stringify(names));
+  const props = (await Promise.all(FOLDERS.map(async (f) => (await propsIn(f)).map((n) => `${f}/${n}`)))).flat();
+  res.writeHead(200, { 'Content-Type': TYPES['.json'], 'Cache-Control': 'no-store' }).end(JSON.stringify([...names, ...props]));
 }
 
 http.createServer(async (req, res) => {

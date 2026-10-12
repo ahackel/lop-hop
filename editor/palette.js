@@ -1,18 +1,18 @@
 // Game (see editor.js): the game's palette, its colors listed, everything the game draws on the stage; a color picked
 // anywhere (colorPick)
-import { FOOD, PALETTES, animal, boulders, bush, cactus, colorOf, heart, ice, log, pine, rgb, rock, setPalette, snowman, spire, star, stump, sunflower, toadstool, tumbleweed } from '../art.js';
+import { PALETTES, animal, colorOf, heart, prop, rgb, setPalette, star } from '../art.js';
 import { $, el, iconBtn } from './dom.js';
 import { field, inspect, numIn } from './inspector.js';
 import { listParts } from './lists.js';
 import { Z, draw, playAt, setZ } from './stage.js';
-import { KINDS, NAMED, builds, changed, commit, nice, paints, palette, refresh, remember, status, swatch } from './state.js';
+import { KINDS, NAMED, builds, changed, commit, files, isProp, nice, paints, palette, refresh, remember, status, swatch } from './state.js';
 
 // Game: the game's own, for every animal (as yet its palette). The list: its colors (and how they go by night); the
 // stage: everything the game draws, by day above, by night below, the color picked standing out (a click on a pixel:
 // its color); the inspector: the color picked
 export let hue = 'white'; // (the color picked, by name; 'night': how the colors go by night)
 const ROLE_ABOUT = {
-  outline: 'Small marks (eyes, a nose) and, without shading, every outline. A dot can be it.', ink: 'The eyes; the words.',
+  outline: 'Every outline (shaded: each in a dark tone of what it goes round). Small dark marks are black, not this.', ink: 'The words, a crow; light by night.',
   background: 'The sky, and what is drawn in it (a cloud, a rock’s light side).', faint: 'The far hills, the ground, a star not won yet.',
   dim: 'What is not yet: an animal still to unlock, words said quietly.',
 };
@@ -20,17 +20,11 @@ const TONE_NAMES = ['color', 'underside', 'outline', 'far leg']; // (its tones: 
 const MOST = 63; // (colors a palette can have: see art.js)
 const isRole = (c) => c in palette.roles;
 const nameAt = (i) => Object.keys(NAMED).find((k) => NAMED[k] === i);
-// everything the game draws, each with its name: every animal standing, the scenery, the food
+// everything the game draws, each with its name: every animal standing, the food, the obstacles
 export let cast = null;
 export function castOf() {
-  let seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-  const out = KINDS.map((k) => ({ name: k, s: animal(k, 'hurt', 0) }));
-  const things = [['cactus', () => cactus(rnd, false)], ['big cactus', () => cactus(rnd, true)], ...['grey', 'sand', 'red', 'snowy'].map((l) => [`${l} rock`, () => rock(rnd, l)]),
-    ['log', () => log(rnd)], ['snowy log', () => log(rnd, true)], ['bush', () => bush(rnd)], ['sunflower', () => sunflower(rnd)], ['toadstool', () => toadstool(rnd)],
-    ['pine', () => pine(rnd)], ['snowy pine', () => pine(rnd, true)], ['stump', () => stump(rnd)], ['boulders', () => boulders(rnd)], ['spire', () => spire(rnd)],
-    ['tumbleweed', () => tumbleweed(rnd)], ['snowman', () => snowman(rnd)], ['ice', () => ice(rnd)]];
-  for (const [name, make] of things) { const t = make(); out.push({ name, s: t.sprite || t }); }
-  for (const k in FOOD) out.push({ name: k, s: FOOD[k] });
+  const out = KINDS.filter((k) => !isProp(k)).map((k) => ({ name: k, s: animal(k, 'hurt', 0) }));
+  for (const k of KINDS.filter((x) => isProp(x))) out.push({ name: files[k].name, s: prop({ ...builds[k], up: 0 }) }); // (the food, the obstacles, as edited; a branch: not its trunk on up)
   out.push({ name: 'star', s: star }, { name: 'heart', s: heart });
   return out;
 }

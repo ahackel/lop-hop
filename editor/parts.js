@@ -1,6 +1,6 @@
 // The parts of the build (see editor.js): what picks each, its handles (where, and what dragging one does), its outline
-import { rigParts } from '../art.js';
-import { GEOMS, P, build, editable, hidden, isGroup, kind, sdShape, sel, swatch, toLocal, toWorld, view } from './state.js';
+import { arcPoints, rigParts } from '../art.js';
+import { GEOMS, P, build, editable, hidden, isGroup, isProp, kind, sdShape, sel, swatch, toLocal, toWorld, view } from './state.js';
 import { frames, kindOf, setKey } from './timeline.js';
 import { moveAlone } from './bones.js';
 
@@ -158,6 +158,15 @@ function shapeBits(s, fr) { // (fr: its frame, if not its joint's: in a group, s
   return { handles, lines, hit: (p) => { const q = L(p); return sdShape(s, q[0], q[1]) <= 0; } };
 }
 
+// a bone that reaches, bowed through a point (p): to the side of its line p is on, as long as the arc through p (on its
+// line: straight, as far as it reaches)
+function bow(B, a, b, p, flip) {
+  const c = Math.hypot(...minus(b, a)), u = minus(b, a).map((v) => v / (c || 1)), h = (p[0] - (a[0] + b[0]) / 2) * u[1] - (p[1] - (a[1] + b[1]) / 2) * u[0];
+  if (Math.abs(h) < 0.25 || !c) { delete B.bend; B.length = +c.toFixed(3); return; }
+  const k = Math.abs(h), R = (c * c / 4 + k * k) / (2 * k);
+  B.bend = Math.sign(h) * flip; B.length = +(R * 4 * Math.atan(2 * k / c)).toFixed(3); // (tan(θ/4) = 2h/c)
+}
+
 export function parts() {
   const out = [];
   if (!editable()) return out;
@@ -173,11 +182,21 @@ export function parts() {
     }
     out.push(jp);
   }
-  // each bone: where it is on its joint or bone (its root), its turn and how long it is (its tip; none long: two pixels out)
+  // each bone: where it is on its joint or bone (its root), its turn and how long it is (its tip; none long: two pixels out);
+  // one that reaches: its end on what it reaches, its middle (dragged: bowed that way, as long as the arc through it)
   for (const n in build.bones || {}) {
     const B = build.bones[n], f = frameOf(B.on) || P.F.box, bf = P.F[n];
     if (!bf) continue;
-    const root = world(f, B.at || [0, 0]), tip = world(bf, [Math.max(B.length || 0, 2), 0]);
+    const root = world(f, B.at || [0, 0]);
+    if (bf.pts) {
+      const tf = P.F[B.to], end = bf.pts[bf.pts.length - 1], mid = arcPoints(root, end, B.length || 0, (B.bend || 0) * f.flip, 2)[1];
+      out.push({ sel: { type: 'bone', name: n }, group: 'Bones', label: n, obj: B, tip: 'Its root: where it is. Its end: where it reaches. Its middle: how it bows', lines: [bf.pts],
+        handles: [{ at: root, anchor: true, joint: true, set: (p) => { B.at = roundAll(local(f, p)); } },
+          { at: end, size: true, set: (p) => { B.end = roundAll(local(tf, p)); } },
+          { at: mid, size: true, set: (p) => bow(B, root, end, p, f.flip) }] });
+      continue;
+    }
+    const tip = world(bf, [Math.max(B.length || 0, 2), 0]);
     out.push({ sel: { type: 'bone', name: n }, group: 'Bones', label: n, obj: B, lines: [[root, tip]],
       handles: [{ at: root, anchor: true, joint: true, set: (p) => { const q = roundAll(local(f, p)); if (alt) moveAlone(n, q, B.angle || 0); else B.at = q; } }, // (⌥: the bone alone, what is on it staying)
         { at: tip, size: true, set: (p) => { const d = minus(local(f, p), B.at || [0, 0]), a = +Math.atan2(d[1], d[0]).toFixed(3); if (alt) moveAlone(n, B.at || [0, 0], a); else B.angle = a; B.length = Math.max(0, +round(Math.hypot(...d)).toFixed(3)); } }] });
@@ -200,7 +219,7 @@ export function parts() {
     if (!isGroup(G)) { face(g); return; }
     const off = hidden.has(G), kids = G.shapes.map((s) => (s.bone ? boneBits(s) : shapeBits(s, groupFrame(G, s))));
     const gp = { sel: { type: 'group', g }, layer: g, label: G.name || 'group', color: swatch(G.color || build.fur), obj: G, off, handles: [], lines: kids.flatMap((k) => k.lines), hit: (p) => kids.some((k) => k.hit?.(p)) };
-    if (G.shapes.length && !G.shapes.some((s) => s.bone)) {
+    if (G.shapes.length && !G.shapes.some((s) => s.bone) && !isProp()) {
       const b = frameOf(G.shapes[0].on), at = G.at || [0, 0], a = G.angle || 0, pivot = world(b, at), turnAt = world(b, plus(at, [Math.cos(a) * 3, Math.sin(a) * 3]));
       gp.handles.push({ at: pivot, anchor: true, move: true, set: (p) => { const q = roundAll(local(b, p)); if (alt) repivot(G, q); else G.at = q; } },
         { at: turnAt, size: true, set: (p) => { const q = minus(local(b, p), G.at || [0, 0]); G.angle = +Math.atan2(q[1], q[0]).toFixed(3); } });
@@ -213,6 +232,8 @@ export function parts() {
     });
     (G.paint || []).forEach((s, i) => out.push({ sel: { type: 'paint', g, i }, layer: g, label: s.name || geomOf(s), color: swatch(s.color), obj: s, depth: 2, off: off || hidden.has(s), ...shapeBits(s, groupFrame(G, s)) }));
     if (G.spikes) out.push({ sel: { type: 'spikes', g }, layer: g, label: 'spikes', obj: G.spikes, depth: 1, off: off || hidden.has(G.spikes), ...shapeBits(G.spikes), hit: null });
+    (G.dots || []).forEach((d, i) => out.push({ sel: { type: 'dot', g, i }, layer: g, label: d.name || 'dot', color: swatch(d.color || 'outline'), obj: d, depth: 2, off: off || hidden.has(d), lines: [], // (a prop's: its layer's)
+      handles: [{ at: [d.at[0] + 0.5, d.at[1] + 0.5], anchor: true, set: (p) => { d.at = p.map(Math.floor); } }] })); // (at its pixel's middle)
   });
   if (!(build.layers || []).includes('face')) face(-1);
   for (const n in build.legs) {
@@ -252,9 +273,14 @@ export function poseParts() {
     if (j === 'head') handles.push({ at: turnAt, size: true, set: (p) => { const d = minus(p, pivot); setKey('headAngle', +Math.atan2(d[1], d[0]).toFixed(2)); } });
     out.push({ sel: { type: 'joint', name: j }, group: 'Joints', label: j, ...(j === 'head' && { tip: 'The ring: its turn' }), obj: null, lines: j === 'head' ? [[pivot, turnAt]] : [], handles });
   }
-  for (const n in build.bones || {}) { // (a bone: its turn, at its tip; where it is on what it is on, at its root)
+  for (const n in build.bones || {}) { // (a bone: its turn, at its tip; where it is on what it is on, at its root; one that reaches: its root)
     const B = { ...build.bones[n], ...P.p.bones?.[n] }, f = (B.on ? F[B.on] : F.box) || null, bf = F[n];
     if (!bf) continue;
+    if (bf.pts) {
+      out.push({ sel: { type: 'bone', name: n }, group: 'Bones', label: n, tip: 'Its root: where it is (it reaches what it reaches)', obj: null, lines: [bf.pts],
+        handles: [{ at: bf.o, anchor: true, set: (p) => setKey(`bones.${n}.at`, roundAll(local(f, p))) }] });
+      continue;
+    }
     const tip = world(bf, [Math.max(build.bones[n].length || 0, 2), 0]);
     out.push({ sel: { type: 'bone', name: n }, group: 'Bones', label: n, tip: 'Its tip: its turn. Its root: where it is', obj: null, lines: [[bf.o, tip]],
       handles: [{ at: tip, anchor: true, set: (p) => { const d = minus(local(f, p), B.at || [0, 0]); setKey(`bones.${n}.angle`, +Math.atan2(d[1], d[0]).toFixed(3)); } },
