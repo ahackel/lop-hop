@@ -5,17 +5,7 @@ export default {
   fur: 'white',
   joints: { hip: [7, 13.5], chest: [12, 13.5], head: [15.5, 9] },
   layers: [
-    {
-      name: 'tail',
-      shapes: [
-        {
-          name: 'tail',
-          chain: { on: 'hip', at: [-4.5, 2.1], angle: 1.2, links: 1, length: 0.5, stiffness: 900, damping: 16, weight: 80, role: 'tail' },
-          along: 'capsule',
-          r: 1.9,
-        },
-      ],
-    },
+    { name: 'tail', shapes: [{ name: 'tail', on: 'hip', capsule: [-4.5, 2.1, -4.966, 1.919, 1.9] }] },
     {
       name: 'far legs',
       far: true,
@@ -104,7 +94,6 @@ export default {
     duck: {
       joints: { hip: [7, 16], chest: [13, 16], head: [18, 15.5] },
       torso: { thicker: -1.7, longer: 1.7 },
-      chains: { tail: { at: [-5.5, -0.5], angle: 1.5 } },
       pad: [1.8, 1],
       over: true,
       gait: {
@@ -131,7 +120,6 @@ export default {
           eye: 'ko',
           joints: { hip: [7.5, 16], chest: [12.5, 16], head: [17.5, 15.5] },
           torso: { thicker: -1.7, longer: 1.5 },
-          chains: { tail: { at: [-5.5, -0.5], angle: 1.5 } },
           flip: true,
           paws: { hindFar: [11, 8.54], frontFar: [17.3, 11.58], hindNear: [7, 8.54], frontNear: [14, 11.58] },
           dots: [],
