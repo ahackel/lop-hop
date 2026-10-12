@@ -785,7 +785,7 @@ const rigFrames = new Map();
 // the bigger ones by nature stand taller, up to about 3 pixels. It grows from its feet, in the middle of its box; ducking,
 // no more than still goes under a branch (see ducked). (The dino's even: drawn half as big again as a giant, still whole)
 const SIZE = { rabbit: 0, guineapig: 0, cat: 1, dog: 2, pig: 2, fox: 1, hedgehog: 0, squirrel: 0, otter: 1, skunk: 0, wolf: 2, boar: 3, bear: 4, yak: 4, ostrich: 3,
-  cheetah: 2, dromedary: 4, rhino: 4, gorilla: 4, elephant: 3, dino: 2 };
+  cheetah: 2, dromedary: 4, rhino: 4, gorilla: 4, elephant: 3, dino: 2, unicorn: 4 };
 const ducks = {};
 // how many frames a move has (a gait's, keyframes'; a loop's), for an animal
 const framesOf = (kind, pose) => { const m = RIGS[kind].poses[pose]; return m?.gait ? m.gait.frames : m?.frames || 1; };
