@@ -24,7 +24,7 @@ run.boom = Boom!
 run.sniff = Sniff!
 run.ptoo = Ptoo!
 run.paused_tap = Paused - tap to go on
-run.paused_keys = Paused - Space or tap
+run.paused_keys = Paused - P, Space or tap
 
 # the end of a run
 end.home = Home!

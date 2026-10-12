@@ -427,7 +427,7 @@ function press() {
   if (scoresOpen()) return;
   if (state === 'title') return padlocked(kind) ? undefined : launchRun();
   if (state === 'ko') { if (settled()) { if (fresh) { if (!TOUCH) nameIt(); } else if (gained) goHome(); else start(); } return; } // (a new high score is named first, on a phone as the tap ends: see touchend; one unlocked: to the title, to pick it)
-  if (state === 'paused') { state = 'run'; if (audio === 'on') music.play(); return; }
+  if (state === 'paused') return resume();
   jumpHeld = true;
   if (ducking) return; // (no jumping while ducking: let go first)
   if (alt === 0) jump();
@@ -485,6 +485,7 @@ addEventListener('keydown', (e) => {
     return;
   }
   if (e.code === 'Escape') return goHome();
+  if (e.code === 'KeyP' && inRun()) { e.preventDefault(); if (!e.repeat) { if (state === 'paused') resume(); else pause(); } return; } // (a run paused, and on again)
   if (JUMP_KEYS.includes(e.code)) { e.preventDefault(); if (!e.repeat) press(); }
   else if (DUCK_KEYS.includes(e.code)) { e.preventDefault(); startAudio(); if (!e.repeat) duck(true); }
   else if (e.code === 'ArrowLeft' || e.code === 'KeyA') { e.preventDefault(); chooseNext(1); } // (the row goes right to left)
@@ -602,6 +603,11 @@ function pause() {
   state = 'paused';
   fingers.clear(); duck(false); release();
   if (audio === 'on') music.pause(0.2);
+}
+function resume() {
+  if (state !== 'paused') return;
+  state = 'run';
+  if (audio === 'on') music.play();
 }
 // out of sight (another app, the home screen, the screen locked), the music stops on every screen, not only in a run: on
 // an iPhone or iPad it plays as media (see the engine's playsMusic), which goes on in the background, and a second copy
@@ -2026,6 +2032,7 @@ function scene(pal) {
     if (p.star && p.life > 0.15) { ctx.fillRect(x - 1, y, 3, 1); ctx.fillRect(x, y - 1, 1, 3); } // (a twinkle: a little cross, a dot as it fades)
   }
   for (const f of floats) {
+    if (state === 'paused' && !f.sprite) continue; // (paused: its words over them, theirs again as it goes on)
     if (f.sprite) f.sprite.draw(ctx, f.x, Math.round(f.y), pal);
     else text(ctx, f.text, f.x, Math.round(f.y), pal[COLOR.INK], 'left', f.size || 1, f.size > 1 ? LOGO : undefined);
   }

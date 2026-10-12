@@ -23,7 +23,7 @@ run.boom = Bumm!
 run.sniff = Schnupper!
 run.ptoo = Ptui!
 run.paused_tap = Pause - tippen zum Weitermachen
-run.paused_keys = Pause - Leertaste oder tippen
+run.paused_keys = Pause - P, Leertaste oder tippen
 
 # the end of a run
 end.home = Daheim!
