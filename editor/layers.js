@@ -3,8 +3,9 @@
 // a group's switches; renamed (a pose that uses one by name still does)
 import { inspect } from './inspector.js';
 import { listParts } from './lists.js';
-import { alongOf, geomOf, ownChain, shiftShape } from './parts.js';
-import { also, build, commit, hidden, isGroup, refresh, sel, setAlso, setSel } from './state.js';
+import { ON_BONE, alongOf, geomOf, ownChain, r3, shiftShape, turnBy } from './parts.js';
+import { also, build, commit, eachIn, hidden, isGroup, refresh, restPoints, sel, setAlso, setSel } from './state.js';
+import { freeBone, taken } from './bones.js';
 
 export const layers = () => (build.layers ||= []);
 export const bodyIndex = () => layers().findIndex((G) => isGroup(G) && G.join && G.hits); // (the body: the first group joined that hits)
@@ -25,12 +26,7 @@ export function placeOf(s) {
 // renamed (and their keys)
 const shapesIn = (x) => (Array.isArray(x?.shapes) ? x.shapes : x && typeof x === 'object' ? [x] : []); // (a group's, or itself)
 const ownIn = (xs) => xs.flatMap(shapesIn).filter((s) => ownChain(s)).map((s) => s.name); // (before: own while one shape is on it)
-function freeName(n) {
-  const stem = n.replace(/\d+$/, '') || 'swing', taken = new Set([...Object.keys(build.chains || {}), ...Object.keys(build.legs || {}), ...Object.keys(build.joints || {}), ...Object.keys(build.bones || {}), 'spine']);
-  let m = stem;
-  for (let k = 2; taken.has(m); k++) m = `${stem}${k}`;
-  return m;
-}
+const freeName = (n) => freeBone(n.replace(/\d+$/, '') || 'swing');
 function ownCopies(copies, own) { // (copies: their shapes still on the originals' bones)
   for (const s of copies.flatMap(shapesIn)) {
     if (!own.includes(s.bone) || s.name !== s.bone) continue;
@@ -38,7 +34,7 @@ function ownCopies(copies, own) { // (copies: their shapes still on the original
     build.chains[n] = clone(build.chains[s.bone]); s.name = s.bone = n;
   }
 }
-const chainKeys = (f) => { const walk = (o) => { if (!o || typeof o !== 'object') return; if (o.chains && typeof o.chains === 'object' && !Array.isArray(o.chains)) f(o); for (const v of Object.values(o)) walk(v); }; walk(build.moves); };
+const chainKeys = (f) => eachIn(build.moves, (o) => { if (o.chains && typeof o.chains === 'object' && !Array.isArray(o.chains)) f(o); });
 function dropOwn(names) {
   for (const n of names) {
     delete build.chains?.[n];
@@ -51,17 +47,17 @@ function dropOwn(names) {
 // an ellipse or a box swings from below its middle to above it. Off, it is the shape it is at rest again, on the joint its
 // bone hung from (its keys in the moves gone). A move that uses it by name (in the body) only as it is: no more (it is
 // drawn in every move as it swings); one that changes it: not (see swingable)
-const r3 = (v) => +(+v).toFixed(3), rot = ([x, y], a) => [x * Math.cos(a) - y * Math.sin(a), x * Math.sin(a) + y * Math.cos(a)];
 const at3 = (q) => q.map(r3);
-const usesOf = (s) => { const out = []; if (!s.name) return out; const walk = (m) => { if (!m || typeof m !== 'object') return; if (Array.isArray(m.shapes)) for (const x of m.shapes) if (x?.use === s.name) out.push([m.shapes, x]); for (const v of Object.values(m)) walk(v); }; walk(build.moves); return out; };
+const ordered = (o, keys) => { const out = {}; for (const k of [...keys, ...Object.keys(o)]) if (k in o && !(k in out)) out[k] = o[k]; return out; }; // (its keys in the order keys has them, then the rest)
+const usesOf = (s) => { const out = []; if (s.name) eachIn(build.moves, (m) => { if (Array.isArray(m.shapes)) for (const x of m.shapes) if (x?.use === s.name) out.push([m.shapes, x]); }); return out; };
 export const swingable = (s) => (!s.on ? 'Not on a joint' : usesOf(s).some(([, x]) => Object.keys(x).length > 1) ? 'A move changes it (by its name): it can’t swing' : '');
 const SWINGS = { stiffness: 300, damping: 8, weight: 80 }, EARS = { stiffness: 1400, damping: 22, weight: 60 };
 // how one swung, kept while the editor is open (off and on again: as it was); a new one's role: on the head an ear, on
 // the hip a tail
 const madeOf = (c, o) => JSON.stringify([c.at, c.angle, c.length, c.tip, c.links, c.curl, o.r, o.ends, o.base, o.round]); // (what its shape is made from)
-const swung = new WeakMap(), SWUNG = ['links', 'curl', 'stiffness', 'damping', 'weight', 'role'], ALONG_TOO = ['marks', 'end', 'foot', 'tipColor', 'tipSize', 'grows'];
+const swung = new WeakMap(), SWUNG = ['links', 'curl', 'stiffness', 'damping', 'weight', 'role'], ALONG_TOO = ['marks', 'end', 'foot', 'tipColor', 'tipSize', 'grows']; // (ALONG_TOO: what is not made from the shape)
 export function swingOn(s) {
-  const g = geomOf(s), v = s[g], a = s.angle || 0, name = s.name && !(s.name in (build.chains || {})) && !(s.name in (build.legs || {})) && s.name !== 'spine' ? s.name : freeName(s.name || g);
+  const g = geomOf(s), v = s[g], a = s.angle || 0, name = s.name && !taken(s.name) ? s.name : freeName(s.name || g);
   let chain, along;
   if (g === 'capsule') {
     const d = [v[2] - v[0], v[3] - v[1]];
@@ -73,7 +69,7 @@ export function swingOn(s) {
     along = { along: 'triangle', base: [at3([p[0] - root[0], p[1] - root[1]]), at3([q[0] - root[0], q[1] - root[1]])] };
   } else { // (an ellipse, a box: from below its middle to above it, turned as it is)
     const c = g === 'ellipse' ? [v[0], v[1]] : [(v[0] + v[2]) / 2, (v[1] + v[3]) / 2], w = g === 'ellipse' ? v[2] : Math.abs(v[2] - v[0]) / 2, h = g === 'ellipse' ? v[3] : Math.abs(v[3] - v[1]) / 2;
-    const k = g === 'ellipse' ? h * 0.7 : h, up = rot([0, -k], a);
+    const k = g === 'ellipse' ? h * 0.7 : h, up = turnBy([0, -k], a);
     chain = { on: s.on, ear: true, at: at3([c[0] - up[0], c[1] - up[1]]), tip: at3([c[0] + up[0], c[1] + up[1]]), ...EARS };
     along = { along: g, r: r3(w), ...(h - k > 0.001 && { ends: r3(h - k) }), ...(g === 'box' && v[4] && { round: v[4] }) };
   }
@@ -85,28 +81,22 @@ export function swingOn(s) {
     Object.assign(along, was.along);
   } else { const role = s.on === 'head' && chain.ear ? 'ear' : s.on === 'hip' && !chain.ear ? 'tail' : null; if (role) chain.role = role; }
   if (!chain.curl) delete chain.curl;
-  if (was?.name === name) for (const [m, kv, ord] of was.keys) { const c = { ...m.chains, [name]: kv }, o = {}; for (const k of [...ord, ...Object.keys(c)]) if (k in c && !(k in o)) o[k] = c[k]; m.chains = o; } // (its keys in the moves: again, where they were)
-  const geomOf0 = { [g]: clone(v), ...(s.angle && { angle: s.angle }) };
-  swung.set(s, { ...was, plain: s.name, geom: geomOf0, made: madeOf(chain, along), uses: usesOf(s).map(([list, x]) => [list, x, list.indexOf(x)]) }); // (plain: its name before, if its bone needed another; geom: what it was, made: its bone as made from it)
-  for (const [list, x] of usesOf(s)) list.splice(list.indexOf(x), 1);
+  if (was?.name === name) for (const [m, kv, ord] of was.keys) m.chains = ordered({ ...m.chains, [name]: kv }, ord); // (its keys in the moves: again, where they were)
+  const uses = usesOf(s).map(([list, x]) => [list, x, list.indexOf(x)]);
+  swung.set(s, { plain: s.name, geom: { [g]: clone(v), ...(s.angle && { angle: s.angle }) }, made: madeOf(chain, along), uses }); // (plain: its name before, if its bone needed another; geom: what it was, made: its bone as made from it)
+  for (const [list, x] of uses) list.splice(list.indexOf(x), 1);
   for (const k of ['ellipse', 'capsule', 'box', 'triangle', 'on', 'angle']) delete s[k];
   const rest = { ...s };
   for (const k in s) delete s[k];
   const all = { name, bone: name, ...along, ...rest, name, bone: name };
-  for (const k of [...(was?.order || []).filter((x) => x in all), ...Object.keys(all)]) if (!(k in s)) s[k] = all[k]; // (in the order it had)
-  if (was?.order) { const ord = Object.keys(was.chain); const c = {}; for (const k of [...ord.filter((x) => x in chain), ...Object.keys(chain)]) c[k] = chain[k]; chain = c; }
+  Object.assign(s, ordered(all, was?.order || [])); // (in the order it had)
+  if (was) chain = ordered(chain, Object.keys(was.chain));
   (build.chains ||= {})[name] = chain;
 }
 export function swingOff(s) {
   const c = build.chains[s.bone], k = alongOf(s);
-  let root = c.at, tip, dir;
-  if (c.ear) tip = c.tip;
-  else { // (a tail's points at rest, in its joint's frame: from its root to its end)
-    let d = [-Math.sin(c.angle || 0), -Math.cos(c.angle || 0)], q = root;
-    for (let i = 0, n = c.links || 1; i < n; i++, d = rot(d, c.curl || 0)) q = [q[0] + (d[0] * c.length) / n, q[1] + (d[1] * c.length) / n];
-    tip = q;
-  }
-  const len = Math.hypot(tip[0] - root[0], tip[1] - root[1]) || 1; dir = [(tip[0] - root[0]) / len, (tip[1] - root[1]) / len];
+  const root = c.at, pts = !c.ear && restPoints({ root, dir: [-Math.sin(c.angle || 0), -Math.cos(c.angle || 0)], links: c.links || 1, curl: c.curl || 0, length: c.length }); // (a tail's points at rest, in its joint's frame)
+  const tip = c.ear ? c.tip : pts[pts.length - 1], len = Math.hypot(tip[0] - root[0], tip[1] - root[1]) || 1, dir = [(tip[0] - root[0]) / len, (tip[1] - root[1]) / len];
   const r = Array.isArray(s.r) ? Math.max(...s.r) : s.r ?? 1, ends = s.ends || 0, mid = [(root[0] + tip[0]) / 2, (root[1] + tip[1]) / 2], a = r3(Math.atan2(dir[0], -dir[1]));
   let geom;
   if (k === 'capsule') geom = { capsule: [...at3(root), ...at3(tip), r3(r)] };
@@ -116,11 +106,11 @@ export function swingOff(s) {
   const name = s.bone, keep = { ...s };
   const before = swung.get(s);
   for (const [list, x, i] of before?.uses || []) list.splice(Math.min(i, list.length), 0, x); // (the moves that used it by name: again)
-  if (before && 'plain' in before) { if (before.plain) keep.name = before.plain; else delete keep.name; }
+  if (before) { if (before.plain) keep.name = before.plain; else delete keep.name; }
   const keys = []; chainKeys((m) => { if (name in m.chains) keys.push([m, m.chains[name], Object.keys(m.chains)]); });
-  if (before?.made && before.made === madeOf(c, s)) geom = before.geom; // (its bone not changed: the shape exactly as it was)
+  if (before?.made === madeOf(c, s)) geom = before.geom; // (its bone not changed: the shape exactly as it was)
   swung.set(s, { name, keys, order: Object.keys(s), chain: { ...c }, along: Object.fromEntries(ALONG_TOO.filter((x) => x in s).map((x) => [x, s[x]]).concat(Array.isArray(s.r) ? [['r', s.r]] : [])) });
-  for (const x of ['bone', 'along', 'r', 'ends', 'round', 'foot', 'end', 'marks', 'grows', 'base', 'tipColor', 'tipSize']) delete keep[x];
+  for (const x of ON_BONE) delete keep[x];
   for (const x in s) delete s[x];
   Object.assign(s, { ...(keep.name && { name: keep.name }), on: c.on, ...geom, ...keep });
   dropOwn([name]);
@@ -286,7 +276,7 @@ export function setSpikes(g, on) {
 // pose's paint), a group (a pose's top)
 export function rename(s, o, name) {
   const to = name.trim(), was = o.name, body = s.g === bodyIndex(), own = s.type === 'item' && ownChain(o);
-  if (own && to !== was && (!to || to in (build.chains || {}) || to in (build.legs || {}) || to in (build.joints || {}) || to in (build.bones || {}) || to === 'spine')) { listParts(); return; } // (its bone's name: its, and not another's)
+  if (own && to !== was && (!to || taken(to))) { listParts(); return; } // (its bone's name: its, and not another's)
   const list = s.type === 'group' ? 'top' : body && s.type === 'item' && !o.bone ? 'shapes' : body && s.type === 'paint' ? 'paint' : null;
   if (to === (was || '')) { listParts(); return; }
   const uses = (m, f) => { if (!m || typeof m !== 'object') return; if (Array.isArray(m[list])) for (const x of m[list]) if (x?.use === was) f(x); for (const v of Object.values(m)) uses(v, f); };

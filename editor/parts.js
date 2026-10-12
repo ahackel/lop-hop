@@ -13,6 +13,8 @@ export let step = 0.1;
 const round = (v) => Math.round(v / step) * step;
 const roundAll = (p) => p.map((v) => +round(v).toFixed(3));
 export const plus = (a, b) => [a[0] + b[0], a[1] + b[1]], minus = (a, b) => [a[0] - b[0], a[1] - b[1]], times = (a, k) => [a[0] * k, a[1] * k];
+export const mix = (p, q, t) => plus(p, times(minus(q, p), t)), turnBy = (v, a) => [v[0] * Math.cos(a) - v[1] * Math.sin(a), v[0] * Math.sin(a) + v[1] * Math.cos(a)];
+export const r3 = (v) => +(+v).toFixed(3);
 
 export function geomOf(s) { return GEOMS.find((g) => Array.isArray(s[g])); }
 // a shape on a bone (bone, along: see asset.js): the kind of bone it is on; what it is drawn as along it (none: as its
@@ -26,10 +28,13 @@ export const isOwn = (n) => { const on = shapesOn(n); return !!build.chains?.[n]
 export const ownChain = (s) => (s?.bone && s.name === s.bone && isOwn(s.bone) ? build.chains[s.bone] : null);
 // what a shape can be on: a joint, a leg's thigh or shin, none (the box)
 export const onChoices = () => ['', 'spine', 'hip', 'chest', 'head', ...Object.keys(build.bones || {}), ...Object.keys(build.legs || {}).flatMap((n) => [`${n}.thigh`, `${n}.shin`])]; // (and the bones)
+// what a shape can be drawn along: the spine, a bone, a leg, a swing
+export const boneChoices = () => ['spine', ...Object.keys(build.bones || {}), ...Object.keys(build.legs || {}), ...Object.keys(build.chains || {})];
 export const spineShape = () => (build.layers || []).filter(isGroup).flatMap((G) => G.shapes).find((s) => s.bone === 'spine'); // (the torso: a move's torso changes it)
 export const ALONG = { // (each kind's own settings along a bone)
   ellipse: { r: 1, ends: 0 }, capsule: { r: 1, ends: 0, end: 0 }, box: { r: 1, ends: 0, round: 0 }, triangle: { base: [[-1.2, 0.5], [1.2, -0.5]], tipColor: undefined, tipSize: 2 },
 };
+export const ON_BONE = ['bone', 'along', 'r', 'ends', 'round', 'foot', 'end', 'marks', 'grows', 'base', 'tipColor', 'tipSize']; // (every setting of one drawn along a bone: gone off it)
 export function boneDefaults(s) {
   const k = alongOf(s);
   return { bone: '', along: k, ...ALONG[k], ...(ALONG[k].base && { base: ALONG[k].base.map((q) => [...q]) }), ...(k === 'capsule' && { foot: null }), color: undefined, smooth: 1, marks: [], grows: false }; // (every capsule the same: a flat foot at its end on any)
@@ -68,7 +73,6 @@ function boneBits(s) {
   const bits = o.parts.map((q) => shapeBits(q.s, q.f || null));
   return { handles, lines: bits.flatMap((x) => x.lines), hit: (p) => bits.some((x) => x.hit(p)) };
 }
-const mix = (p, q, t) => plus(p, times(minus(q, p), t));
 const bitsOf = (s) => (s.bone ? boneBits(s) : shapeBits(s));
 // a group's frame for one of its shapes: its pivot (at) in the shape's joint's frame, turned by its angle (as drawRig)
 // (a shape on a bone: its bone's, see boneBits)
@@ -77,7 +81,6 @@ function groupFrame(t, s) {
   const b = frameOf(s.on) || { o: [0, 0], a: 0, flip: 1 };
   return { o: world(b, t.at || [0, 0]), a: b.a + (t.angle || 0) * b.flip, flip: b.flip };
 }
-const turnBy = (v, a) => [v[0] * Math.cos(a) - v[1] * Math.sin(a), v[0] * Math.sin(a) + v[1] * Math.cos(a)];
 // a shape moved by d, in its own coordinates
 export function shiftShape(s, [dx, dy]) {
   const g = geomOf(s), v = s[g], r = (x) => +x.toFixed(3);

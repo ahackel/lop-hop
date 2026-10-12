@@ -5,8 +5,8 @@ import { inspectPlay } from './handling.js';
 import { SWITCHES, addPaint, addShape, bodyIndex, itemDo, layers, rename, setSpikes, swingOff, swingOn, swingable, switchOn, toggle } from './layers.js';
 import { listParts, reparent } from './lists.js';
 import { colorPick, inspectPalette } from './palette.js';
-import { ALONG, alongOf, boneDefaults, current, geomOf, isOwn, middleOf, onChoices, ownChain, parts, repivot, withDefaults } from './parts.js';
-import { COLOR_KEYS, GEOMS, also, base, build, builds, changed, choose, commit, editable, isGroup, kind, newAnimal, newSkin, nice, paints, refresh, remember, sel, skin, skinsOf, status, view, setSel } from './state.js';
+import { ALONG, ON_BONE, alongOf, boneChoices, boneDefaults, current, geomOf, isOwn, middleOf, onChoices, ownChain, parts, repivot, withDefaults } from './parts.js';
+import { COLOR_KEYS, GEOMS, GROUP_SWING, also, base, build, builds, changed, choose, commit, editable, isGroup, kind, newAnimal, newSkin, nice, paints, refresh, remember, sel, skin, skinsOf, status, view, setSel } from './state.js';
 import { inspectMove, timeline } from './timeline.js';
 import { addBone, deleteBone, renameBone, reparentBone, under } from './bones.js';
 
@@ -59,19 +59,24 @@ export function inspect() {
 }
 // the bone a shape is on: a joint (in its frame; the box: none) or a bone it is drawn along (what it is kept: an ellipse
 // along it, from an ellipse; off one again: one where the joint is)
-const ON_BONE = ['bone', 'along', 'r', 'ends', 'round', 'foot', 'end', 'marks', 'grows', 'base', 'tipColor', 'tipSize'];
 const AT_JOINT = { ellipse: [0, 0, 2, 1.5], capsule: [-1.5, 0, 1.5, 0, 1], box: [-2, -1.5, 2, 1.5, 0.5], triangle: [[-1.5, 1], [0, -1.5], [1.5, 1]] };
 const clone = (v) => JSON.parse(JSON.stringify(v));
 function attach(o) {
   const now = o.bone ? `bone:${o.bone}` : `on:${o.on || ''}`, opt = (v, label) => el('option', { value: v, textContent: label, selected: v === now });
   const input = el('select', { onchange: () => { const [how, n] = input.value.split(':'); commit(() => reattach(o, how, n)); listParts(); inspect(); } });
   input.append(el('optgroup', { label: 'a joint, a leg’s part' }, opt('on:', 'the box'), ...onChoices().slice(1).map((j) => opt(`on:${j}`, j.replace('.', ' ')))),
-    el('optgroup', { label: 'drawn along a bone' }, opt('bone:spine', 'spine'), ...[...Object.keys(build.bones || {}), ...Object.keys(build.legs || {}), ...Object.keys(build.chains || {}).filter((n) => !isOwn(n) || n === o.bone)].map((n) => opt(`bone:${n}`, n === o.bone && isOwn(n) ? `${n} (its swing)` : n))));
+    el('optgroup', { label: 'drawn along a bone' }, ...boneChoices().filter((n) => !isOwn(n) || n === o.bone).map((n) => opt(`bone:${n}`, n === o.bone && isOwn(n) ? `${n} (its swing)` : n))));
   return input;
 }
 // a swing: a shape's own bone (see ownChain): the joint it hangs from (moved onto another: where it is, see reparent), its role,
 // its settings
 const ROLES = [['', 'none', 'Only swung'], ['tail', 'tail', 'Wagged when petted'], ['ear', 'ear', 'Laid back when petted (a pointed one); a lop ear hangs as the head turns up'], ['trunk', 'trunk', 'Reaches for a treat; eats from its tip']];
+const GROUP_ROLES = ROLES.filter(([v]) => v === '' || v === 'ear');
+function roleSelect(o, roles) {
+  const input = el('select', { onchange: () => { commit(() => { if (input.value) o.role = input.value; else delete o.role; }); inspect(); } });
+  for (const [v, label, tip] of roles) input.append(el('option', { value: v, textContent: label, title: tip, selected: v === (o.role || '') }));
+  return field('role', input, roles.map(([, l, tip]) => `${l}: ${tip}`).join('\n'));
+}
 const SWING_TIP = 'Swung as the body moves, on a bone of its own made from it: a capsule bends from its first point to its second (a tail, a strand of hair), a triangle swings from its base (an ear), an ellipse or a box swings from below its middle. Off: the shape it is at rest';
 function swingBox(o, on) {
   const no = !on && swingable(o);
@@ -90,10 +95,9 @@ function boneFields(n, B, box, title) {
     field('length', numIn(B.length || 0, (x) => { B.length = x; }, { min: 0 }), 'How long it is: a shape drawn along it is so long (none: a joint, only turned)'),
     el('div', { className: 'keys' }, iconBtn('plus', 'Bone', { title: 'A new bone on this one, at its end', onclick: () => addBone(n) }))], 'A bone of its own: shapes, swings, legs and bones go on it'));
 }
-// a group that swings: all of it, about its pivot, as the body moves (see swungGroups in art.js); on, its pivot at the top
+// a group that swings: all of it, about its pivot, as the body moves (see swungGroup in art.js); on, its pivot at the top
 // of its shapes if it had none (where things hang from: drag it), its settings
 const GROUP_SWING_TIP = 'All of it swung about its pivot as the body moves (drag the pivot to where it hangs from)';
-const GROUP_SWING = { stiffness: 600, damping: 12, weight: 60 };
 function groupSwing(G) {
   const on = !!G.swing, box = el('input', { type: 'checkbox', checked: on, onchange: () => {
     commit(() => {
@@ -105,20 +109,16 @@ function groupSwing(G) {
   } });
   const out = [field('swings', box, GROUP_SWING_TIP)];
   if (!on) return out;
-  const role = el('select', { onchange: () => { commit(() => { if (role.value) G.swing.role = role.value; else delete G.swing.role; }); inspect(); } });
-  for (const [v, label, tip] of ROLES.filter(([v]) => v === '' || v === 'ear')) role.append(el('option', { value: v, textContent: label, title: tip, selected: v === (G.swing.role || '') }));
   const inner = el('div');
   fields(withDefaults(G.swing, GROUP_SWING), inner, ['role'], true);
-  return [...out, field('role', role, ROLES.filter(([v]) => v === '' || v === 'ear').map(([, l, tip]) => `${l}: ${tip}`).join('\n')), ...inner.childNodes];
+  return [...out, roleSelect(G.swing, GROUP_ROLES), ...inner.childNodes];
 }
 function chainFields(n, c) {
   const on = el('select', { onchange: () => reparent({ type: 'chain', name: n }, on.value) });
   for (const j of [...Object.keys(build.joints), ...Object.keys(build.bones || {})]) on.append(el('option', { value: j, textContent: j, selected: j === c.on }));
-  const role = el('select', { onchange: () => { commit(() => { if (role.value) c.role = role.value; else delete c.role; }); inspect(); } });
-  for (const [v, label] of ROLES) role.append(el('option', { value: v, textContent: label, selected: v === (c.role || '') }));
   const inner = el('div');
   fields(c.ear ? c : withDefaults(c, { links: 1, curl: 0 }), inner, ['on', 'role', 'ear'], true);
-  return [field('joint', on, 'The joint it hangs from'), field('role', role, ROLES.map(([, l, tip]) => `${l}: ${tip}`).join('\n')), ...inner.childNodes];
+  return [field('joint', on, 'The joint it hangs from'), roleSelect(c, ROLES), ...inner.childNodes];
 }
 function reattach(o, how, n) {
   if (how === 'on') {
@@ -234,7 +234,7 @@ function fields(o, box, skip, flat = false) {
         : el('input', { type: 'checkbox', title: 'A flat foot', onchange: () => { commit(() => { o.foot = [1.3, 0.6]; }); inspect(); } });
     } else if (k === 'bone') {
       input = el('select', { onchange: () => { commit(() => { o.bone = input.value; }); listParts(); inspect(); } });
-      for (const c of ['spine', ...Object.keys(build.bones || {}), ...Object.keys(build.legs || {}), ...Object.keys(build.chains || {})]) input.append(el('option', { value: c, textContent: c, selected: c === v }));
+      for (const c of boneChoices()) input.append(el('option', { value: c, textContent: c, selected: c === v }));
     } else if (k === 'on') {
       input = el('select', { onchange: () => commit(() => { if (input.value) o.on = input.value; else delete o.on; }) });
       for (const c of onChoices()) input.append(el('option', { value: c, textContent: c.replace('.', ' ') || 'the box', selected: c === (v || '') }));

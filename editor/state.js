@@ -17,7 +17,7 @@ import { fillMoves, frames, setPlay, show, timeline } from './timeline.js';
 
 export const GAME_ANIMALS = { ...ANIMALS }; // (the game's animals: the others are made here, see the end)
 
-export const { toWorld, toLocal, sdShape, NAMED, reach, restPoints } = rigParts;
+export const { toWorld, toLocal, sdShape, NAMED, reach, restPoints, GROUP_SWING } = rigParts;
 export const KINDS = []; // (every animal with a file: the game's, and any made here, not in the game yet)
 // the game's palette (assets/palette.js) as edited: a color by its name (outline: the one role painted with)
 export const palette = JSON.parse(JSON.stringify(paletteFile));
@@ -59,6 +59,7 @@ export const rigFor = (k) => rigOf(assetOf(k), files[k].of && assetOf(files[k].o
 // bone: the bone not drawn), a marking, spikes, a dot. By what it is (dragged elsewhere, still hidden); an undo finds
 // it again where it was (see restore)
 export const isGroup = (G) => !!G && typeof G === 'object';
+export function eachIn(o, f) { if (!o || typeof o !== 'object') return; f(o); for (const v of Object.values(o)) eachIn(v, f); } // (every object in o, o too)
 export const hidden = new Set();
 function shown(b) {
   if (!hidden.size) return b;

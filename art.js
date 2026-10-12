@@ -382,9 +382,13 @@ export const rigOf = (asset, of = FILES[asset.of]) => onLayers(rawRig(asset, of)
 const defined = (o) => { for (const k in o) if (o[k] === undefined) delete o[k]; return o; };
 const isGroup = (g) => !!g && typeof g === 'object';
 const bodyOf = (layers) => layers.find((g) => isGroup(g) && g.join && g.hits);
+// (the vectors: here, as a rig is made while this file loads, see RIGS)
+const plus = (a, b) => [a[0] + b[0], a[1] + b[1]], minus = (a, b) => [a[0] - b[0], a[1] - b[1]], times = (a, k) => [a[0] * k, a[1] * k];
+const turn = ([x, y], t) => [x * Math.cos(t) - y * Math.sin(t), x * Math.sin(t) + y * Math.cos(t)]; // (+: clockwise on screen)
+const unit = (a) => times(a, 1 / (Math.hypot(a[0], a[1]) || 1)), mix = (a, b, t) => plus(a, times(minus(b, a), t));
 function onLayers(b) {
-  const r = { ...b, layers: swungGroups(b), torso: { r: 0, none: true } };
-  if (r.layers.some((g) => g.swung)) r.chains = { ...b.chains, ...Object.fromEntries(r.layers.filter((g) => g.swung).map((g) => [g.swung, g.swingBone])) };
+  const bones = {}, r = { ...b, layers: (b.layers || []).map((g, i) => swungGroup(g, i, bones)), torso: { r: 0, none: true } };
+  if (Object.keys(bones).length) r.chains = { ...b.chains, ...bones };
   const spine = r.layers.filter(isGroup).flatMap((g) => g.shapes).find((s) => s.bone === 'spine');
   if (spine) r.torso = defined({ r: spine.r, ends: spine.ends });
   return r;
@@ -392,14 +396,14 @@ function onLayers(b) {
 // a group that swings (swing: see asset.js): about its pivot, on a bone of its own (named ~ and its name), from its pivot
 // to the middle of its shapes (or below the pivot), as an ear swings; drawn turned as much as its bone is (see drawRig)
 const pointsOf = (s) => (s.triangle || (s.capsule ? [s.capsule.slice(0, 2), s.capsule.slice(2, 4)] : s.box ? [s.box.slice(0, 2), s.box.slice(2, 4)] : s.ellipse ? [s.ellipse.slice(0, 2)] : []));
-function swungGroups(b) {
-  return (b.layers || []).map((g, i) => {
-    const on = isGroup(g) && g.swing && g.shapes.length && !g.shapes.some((s) => s.bone) && g.shapes[0].on;
-    if (!on) return g;
-    const at = g.at || [0, 0], pts = g.shapes.flatMap(pointsOf), m = pts.reduce((a, q) => [a[0] + q[0] / pts.length, a[1] + q[1] / pts.length], [0, 0]), t = g.angle || 0; // (made before the helpers below: by hand)
-    const mid = [at[0] + m[0] * Math.cos(t) - m[1] * Math.sin(t), at[1] + m[0] * Math.sin(t) + m[1] * Math.cos(t)], tip = Math.hypot(mid[0] - at[0], mid[1] - at[1]) > 0.5 ? mid : [at[0], at[1] + 2];
-    return { ...g, swung: `~${g.name || i}`, swingBone: { on, ear: true, at, tip, stiffness: 600, damping: 12, weight: 60, ...g.swing } };
-  });
+const GROUP_SWING = { stiffness: 600, damping: 12, weight: 60 };
+function swungGroup(g, i, bones) { // (its bone into bones)
+  const on = isGroup(g) && g.swing && g.shapes.length && !g.shapes.some((s) => s.bone) && g.shapes[0].on;
+  if (!on) return g;
+  const at = g.at || [0, 0], pts = g.shapes.flatMap(pointsOf), m = times(pts.reduce(plus, [0, 0]), 1 / pts.length);
+  const mid = plus(at, turn(m, g.angle || 0)), tip = Math.hypot(...minus(mid, at)) > 0.5 ? mid : [at[0], at[1] + 2], n = `~${g.name || i}`;
+  bones[n] = { on, ear: true, at, tip, ...GROUP_SWING, ...g.swing };
+  return { ...g, swung: n };
 }
 // a body's shapes in a pose: its own (on no bone), then the pose's (ownShapes: the pose's alone, in their place); those
 // on bones where they are
@@ -425,9 +429,6 @@ function layersAt(rig, p) {
 }
 const RIGS = Object.fromEntries(Object.entries(FILES).map(([k, a]) => [k, rigOf(a)]));
 
-const plus = (a, b) => [a[0] + b[0], a[1] + b[1]], minus = (a, b) => [a[0] - b[0], a[1] - b[1]], times = (a, k) => [a[0] * k, a[1] * k];
-const turn = ([x, y], t) => [x * Math.cos(t) - y * Math.sin(t), x * Math.sin(t) + y * Math.cos(t)]; // (+: clockwise on screen)
-const unit = (a) => times(a, 1 / (Math.hypot(a[0], a[1]) || 1)), mix = (a, b, t) => plus(a, times(minus(b, a), t));
 // distances: negative inside. (Called for every pixel of every frame drawn: they read their shapes by index and make
 // nothing, no arrays, no iterators)
 const sdEllipse = (x, y, e) => (Math.hypot((x - e[0]) / e[2], (y - e[1]) / e[3]) - 1) * Math.min(e[2], e[3]);
@@ -626,15 +627,15 @@ function posedAs(rig, p) {
 function bonesOn(rig, p, F) {
   const B = rig.bones;
   if (!B) return;
-  const put = (n, seen) => {
+  const put = (n, seen) => { // (seen: those it is on, below it: made when one is on a bone not put yet)
     if (F[n]) return true;
-    const b = { ...B[n], ...p.bones?.[n] };
-    if (b.on && !F[b.on] && (!B[b.on] || seen.has(b.on) || !put(b.on, seen.add(n)))) return false;
+    const b = p.bones?.[n] ? { ...B[n], ...p.bones[n] } : B[n];
+    if (b.on && !F[b.on] && (!B[b.on] || seen?.has(b.on) || !put(b.on, (seen ||= new Set()).add(n)))) return false;
     const f = b.on ? F[b.on] : F.box, base = f || { a: 0, flip: 1 };
     F[n] = { o: toWorld(f, b.at || [0, 0]), a: base.a + (b.angle || 0) * base.flip, flip: base.flip };
     return true;
   };
-  for (const n in B) put(n, new Set());
+  for (const n in B) put(n);
 }
 // a torso (the first shape on the spine, see onLayers) as a pose has it: its r and ends, thicker and longer by the
 // pose's (-: thinner, shorter)
@@ -925,10 +926,11 @@ function drawRig(rig, P, blink, chains, S = 1, [dx, dy] = [0, 0], floor = Math.r
   };
   const swungBy = (G) => { // (a group that swings: turned about its pivot as much as its bone is from its rest, both to a quarter pixel)
     const now = G.swung && chains[G.swung];
-    if (!now || !F[G.swingBone.on]) return G;
+    const f = now && F[rig.chains[G.swung].on];
+    if (!f) return G;
     const rest = restPoints(chainRest(rig, P, G.swung)).map((q) => [quarter(q[0]), quarter(q[1])]), dir = (q) => Math.atan2(q[1][1] - q[0][1], q[1][0] - q[0][0]);
     const d = Math.atan2(Math.sin(dir(now) - dir(rest)), Math.cos(dir(now) - dir(rest)));
-    return d ? { ...G, angle: (G.angle || 0) + d * F[G.swingBone.on].flip } : G;
+    return d ? { ...G, angle: (G.angle || 0) + d * f.flip } : G;
   };
   const layers = layersAt(rig, p).map((G) => (isGroup(G) ? ((G = swungBy(G)), { G, items: G.shapes.map((s) => itemOf(s, G)).filter(Boolean) }) : G));
   const groups = layers.filter(isGroup), legs = groups.flatMap((l) => l.items.filter((it) => it.sock));
@@ -1265,7 +1267,7 @@ export function moveReaching(body, kind, tx, ty, amount, look, x, y, dt, sniff =
 
 // for the editor (editor/): an edited rig swapped in (its frames drawn again), and what places its parts
 export function setRig(kind, rig) { RIGS[kind] = rig; rigFrames.clear(); worked.clear(); tracksOf.clear(); hitboxes.clear(); delete ducks[kind]; delete depths[kind]; }
-export const rigParts = { posed: (kind, move, frame) => posed(RIGS[kind], move, frame), pose: (kind, move, frame) => poseOf(RIGS[kind], move, frame), move: (kind, name) => RIGS[kind].poses[name], moves: (kind) => Object.keys(RIGS[kind].poses), clip: (m, frame) => clipPose(m, frame), chainRest: (kind, P, name) => chainRest(RIGS[kind], P, name), onBone: (kind, P, s, first) => { const rig = RIGS[kind]; return onBone(rig, P, rig.chains?.[s.bone] ? { [s.bone]: restPoints(chainRest(rig, P, s.bone)) } : {}, s, false, first); }, chains: (kind) => Object.keys(RIGS[kind].chains || {}), growth: (kind, pose) => growth(grown(kind, pose)), reach, restPoints, toWorld, toLocal, sdShape, NAMED, faceFrame };
+export const rigParts = { posed: (kind, move, frame) => posed(RIGS[kind], move, frame), pose: (kind, move, frame) => poseOf(RIGS[kind], move, frame), move: (kind, name) => RIGS[kind].poses[name], moves: (kind) => Object.keys(RIGS[kind].poses), clip: (m, frame) => clipPose(m, frame), chainRest: (kind, P, name) => chainRest(RIGS[kind], P, name), onBone: (kind, P, s, first) => { const rig = RIGS[kind]; return onBone(rig, P, rig.chains?.[s.bone] ? { [s.bone]: restPoints(chainRest(rig, P, s.bone)) } : {}, s, false, first); }, chains: (kind) => Object.keys(RIGS[kind].chains || {}), growth: (kind, pose) => growth(grown(kind, pose)), reach, restPoints, toWorld, toLocal, sdShape, NAMED, faceFrame, GROUP_SWING };
 
 // the birds that circle a knocked-out head: two frames
 const birds = [0, 1].map((f) => {
