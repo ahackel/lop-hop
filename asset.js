@@ -14,7 +14,7 @@
 // format 5, an animal (2D, from the side; x forward, y down, in the 26 × 20 box, its feet on row 19). Its bones are what
 // moves (joints, legs, chains), only that; all it looks like is shapes, in groups, each shape in the box, on a joint, or
 // on a bone (bone: drawn along it, as the pose has it). A bone has any shapes on it, or none (it moves, undrawn); a shape
-// may have one of its own (chain: a tail, an ear, a strand of a mane, swung as the body moves)
+// may have one of its own (chain: a swing, as the editor calls it: a tail, an ear, a strand of a mane, swung as the body moves)
 //   format, name; of: the animal it is made from, a skin of it (the wolf: the fox's, its own over it: recolored; the
 //                editor makes one, and edits it with the one it is made from)
 //   fur          its color (a palette name: see the palette, above), as every color is

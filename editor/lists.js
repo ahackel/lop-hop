@@ -141,7 +141,7 @@ function whereWhat(p) {
   if (t === 'dot') return [o.on || 'box', ['dot', 'A dot: one pixel']];
   if (t === 'spikes') return [o.on || 'box', ['spikes', 'Spikes: where it bristles']];
   const k = o.bone ? alongOf(o) : geomOf(o) || 'ellipse', own = ownChain(o);
-  if (own) return [own.on, [k, `${KINDS[k]}, drawn along a bone of its own, on ${own.on}`]];
+  if (own) return [own.on, [k, `A swing: ${KINDS[k].toLowerCase()} with a bone of its own, on ${own.on}`]];
   return [o.bone || o.on || 'box', [k, o.bone ? `${KINDS[k]}, drawn along ${o.bone}` : KINDS[k]]];
 }
 const eyeOf = (p) => html`<button class=${`eye${p.off ? ' off' : ''}`} title=${p.off ? 'Hidden: show it (H)' : 'Hide it, here only: not saved (H)'} @click=${stop(() => hide(p.obj))}>${icon(p.off ? 'eyeOff' : 'eye')}</button>`;

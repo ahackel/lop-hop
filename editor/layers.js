@@ -26,7 +26,7 @@ export function placeOf(s) {
 const shapesIn = (x) => (Array.isArray(x?.shapes) ? x.shapes : x && typeof x === 'object' ? [x] : []); // (a group's, or itself)
 const ownIn = (xs) => xs.flatMap(shapesIn).filter((s) => ownChain(s)).map((s) => s.name); // (before: own while one shape is on it)
 function freeName(n) {
-  const stem = n.replace(/\d+$/, '') || 'strand', taken = new Set([...Object.keys(build.chains || {}), ...Object.keys(build.legs || {}), 'spine']);
+  const stem = n.replace(/\d+$/, '') || 'swing', taken = new Set([...Object.keys(build.chains || {}), ...Object.keys(build.legs || {}), ...Object.keys(build.joints || {}), ...Object.keys(build.bones || {}), 'spine']);
   let m = stem;
   for (let k = 2; taken.has(m); k++) m = `${stem}${k}`;
   return m;
@@ -46,9 +46,9 @@ function dropOwn(names) {
   }
   if (build.chains && !Object.keys(build.chains).length) delete build.chains;
 }
-// a strand: a shape with a bone of its own, swung as the body moves (a tail, an ear, a strand of a mane), in group g
-export function addStrand(g) {
-  const G = layers()[g], name = freeName('strand');
+// a swing: a shape with a bone of its own, swung as the body moves (a tail, an ear, a strand of a mane), in group g
+export function addSwing(g) {
+  const G = layers()[g], name = freeName('swing');
   commit(() => {
     (build.chains ||= {})[name] = { on: 'head', at: [-1, -3], angle: 0.5, links: 3, length: 5, curl: 0.1, stiffness: 300, damping: 8, weight: 80 };
     G.shapes.push({ name, bone: name, along: 'capsule', r: [0.8, 0.4] });
