@@ -40,7 +40,18 @@ export default {
         { name: 'frontNear', bone: 'frontNear', along: 'capsule', r: 1.6, foot: [1.7, 0.7], smooth: 0.5 },
       ],
     },
-    { name: 'ear', color: 'slate', shapes: [{ on: 'head', triangle: [[-5.6, -2], [-1.4, -2.4], [-3.2, 3.8]] }] },
+    {
+      name: 'ear',
+      color: 'slate',
+      shapes: [
+        {
+          name: 'ear',
+          chain: { on: 'head', ear: true, at: [-3.5, -2.2], tip: [-3.2, 3.8], stiffness: 500, damping: 9, weight: 60, role: 'ear' },
+          along: 'triangle',
+          base: [[-2.1, 0.2], [2.1, -0.2]],
+        },
+      ],
+    },
     {
       name: 'trunk',
       shapes: [
@@ -92,8 +103,8 @@ export default {
     duck: {
       joints: { hip: [7.5, 15.6], chest: [15, 15.4], head: [19.9, 14.2] },
       torso: { thicker: -1.6, longer: 1.1 },
-      top: [{ color: 'slate', shapes: [{ on: 'head', triangle: [[-5.6, -2.6], [-1.4, -3], [-3.2, 3.2]] }] }, { use: 'tusk' }],
-      chains: { trunk: { angle: 4.3, curl: 0.05 }, tail: { at: [-4.8, -1], angle: 1.9 } },
+      top: [{ use: 'tusk' }],
+      chains: { trunk: { angle: 4.3, curl: 0.05 }, tail: { at: [-4.8, -1], angle: 1.9 }, ear: { at: [-3.5, -2.8], tip: [-3.2, 3.2] } },
       pad: [1.8, 1],
       over: true,
       gait: {
@@ -136,8 +147,8 @@ export default {
           eye: 'ko',
           joints: { hip: [8, 15.6], chest: [14.5, 15.4], head: [19.4, 14.2] },
           torso: { thicker: -1.6, longer: 0.9 },
-          top: [{ color: 'slate', shapes: [{ on: 'head', triangle: [[-5.6, -2.6], [-1.4, -3], [-3.2, 3.2]] }] }, { use: 'tusk' }],
-          chains: { trunk: { angle: 4.3, curl: 0.05 }, tail: { at: [-4.8, -1], angle: 1.9 } },
+          top: [{ use: 'tusk' }],
+          chains: { trunk: { angle: 4.3, curl: 0.05 }, tail: { at: [-4.8, -1], angle: 1.9 }, ear: { at: [-3.5, -2.8], tip: [-3.2, 3.2] } },
           flip: true,
           paws: { hindFar: [11.389, 8.891], frontFar: [16.889, 8.691], hindNear: [7.389, 8.922], frontNear: [13.389, 8.722] },
         },

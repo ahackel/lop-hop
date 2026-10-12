@@ -28,7 +28,19 @@ export default {
       spikes: { on: 'spine', box: [-12, -12, 9, 3.7], speck: 'tan' },
       join: true,
     },
-    { name: 'ear', color: 'beige', shapes: [{ on: 'head', ellipse: [-0.9, -3.4, 1.1, 1.1] }] },
+    {
+      name: 'ear',
+      color: 'beige',
+      shapes: [
+        {
+          name: 'ear',
+          chain: { on: 'head', ear: true, at: [-0.9, -2.63], tip: [-0.9, -4.17], stiffness: 1400, damping: 22, weight: 60, role: 'ear' },
+          along: 'ellipse',
+          r: 1.1,
+          ends: 0.33,
+        },
+      ],
+    },
     {
       name: 'near legs',
       shapes: [

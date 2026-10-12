@@ -35,7 +35,13 @@ export default {
       shapes: [
         { name: 'hindFar', bone: 'hindFar', along: 'capsule', r: 0.6 },
         { name: 'frontFar', bone: 'frontFar', along: 'capsule', r: 0.6 },
-        { name: 'ear', on: 'head', ellipse: [0.9, -2.9, 1.1, 1.1] },
+        {
+          name: 'earFar',
+          chain: { on: 'head', ear: true, at: [0.9, -2.13], tip: [0.9, -3.67], stiffness: 1400, damping: 22, weight: 60, role: 'ear' },
+          along: 'ellipse',
+          r: 1.1,
+          ends: 0.33,
+        },
       ],
     },
     {
@@ -47,7 +53,14 @@ export default {
         { name: 'chest', on: 'chest', ellipse: [0.5, 0.4, 2.6, 2.8] },
         { name: 'head', on: 'head', ellipse: [0, 0, 3.3, 3.1] },
         { name: 'muzzle', on: 'head', ellipse: [3.4, 1.6, 1.783, 1.71] },
-        { name: 'ear', on: 'head', ellipse: [-1.8, -2.7, 1.1, 1.1], color: 'ochre' },
+        {
+          name: 'ear',
+          chain: { on: 'head', ear: true, at: [-1.8, -1.93], tip: [-1.8, -3.47], stiffness: 1400, damping: 22, weight: 60, role: 'ear' },
+          along: 'ellipse',
+          r: 1.1,
+          ends: 0.33,
+          color: 'ochre',
+        },
         { name: 'hindNear', bone: 'hindNear', along: 'capsule', r: 0.6, smooth: 0.5 },
         { name: 'frontNear', bone: 'frontNear', along: 'capsule', r: 0.6, smooth: 0.5 },
       ],
