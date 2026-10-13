@@ -70,6 +70,10 @@ export default {
   face: { eye: [-0.4, -1], nose: [5.6, 1.6] },
   headPivot: [-2.51, -1.145],
   handling: { fed: { chewFor: 1.83, nod: 1.75, upright: 0 } },
+  portrait: {
+    inks: { o: 'outline', g: 'grey', d: 'darkGrey', e: 'beige', x: 'black' },
+    rows: ['o...oo...o', 'ogooeeoogo', 'oggggggggo', 'ogxggggxgo', 'ogggeegggo', '.oggddggo.', '..oooooo..'],
+  },
   moves: {
     run: {
       gait: {

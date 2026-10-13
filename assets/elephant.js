@@ -88,6 +88,10 @@ export default {
   face: { eye: [1.4, -1] },
   handling: { fed: { nod: 0.7, chewFor: 1.54, upright: 0.04 } },
   headPivot: [-2.284, 0],
+  portrait: {
+    inks: { o: 'outline', b: 'blueGrey', s: 'slate', c: 'cream', x: 'black' },
+    rows: ['.ooooooooo', 'osboooobso', 'osbbbbbbso', 'osxbbbbxso', 'osocbbcoso', '.oo.bb.oo.', '....oo....'],
+  },
   moves: {
     run: {
       gait: {

@@ -51,6 +51,10 @@ export default {
     frontNear: { on: 'chest', at: [1, 5.4], thigh: 1, shin: 1, bend: -1 },
   },
   face: { eye: [1, -1.2], nose: [5.4, 1], noseColor: 'pink' },
+  portrait: {
+    inks: { o: 'outline', w: 'white', c: 'charcoal', t: 'tan', x: 'black', p: 'pink' },
+    rows: ['.o......o.', 'opoooooopo', 'occcwwttto', 'ocxcwwtxto', 'occwppwtto', '.oowwwwoo.', '...oooo...'],
+  },
   moves: {
     run: {
       gait: {

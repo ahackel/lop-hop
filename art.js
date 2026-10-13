@@ -1274,7 +1274,7 @@ export function reaching(kind, tx, ty, eating = false, amount = 1, look = 1, bod
 export function moveReaching(body, kind, tx, ty, amount, look, x, y, dt, sniff = 0) { moveBody(body, kind, 'reach', 0, x, y, 0, dt, reachPosed(kind, tx, ty, amount, look, sniff).P); }
 
 // for the editor (editor/): an edited rig swapped in (its frames drawn again), and what places its parts
-export function setRig(kind, rig) { RIGS[kind] = rig; rigFrames.clear(); worked.clear(); tracksOf.clear(); hitboxes.clear(); delete ducks[kind]; delete depths[kind]; }
+export function setRig(kind, rig) { RIGS[kind] = rig; delete faces[kind]; rigFrames.clear(); worked.clear(); tracksOf.clear(); hitboxes.clear(); delete ducks[kind]; delete depths[kind]; }
 export const rigParts = { posed: (kind, move, frame) => posed(RIGS[kind], move, frame), pose: (kind, move, frame) => poseOf(RIGS[kind], move, frame), move: (kind, name) => RIGS[kind].poses[name], moves: (kind) => Object.keys(RIGS[kind].poses), clip: (m, frame) => clipPose(m, frame), chainRest: (kind, P, name) => chainRest(RIGS[kind], P, name), onBone: (kind, P, s, first) => { const rig = RIGS[kind]; return onBone(rig, P, rig.chains?.[s.bone] ? { [s.bone]: restPoints(chainRest(rig, P, s.bone)) } : {}, s, false, first); }, chains: (kind) => Object.keys(RIGS[kind].chains || {}), growth: (kind, pose) => growth(grown(kind, pose)), reach, restPoints, toWorld, toLocal, sdShape, NAMED, faceFrame, GROUP_SWING };
 
 // the birds that circle a knocked-out head: two frames
@@ -1344,14 +1344,21 @@ export const LANDS = [
   { name: 'THE SNOW', big: oneOf('snowman', 'snowypine'), small: oneOf('ice'), other: oneOf('snowyrock', 'snowylog'), branch: oneOf('snowybranch') },
 ];
 
-// each animal's face, for the high scores: its whole head as it runs (the ears too), cut out of the animal drawn smaller
-// (FACE_S: from its shapes, outlined as ever); FACE_W × FACE_H, its eye at EYE_AT (FACE_AT moves one's cut by [dx, dy]),
-// cut round (no body behind it) and outlined where it is cut
-export const FACE_W = 10;
-const FACE_H = 7; // (a high score's row)
+// each animal's face, for the high scores (FACE_W × FACE_H: a high score's row): its portrait, its head from the front
+// drawn pixel by pixel (portrait: { inks: { letter: a color by name }, rows }, see asset.js; a skin: its animal's,
+// recolored); one without: its whole head as it runs (the ears too), cut out of the animal drawn smaller (FACE_S: from
+// its shapes, outlined as ever), its eye at EYE_AT (FACE_AT moves one's cut by [dx, dy]), cut round (no body behind it)
+// and outlined where it is cut
+export const FACE_W = 10, FACE_H = 7;
 const FACE_S = 0.6, EYE_AT = [5, 4], FACE_AT = {}, faces = {};
 export function face(kind) {
-  if (faces[kind] || !ANIMALS[kind]) return faces[kind];
+  if (faces[kind] || !RIGS[kind]) return faces[kind];
+  const { portrait, recolor } = RIGS[kind];
+  if (portrait) {
+    const g = new Grid(FACE_W, FACE_H), to = (c) => NAMED[recolor?.[c] || c] || OUT;
+    portrait.rows.slice(0, FACE_H).forEach((row, y) => [...row.slice(0, FACE_W)].forEach((ch, x) => { if (ch !== '.') g.px[y * FACE_W + x] = to(portrait.inks?.[ch]); }));
+    return (faces[kind] = sprite(g, g.px.map((v) => +!!v)));
+  }
   const s = rigFrame(kind, 'run', 0, false, null, FACE_S, null, 0), [dx, dy] = FACE_AT[kind] || [0, 0]; // (s.head: the eye, less [1, 6], drawn bigger by FACE_S)
   const x0 = Math.round(s.head[0] + FACE_S - (s.ox || 0)) - EYE_AT[0] + dx, y0 = Math.round(s.head[1] + 6 * FACE_S - (s.oy || 0)) - EYE_AT[1] + dy;
   const g = new Grid(FACE_W, FACE_H), round = ellipse(FACE_W / 2, FACE_H / 2, FACE_W / 2 + 0.3, FACE_H / 2 + 0.3);

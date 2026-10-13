@@ -100,6 +100,10 @@ export default {
   },
   face: { eye: [1.2, -0.4] },
   handling: { fed: { chewFor: 1.75, nod: 1.05 } },
+  portrait: {
+    inks: { o: 'outline', d: 'darkBrown', c: 'cream', g: 'grey', x: 'black' },
+    rows: ['c........c', 'occooooocc', 'oddddddddd', 'odxddddxdo', 'oddggggddo', '.odgxxgdo.', '..oooooo..'],
+  },
   moves: {
     run: {
       gait: {

@@ -47,6 +47,10 @@ export default {
     hindNear: { on: 'hip', at: [0.5, 2.5], thigh: 2.2, shin: 2.2, bend: -1 },
   },
   face: { eye: [-0.5, -0.8] },
+  portrait: {
+    inks: { o: 'outline', g: 'grey', l: 'lightGrey', w: 'white', x: 'black' },
+    rows: ['..oooooo..', '.oggggggo.', 'ogxggggxgo', 'oggggggggo', 'owwwwwwwwo', 'olllllllll', '.oooooooo.'],
+  },
   moves: {
     run: { gait: { frames: 8, stance: 0.45, reach: 5, lift: 2.2, bob: 0.5, ground: 18.4, legs: { hindNear: [0, 0.5], hindFar: [0.5, -0.5] } } },
     duck: {

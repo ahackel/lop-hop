@@ -61,6 +61,10 @@ export default {
   face: { eye: [1, -0.6], nose: [5.5, 1.4] },
   handling: { fed: { hop: 0 } },
   headPivot: [-1.525, -1.077],
+  portrait: {
+    inks: { o: 'outline', b: 'brown', d: 'deepBrown', e: 'beige', x: 'black' },
+    rows: ['.o.o.o.o..', 'obdbdbdbdo', 'odeeeeeedo', 'obexeexebo', 'odeeeeeedo', '.oeexxeeo.', '..oooooo..'],
+  },
   moves: {
     run: {
       gait: {

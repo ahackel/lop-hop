@@ -1,9 +1,9 @@
-// The face's frames (see editor.js): its eye's and its mouth's pictures, drawn pixel by pixel
-import { FACE_FRAMES, FACE_INKS, PALETTES, animal, colorOf } from '../art.js';
+// The face's frames (see editor.js): its eye's and its mouth's pictures, drawn pixel by pixel; its portrait too
+import { FACE_FRAMES, FACE_H, FACE_INKS, FACE_W, PALETTES, animal, colorOf, face as portraitOf } from '../art.js';
 import { css, el, iconBtn } from './dom.js';
 import { field, inspect } from './inspector.js';
 import { draw } from './stage.js';
-import { NAMED, build, changed, commit, hist, kind, nice, paints, remember, snapshot, status } from './state.js';
+import { NAMED, base, build, changed, commit, hist, kind, nice, paints, remember, skin, snapshot, status } from './state.js';
 
 // its eye's and its mouth's pictures, drawn pixel by pixel (see FACE_FRAMES in art.js): a frame picked, drawn on a grid
 // over the animal's own pixels around it (faded), its anchor (the face's point) in the middle; what is drawn goes into
@@ -52,13 +52,14 @@ function charOf(color) {
 }
 export function faceFrames(box) {
   const face = build.face, { part } = faceEdit;
-  if (!frameNames(part).includes(faceEdit.name)) faceEdit.name = part === 'eye' ? 'open' : 'shut';
   const redo = () => { inspect(); draw(); };
   const head = el('div', { className: 'group' }, el('span', { textContent: 'Frames' }));
   box.append(head);
   const parts = el('span', { className: 'modes' });
-  for (const p of ['eye', 'mouth']) parts.append(el('button', { textContent: p, className: p === part ? 'on' : '', onclick: () => { faceEdit.part = p; faceEdit.name = p === 'eye' ? 'open' : 'shut'; redo(); } }));
+  for (const p of ['eye', 'mouth', 'portrait']) parts.append(el('button', { textContent: p, className: p === part ? 'on' : '', title: p === 'portrait' ? 'Its head from the front, for the high scores' : '', onclick: () => { faceEdit.part = p; faceEdit.name = p === 'eye' ? 'open' : 'shut'; redo(); } }));
   box.append(field('part', parts));
+  if (part === 'portrait') { head.title = 'Its portrait: its head from the front, as the high scores show it'; portraitEdit(box, redo); return; }
+  if (!frameNames(part).includes(faceEdit.name)) faceEdit.name = part === 'eye' ? 'open' : 'shut';
   if (part === 'mouth' && !face.mouth) {
     box.append(el('p', { className: 'note', textContent: 'It has no mouth: none is drawn.' }),
       iconBtn('plus', 'Add a mouth', { onclick: () => { commit(() => { const n = face.nose || face.eye; face.mouth = [+(n[0] - 0.5).toFixed(3), +(n[1] + 2).toFixed(3)]; }); redo(); } }));
@@ -118,5 +119,73 @@ export function faceFrames(box) {
   if (part === 'mouth') acts.append(el('button', { textContent: 'No mouth', title: 'No mouth drawn (its frames stay)', onclick: () => { commit(() => { delete face.mouth; }); redo(); } }));
   box.append(acts);
   head.title = `${usual ? (ownFrame(part, name) ? 'This frame: its own, in its file.' : 'This frame: the usual one, as every animal has it; drawing makes it its own.') : 'This frame: one of its own.'} In Animate a key picks which frame shows.`;
+}
+
+// its portrait, for the high scores (see face in art.js): its head from the front, FACE_W × FACE_H, drawn pixel by pixel
+// on a grid (none drawn: its head cut from its side, faded, to draw over), and as the game shows it, by day and by
+// night. Inks: any color of the palette, each by a letter of its own (its first, if free); one no pixel uses: gone. A
+// skin: its animal's, recolored (drawn here, it is its animal's)
+const PCELL = 22;
+function portraitCells() {
+  const cells = Array.from({ length: FACE_H }, () => Array(FACE_W).fill('.'));
+  (build.portrait?.rows || []).slice(0, FACE_H).forEach((row, y) => [...row.slice(0, FACE_W)].forEach((ch, x) => { cells[y][x] = ch; }));
+  return cells;
+}
+function setPortrait(cells, inks) { // (nothing drawn: none)
+  const used = new Set(cells.flat()); used.delete('.');
+  if (!used.size) { delete build.portrait; return; }
+  build.portrait = { inks: Object.fromEntries(Object.entries(inks).filter(([ch]) => used.has(ch))), rows: cells.map((r) => r.join('')) };
+}
+function portraitInk(color, inks) {
+  const has = Object.keys(inks).find((ch) => inks[ch] === color);
+  if (has) return has;
+  const ch = [color[0], ...'abcdefghijklmnopqrstuvwxyz'].find((c) => !(c in inks));
+  inks[ch] = color;
+  return ch;
+}
+// a sprite's pixels (in the look) into a canvas, z screen pixels each, from [x, y]
+function pixelsInto(ctx, sp, pal, x, y, z) {
+  const px = sp.look();
+  for (let i = 0; i < px.length; i++) if (px[i]) { ctx.fillStyle = colorOf(pal, px[i]); ctx.fillRect(x + (i % sp.w) * z, y + Math.floor(i / sp.w) * z, z, z); }
+}
+function portraitEdit(box, redo) {
+  if (skin) box.append(el('p', { className: 'note', textContent: `The ${base}’s, recolored: drawing here changes both.` }));
+  const grid = el('canvas', { className: 'faceGrid portraitGrid', width: FACE_W * PCELL, height: FACE_H * PCELL, title: 'Draw with the ink picked; right-click: erase' });
+  const shown = el('canvas', { className: 'portraitShown', width: (FACE_W * 2 + 6) * 4, height: (FACE_H + 4) * 4, title: 'As the high scores show it: by day, by night' });
+  const paint = () => {
+    const ctx = grid.getContext('2d'), cells = portraitCells(), inks = build.portrait?.inks || {};
+    ctx.fillStyle = PALETTES.day.bg; ctx.fillRect(0, 0, grid.width, grid.height);
+    if (!build.portrait) { ctx.globalAlpha = 0.35; pixelsInto(ctx, portraitOf(kind), PALETTES.day, 0, 0, PCELL); ctx.globalAlpha = 1; } // (its head from the side, to draw over)
+    cells.forEach((row, y) => row.forEach((ch, x) => { if (ch !== '.') { ctx.fillStyle = PALETTES.day[NAMED[inks[ch]]] || PALETTES.day[NAMED.outline]; ctx.fillRect(x * PCELL, y * PCELL, PCELL, PCELL); } }));
+    ctx.fillStyle = 'rgba(128,128,128,0.25)';
+    for (let i = 1; i < FACE_W; i++) ctx.fillRect(i * PCELL, 0, 1, grid.height);
+    for (let i = 1; i < FACE_H; i++) ctx.fillRect(0, i * PCELL, grid.width, 1);
+    const s = shown.getContext('2d'), sp = portraitOf(kind), half = shown.width / 2;
+    for (const [i, pal] of [PALETTES.day, PALETTES.night].entries()) { s.fillStyle = pal.bg; s.fillRect(i * half, 0, half, shown.height); pixelsInto(s, sp, pal, i * half + 8, 8, 4); }
+  };
+  let drawing = null;
+  const cellAt = (e) => { const r = grid.getBoundingClientRect(); return [Math.floor(((e.clientX - r.left) / r.width) * FACE_W), Math.floor(((e.clientY - r.top) / r.height) * FACE_H)]; };
+  const put = (e) => {
+    const [x, y] = cellAt(e);
+    if (x < 0 || y < 0 || x >= FACE_W || y >= FACE_H || drawing.cells[y][x] === drawing.ink) return;
+    drawing.cells[y][x] = drawing.ink;
+    setPortrait(drawing.cells, drawing.inks); changed(); paint();
+  };
+  grid.oncontextmenu = (e) => e.preventDefault();
+  grid.onpointerdown = (e) => {
+    remember();
+    const inks = { ...build.portrait?.inks };
+    drawing = { cells: portraitCells(), inks, ink: e.button === 2 || faceEdit.ink === '.' ? '.' : portraitInk(faceEdit.ink, inks) };
+    put(e);
+    try { grid.setPointerCapture(e.pointerId); } catch { /* (no such pointer) */ }
+  };
+  grid.onpointermove = (e) => { if (drawing) put(e); };
+  grid.onpointerup = () => { if (!drawing) return; drawing = null; const h = hist(); if (h.past[h.past.length - 1] === snapshot()) h.past.pop(); redo(); status(); };
+  paint();
+  box.append(grid, shown);
+  const inks = el('div', { className: 'keys inks' });
+  for (const c of [...paints(), '.']) inks.append(el('button', { className: `ink more${c === faceEdit.ink ? ' on' : ''}`, title: c === '.' ? 'erase' : nice(c), style: c === '.' ? '' : `background:${PALETTES.day[NAMED[c]]}`, textContent: c === '.' ? '⌫' : '', onclick: () => { faceEdit.ink = c; redo(); } }));
+  box.append(inks);
+  box.append(el('div', { className: 'keys' }, iconBtn('trash', 'Clear', { title: 'No portrait: its head cut from its side, as before', disabled: !build.portrait, onclick: () => { commit(() => { delete build.portrait; }); redo(); } })));
 }
 

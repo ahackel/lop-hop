@@ -44,6 +44,10 @@ export default {
   },
   chains: {},
   face: { eye: [2.6, -0.4] },
+  portrait: {
+    inks: { o: 'outline', c: 'charcoal', b: 'blueGrey', x: 'black' },
+    rows: ['...oooo...', '..occcco..', '.occcccco.', 'ocbbbbbbco', 'ocbxbbxbco', '.obbxxbbo.', '..oooooo..'],
+  },
   moves: {
     run: {
       gait: {

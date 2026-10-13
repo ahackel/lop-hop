@@ -59,6 +59,10 @@ export default {
     frontNear: { on: 'chest', at: [0.5, 3], thigh: 2, shin: 2, bend: -1 },
   },
   face: { eye: [1, -0.9], nose: [5.2, 0.9] },
+  portrait: {
+    inks: { o: 'outline', b: 'brown', s: 'sand', x: 'black' },
+    rows: ['oo......oo', 'osooooooos', 'obbbbbbbbo', 'obxbbbbxbo', 'obbssssbbo', '.obsxxsbo.', '..oooooo..'],
+  },
   moves: {
     run: {
       gait: {

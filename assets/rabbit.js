@@ -54,6 +54,10 @@ export default {
     mouth: [4, 3],
     frames: { mouth: { shut: { at: [0, 0], rows: ['.'] }, open: { at: [1, 0], rows: ['x', 'x'] }, happy: { at: [0, 0], rows: ['.'] } } },
   },
+  portrait: {
+    inks: { o: 'outline', w: 'white', b: 'beige', x: 'black', p: 'pink' },
+    rows: ['...oooo...', '..owwwwo..', '.owxwwxwo.', 'obwwwwwwbo', 'obwwppwwbo', 'obwwwwwwbo', '.oooooooo.'],
+  },
   moves: {
     run: {
       gait: {

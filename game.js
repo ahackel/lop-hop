@@ -11,7 +11,7 @@
 //   danger     while the next animal chases   escape     … and is left behind at dawn
 //              it (the fox: a wolf)           discovery  … the first time: it is unlocked
 //   power      while a super power lasts      record     past the best score so far
-//                                             alert      knocked out (fanfare: into the high scores)
+//                                             alert      knocked out (fanfare: home, into the high scores)
 //                                             power, powerdown   golden food gives one, and it wears off
 import { StardriftPlayer, openSongZip } from './engine/src/index.js'; // (by path: Safari before 16.4 knows no import maps)
 import { songFor } from './music.js';
@@ -179,7 +179,7 @@ let bag, tossed; // the run's treats, and those flying into the bag (from where 
 let herd, herdT, spits, spitT, drumT; // the yak's stampede (the herd running by), the dromedary's spit (in flight), the gorilla's drumming
 const CLOUDS = [{ x: 60, y: 14 }, { x: 170, y: 28 }, { x: 260, y: 10 }];
 let clouds, sky, hillX, groundX; // the clouds, where the next comes from, how far the hills and the ground have gone (as they were, every run)
-let fresh = null; // a knock-out's new entry in the high scores, to name
+let fresh = null; // a run home's new entry in the high scores, to name (a knock-out: none)
 let rec = null; // the run being written down (see the runs)
 let beat = 0; // the best score when the run started (0: passed, or none to pass)
 const far = () => Math.floor(dist * SCORE_PER_PX); // how far the run went: when night, crows, the chase come
@@ -392,7 +392,7 @@ function sparkle(n, v = 40) {
 }
 
 // dawn: home, the run is over, won. The animal runs off to the right (see update); the chaser, the first time (it joins:
-// unlocked), runs up to the middle of the screen and stays there, else it turns back; into the high scores as from a knock-out
+// unlocked), runs up to the middle of the screen and stays there, else it turns back; into the high scores (only so: a knock-out is not)
 const newChase = () => ({ x: -40, heat: 0, catching: false, phase: 0, body: {} });
 function arrive() {
   const c = hunter(), joins = !unlocked(c) && !AUTO;
@@ -415,9 +415,7 @@ function knockOut(why, said = t(`end.${why}`)) { // (why: tired, caught or bumpe
   endRec(why);
   state = 'ko'; koT = 0; koWhy = said; energy = 0; ducking = duckHeld = false; power = 0;
   if (chase && !chase.caught) chase.leaving = true; // (one that caught it stays)
-  if (!AUTO) fresh = record(kind, score());
-  if (fresh && TOUCH) stage.addEventListener('touchend', nameOnLift);
-  call('sting', fresh ? 'fanfare' : 'alert'); // (into the high scores: a fanfare)
+  call('sting', 'alert'); // (into the high scores only home: see arrive)
   updateMood({ within: 0 });
 }
 

@@ -87,10 +87,10 @@ export const STYLES = {
     key: 'Bb', bpm: 128, swing: 0.4, kick: KICK(90, 0.2, 0.6),
     voices: { lead: { type: 'wave', wave: 'organ', smooth: true, env: { a: 0.02, d: 0.5, s: 0.6, r: 0.25 }, cutoff: 2600, poly: 3, gain: 0.76 } },
     motif: '0 - - 2 4 - - . 5 - 4 - 2 - . . | 0 - - 2 4 - - . 2 - 1 - 0 - - .',
-  },  // from the high mountains: a low gong ringing over long notes, in minor, and a kick
+  },  // from the high mountains: a soft alphorn swelling into long notes, low, in minor, and a kick
   yak: {
     key: 'E', scale: 'minor', bpm: 132, swing: 0.1, octaves: { lead: 4 }, kick: KICK(85, 0.3),
-    voices: { lead: FM(1.4, 2, 1.6, { cutoff: 2500, gain: 0.8 }) },
+    voices: { lead: { type: 'fm', fm: { ratio: 1, index: 1.1, env: 1 }, swell: 0.8, env: { a: 0.05, d: 0.6, s: 0.6, r: 0.3 }, cutoff: 1500, poly: 2, gain: 0.9 } },
     motif: '0 - - - - - - . 4 - - - 3 - - . | 0 - - - - - - . 2 - - - 0 - - .',
   },
   // long-legged: a flute, quick, on wide strides

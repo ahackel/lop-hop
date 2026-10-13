@@ -79,6 +79,8 @@
 //                hurt, ko, happy; mouth: shut, open, happy); inks: its own, any color of the palette by a letter of its
 //                own: { a: 'brown' }
 //   recolor      { name: name }: colors swapped everywhere (the wolf: a grey fox)
+//   portrait     its head from the front, for the high scores (10 × 7 pixels, see face in art.js): { inks: { a letter: a
+//                color by name (outline too) }, rows: ['..o....o..', …] (. nothing) }; none: its head cut from its side
 //   handling     how it is handled on the home screen, by the game's own code (see HANDLING in art.js: what is not here
 //                is as there; the editor's Play mode tries them): held { at (where the hand holds it, from the middle of its
 //                back), sag, tip, hang, settle, most }, squirm { fits, strength, paddle, nod }, dropped { righting, damping,

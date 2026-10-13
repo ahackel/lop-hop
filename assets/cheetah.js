@@ -90,6 +90,10 @@ export default {
   },
   face: { eye: [0.9, -1], nose: [4.6, 1.426] },
   handling: { fed: { upright: 0.04, rears: 0, stretch: 6, nod: 1.3 } },
+  portrait: {
+    inks: { o: 'outline', t: 'tan', h: 'ochre', w: 'white', x: 'black' },
+    rows: ['.o......o.', 'oto....oto', 'othoooohto', 'ottxttxtto', 'otxwxxwxto', '.otwwwwto.', '..oooooo..'],
+  },
   moves: {
     run: {
       gait: {

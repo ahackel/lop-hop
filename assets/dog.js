@@ -64,6 +64,10 @@ export default {
     frontNear: { on: 'chest', at: [1, 2], thigh: 2.75, shin: 2.75, bend: -1 },
   },
   face: { eye: [1.5, -1.5], nose: [5.5, 1] },
+  portrait: {
+    inks: { o: 'outline', w: 'white', t: 'tan', b: 'brown', x: 'black' },
+    rows: ['.oooooooo.', 'obbtwwtbbo', 'obtxwwxtbo', 'obttwwttbo', '.oowxxwoo.', '..owwwwo..', '...oooo...'],
+  },
   moves: {
     run: {
       top: [{ color: 'pink', shapes: [{ on: 'head', ellipse: [3, 4.3, 1, 1.2] }] }],
