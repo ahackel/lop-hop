@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Settings</title>
+<link rel="icon" href="../icons/favicon.png">
+<style>
+  :root {
+    --bg: #f4f2ec; --panel: #fffdf8; --line: #ddd8cc; --ink: #2f2d29; --dim: #8a857a; --accent: #d9632b; --accent-soft: #fbe3d6;
+    --sel: #2b7bd9; --bad: #d6455f;
+    font: 13px/1.4 system-ui, -apple-system, sans-serif; color: var(--ink);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg: #1d1f26; --panel: #262932; --line: #3a3e4a; --ink: #e9e6de; --dim: #9a978f; --accent: #f08a4b; --accent-soft: #4a3326;
+      --sel: #6aa8f0; --bad: #ec6a80; }
+  }
+  :root[data-theme="dark"] { --bg: #1d1f26; --panel: #262932; --line: #3a3e4a; --ink: #e9e6de; --dim: #9a978f; --accent: #f08a4b; --accent-soft: #4a3326;
+    --sel: #6aa8f0; --bad: #ec6a80; }
+  * { box-sizing: border-box; }
+  html { scroll-padding-top: 64px; }
+  body { margin: 0; background: var(--bg); }
+  header { position: sticky; top: 0; z-index: 2; display: flex; gap: 8px; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
+  input, button { font: inherit; color: inherit; }
+  button { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+  button:hover:not(:disabled) { border-color: var(--dim); }
+  button:disabled { opacity: 0.45; cursor: default; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.icon { border: 0; background: none; padding: 0 4px; color: var(--dim); }
+  button.icon:hover { color: var(--accent); }
+  #status { color: var(--dim); margin-left: auto; }
+  #status.dirty { color: var(--accent); }
+  #status.bad { color: var(--bad); }
+  a { color: var(--sel); }
+
+  main { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 24px; padding: 16px; align-items: start; max-width: 1240px; }
+  #toc { position: sticky; top: 64px; display: flex; flex-direction: column; gap: 1px; }
+  #toc .head { font-size: 11px; font-weight: 600; color: var(--dim); text-transform: uppercase; letter-spacing: 0.04em; margin: 10px 8px 4px; }
+  #toc .head:first-child { margin-top: 0; }
+  #toc a { padding: 4px 8px; border-radius: 5px; color: var(--ink); text-decoration: none; display: flex; justify-content: space-between; }
+  #toc a:hover { background: var(--panel); }
+  #toc .n { color: var(--accent); font-size: 9px; }
+  @media (max-width: 760px) { main { grid-template-columns: minmax(0, 1fr); } #toc { display: none; } }
+
+  section { margin-bottom: 28px; }
+  section > h2 { font-size: 16px; margin: 0 0 2px; }
+  section > p.note { margin: 0 0 10px; }
+  .note { color: var(--dim); }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 0 0 6px; margin-bottom: 12px; min-width: 0; }
+  .card.narrow { max-width: 320px; }
+  .card > h3 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--dim); margin: 0; padding: 9px 12px 5px; display: flex; align-items: center; gap: 8px; }
+  .card > h3 .right { margin-left: auto; text-transform: none; letter-spacing: 0; font-weight: normal; }
+  .card > h3 .right button { padding: 2px 8px; font-size: 12px; color: var(--ink); }
+  .when { font-weight: normal; text-transform: none; letter-spacing: 0; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 0 12px; align-items: start; }
+
+  /* a setting, as the editor's inspector has it: its name (drag it), its number in a box as wide as every other */
+  .row { display: grid; grid-template-columns: minmax(0, 1fr) 112px 20px; gap: 8px; align-items: center; padding: 1px 6px 1px 12px; min-height: 30px; }
+  .row .name { color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .name:hover { color: var(--ink); }
+  .row.changed .name { color: var(--accent); }
+  .row .undo { visibility: hidden; }
+  .row.changed .undo { visibility: visible; }
+
+  /* the colors: a swatch each (a role: by day, by night), its name, its hex */
+  .chips { display: grid; grid-template-columns: repeat(auto-fill, minmax(176px, 1fr)); gap: 2px 6px; padding: 0 6px; }
+  .chip { display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 6px; border-radius: 5px; }
+  .chip:hover { background: var(--bg); }
+  .chip .cname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chip.role .swatch + .swatch { margin-left: -9px; }
+  input.swatch { -webkit-appearance: none; appearance: none; flex: none; width: 20px; height: 20px; padding: 0; border: 1px solid rgba(0,0,0,.18); border-radius: 5px; background: none; cursor: pointer; }
+  input.swatch::-webkit-color-swatch-wrapper { padding: 0; } input.swatch::-webkit-color-swatch { border: 0; border-radius: 4px; } input.swatch::-moz-color-swatch { border: 0; border-radius: 4px; }
+  input.hex { width: 62px; height: 22px; border: 1px solid transparent; border-radius: 4px; background: none; padding: 0 4px; font: 11px ui-monospace, monospace; color: var(--dim); outline: none; }
+  input.hex:hover { border-color: var(--line); } input.hex:focus { border-color: var(--sel); color: var(--ink); background: var(--bg); }
+</style>
+</head>
+<body>
+<header>
+  <span id="status"></span>
+  <button id="discard" title="Throw away the changes not saved yet: back to as the files have it" disabled>Discard</button>
+  <button id="save" class="primary" title="Write the changes into the files (⌘S): the colors into assets/palette.js, the numbers into level.js, game.js, tools/course.mjs" disabled>Save</button>
+</header>
+<main>
+  <nav id="toc"></nav>
+  <div id="content"></div>
+</main>
+<script type="module" src="../tools/settings.js"></script>
+<script type="module" src="../tools/nav.js"></script>
+</body>
+</html>

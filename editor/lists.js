@@ -5,7 +5,6 @@ import { inspect } from './inspector.js';
 import { addDot, addGroup, addPaint, addShape, itemDo, layers, many, moveMany, placeOf, rename, setSpikes, swingOff, swingOn, swingable, switchOn, switchesNow, toggle } from './layers.js';
 import { contextMenu, menuBelow } from './menu.js';
 import { html, nothing, render } from './lit/lit-html.js';
-import { listPalette } from './palette.js';
 import { alongOf, geomOf, ownChain, parts, same } from './parts.js';
 import { draw, editing } from './stage.js';
 import { P, also, build, commit, editable, hidden, hide, isGroup, isProp, kind, picked, refresh, sel, view, setAlso, setSel } from './state.js';
@@ -20,12 +19,18 @@ import { addBone, deleteBone, moveOnto, reparentBone, under } from './bones.js';
 const BONES = ['Animal', 'Frame', 'Joints', 'Bones', 'Legs', 'Chains', 'Paws', 'Tails and ears'];
 let renamingSel = null; // (what is being renamed, in its row)
 export let hover = null; // (what is pointed at in the lists: { sels }; its outline on the stage, see drawHandles)
+// Setup's two tabs (see index.html): the one a new pick is in shown; clicked, the other
+const BONE_PICKS = ['rig', 'joint', 'bone', 'leg', 'chain', 'paw', 'frame'];
+let tabFor = null;
+const tab = (t) => { $('left').dataset.tab = t; for (const b of $('leftTabs').querySelectorAll('button')) b.classList.toggle('on', b.dataset.tab === t); };
+for (const b of $('leftTabs').querySelectorAll('button')) b.onclick = () => tab(b.dataset.tab);
+tab('shapes');
 export function listParts() {
+  if (sel !== tabFor) { tabFor = sel; tab(BONE_PICKS.includes(sel.type) && sel.type !== 'rig' ? 'bones' : sel.type === 'rig' ? $('left').dataset.tab : 'shapes'); }
   const bones = $('bones'), shapes = $('shapes'), bt = $('bonesTitle'), playing = view.mode === 'play';
   const note = (text) => html`<p class="note" style="padding:4px 10px">${text}</p>`;
   const filled = (fill) => { const d = el('div'); fill(d); return d; }; // (made by el: put in as it is)
   const show = (b, s = nothing) => { render(b, bones); render(s, shapes); };
-  if (view.mode === 'game') { bt.textContent = 'Palette'; bt.title = 'The game’s colors: everything is drawn in them'; show(html`${filled(listPalette)}`); return; }
   bt.textContent = playing ? 'Play' : 'Bones'; bt.title = playing ? 'What to try on the stage, as the home screen does it, by the game’s own code (the row of animals and the treats it has left out)' : 'The skeleton: what moves';
   if (playing) { show(html`${filled(playHelp)}`, note('Shapes are set in Setup.')); return; }
   if (isProp()) { show(nothing, shapesTable(parts())); return; } // (no bones: their panel hidden, see index.html)

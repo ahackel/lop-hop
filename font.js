@@ -7,10 +7,12 @@
 // seven (the row above, the letter, the row below: Q's tail). It is as wide as the columns it uses (the I a line, the . a dot,
 // the 1 two), a space 2, a pixel between letters.
 export const GLYPHS = {
-  A: '25755', B: '65656', C: '34443', D: '65556', E: '74647', F: '74644', G: '34553', H: '55755', I: '22222', J: '11152', K: '55655', L: '44447', M: 'hrlhh',
-  N: '65555', O: '25552', P: '65644', Q: '0255522', R: '65655', S: '34216', T: '72222', U: '55557', V: '55552', W: 'hhlla', X: '55255', Y: '55222', Z: '71247',
+  // (square like the title's LOP HOP, round corners only where the square letter would be another: D an O, V a U, B an 8,
+  // S a 5; the O is the 0)
+  A: '75755', B: '65656', C: '74447', D: '65556', E: '74647', F: '74644', G: '74557', H: '55755', I: '22222', J: '11157', K: '55655', L: '44447', M: 'hrlhh',
+  N: '75555', O: '75557', P: '75744', Q: '0755572', R: '75655', S: '34716', T: '72222', U: '55557', V: '55552', W: 'hhllv', X: '55255', Y: '55722', Z: '71247',
   0: '75557', 1: '26222', 2: '61247', 3: '61216', 4: '55711', 5: '74616', 6: '34757', 7: '71222', 8: '75757', 9: '75716',
-  Ä: '5257550', Ö: '5255520', Ü: '5055570', // (German: the dots in the row above, clear of the letter's top; the U a row shorter. ß is written SS)
+  Ä: '5075750', Ö: '5075570', Ü: '5055570', // (German: the dots in the row above, a row empty, the letter a row shorter. ß is written SS)
   ' ': '00000', '.': '00002', ':': '02020', '!': '22202', '-': '00700', '/': '1122244', '+': '02720', '<': '12421', '>': '42124', '?': '61202', '(': '1222221', ')': '4222224', ',': '0000022', // (( ) and / the cell's height; the , a line down into the row below)
   '€': '68s86', '$': '2342162', '£': '32727', '¥': '52727', // (for prices, as the App Store writes them; the $ an S with its line through, above and below)
 };

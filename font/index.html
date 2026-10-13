@@ -34,46 +34,28 @@
   .glyphs canvas { flex: none; }
   figcaption { color: var(--dim); font-size: 11px; text-align: center; font-variant-numeric: tabular-nums; }
   figcaption b { color: var(--ink); font-size: 13px; }
-  .glyphs figure.changed { border-color: var(--accent); }
-  .legend { color: var(--dim); }
-  .legend i { display: inline-block; width: 10px; height: 10px; border: 1px solid var(--accent); border-radius: 2px; vertical-align: -1px; margin: 0 3px 0 8px; }
 </style>
 </head>
 <body>
 <header>
   <label>size <input id="size" type="range" min="1" max="12" step="1" value="6"> <span id="sizeout"></span></label>
   <label>grid <input id="grid" type="checkbox"></label>
-  <label>letters <select id="font"><option value="now">now</option><option value="next" selected>suggestion</option></select></label>
 </header>
 <main>
   <section class="card">
     <h2>Try it</h2>
     <p class="note">As the game writes it: in capitals, a pixel between letters. A letter the font lacks is drawn as a space.</p>
     <input id="text" type="text" value="LOP HOP! GROSSE SPRÜNGE ÄÖÜ $4.99 4,99 €" spellcheck="false">
-    <div class="previews">
-      <h3>now</h3><canvas id="preview-now"></canvas>
-      <h3>suggestion</h3><canvas id="preview-next"></canvas>
-    </div>
+    <div class="previews"><canvas id="preview"></canvas></div>
     <p id="missing"></p>
   </section>
   <section class="card">
     <h2 id="count">Every letter</h2>
-    <p class="note legend" id="legend">In the suggestion: <i></i>changed</p>
     <div class="glyphs" id="glyphs"></div>
   </section>
 </main>
 <script type="module">
 import { GLYPHS, ABOVE, BELOW, text, textWidth } from '../font.js';
-
-// A suggestion: square like the title's LOP HOP (game.js LOGO), round corners only where the square letter would be
-// another (D: O, V: U, B: 8, S: 5). O is 0 then, as on the title. Ä and Ö as Ü is: the dots, a row empty, the letter a row
-// shorter (square, a full one's top would touch the dots).
-// Only what differs from GLYPHS (font.js).
-const NEXT = {
-  A: '75755', C: '74447', G: '74557', J: '11157', N: '75555', O: '75557', P: '75744', Q: '0755572', R: '75655',
-  S: '34716', W: 'hhllv', Y: '55722', Ä: '5075750', Ö: '5075570',
-};
-const FONTS = { now: {}, next: NEXT };
 
 const $ = (id) => document.getElementById(id);
 const ink = () => getComputedStyle(document.documentElement).getPropertyValue('--ink').trim();
@@ -97,39 +79,35 @@ function canvasFor(c, w, h, size) {
   return ctx;
 }
 
-// s drawn into canvas c in a font: a pixel of space around its cell; with the grid, the letters' 5 rows marked off from the
+// s drawn into canvas c: a pixel of space around its cell; with the grid, the letters' 5 rows marked off from the
 // rows above and below
-function draw1(c, s, set, size) {
-  const w = Math.max(1, textWidth(s, set)) + 2, ctx = canvasFor(c, w, ABOVE + 5 + BELOW + 2, size);
+function draw1(c, s, size) {
+  const w = Math.max(1, textWidth(s)) + 2, ctx = canvasFor(c, w, ABOVE + 5 + BELOW + 2, size);
   if ($('grid').checked && size >= 3) {
     ctx.fillStyle = accent();
     for (const y of [ABOVE + 1, ABOVE + 6]) ctx.fillRect(0, y * size - 0.5, w * size, 1);
   }
-  text(ctx, s, size, (ABOVE + 1) * size, ink(), 'left', size, set);
+  text(ctx, s, size, (ABOVE + 1) * size, ink(), 'left', size);
 }
 
 function preview() {
   const size = +$('size').value, s = $('text').value;
-  for (const f in FONTS) draw1($(`preview-${f}`), s, FONTS[f], size);
-  const lacks = (set) => [...new Set([...s.toUpperCase()].filter((ch) => !set[ch] && !GLYPHS[ch]))];
-  const name = (l) => l.map((ch) => JSON.stringify(ch)).join(' ');
-  const now = lacks({}), next = lacks(NEXT);
-  $('missing').textContent = [now.length && `not in the font now: ${name(now)}`, next.length && `not in the suggestion: ${name(next)}`].filter(Boolean).join(' · ');
+  draw1($('preview'), s, size);
+  const lacks = [...new Set([...s.toUpperCase()].filter((ch) => !GLYPHS[ch]))];
+  $('missing').textContent = lacks.length ? `not in the font: ${lacks.map((ch) => JSON.stringify(ch)).join(' ')}` : '';
 }
 
 function all() {
-  const size = +$('size').value, box = $('glyphs'), f = $('font').value, set = FONTS[f];
+  const size = +$('size').value, box = $('glyphs');
   box.textContent = '';
-  const chars = [...new Set([...Object.keys(GLYPHS), ...Object.keys(set)])];
+  const chars = Object.keys(GLYPHS);
   $('count').textContent = `Every letter (${chars.length})`;
-  $('legend').hidden = f !== 'next';
   for (const ch of chars) {
     const fig = document.createElement('figure'), c = document.createElement('canvas'), cap = document.createElement('figcaption');
-    draw1(c, ch, set, size);
-    cap.innerHTML = `<b></b><br>${textWidth(ch, set)} wide`;
+    draw1(c, ch, size);
+    cap.innerHTML = `<b></b><br>${textWidth(ch)} wide`;
     cap.firstChild.textContent = ch === ' ' ? 'space' : ch;
-    fig.title = `'${ch}': ${set[ch] || GLYPHS[ch]}${set[ch] && GLYPHS[ch] ? ` (now ${GLYPHS[ch]})` : ''}`;
-    if (set[ch]) fig.classList.add('changed');
+    fig.title = `'${ch}': ${GLYPHS[ch]}`;
     fig.append(c, cap);
     box.append(fig);
   }
@@ -142,7 +120,6 @@ function draw() {
 }
 $('size').addEventListener('input', draw);
 $('grid').addEventListener('change', draw);
-$('font').addEventListener('change', all);
 $('text').addEventListener('input', preview);
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
 draw();

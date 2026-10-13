@@ -1,107 +1,92 @@
-// The balance page (npm run dev, then /balance, balance/index.html): every animal's dials (art.js) and the constants all the
+// The balance page (npm run dev, then /balance, balance/index.html): the animals in the order they unlock in, each
+// place's difficulty, each animal's feel (assets/animals.js: see setAnimals in art.js), and the constants all the
 // animals share (level.js; MEAL: game.js), changed with sliders, and what they come to, worked out by the game's own
 // code (tools/course.mjs, in balance-worker.js): how hard it is to get the next animal (away from it till the first
 // dawn, for a player who misses now and then), how long a run lasts for a player who never misses (eating all the
 // food, or 4 in 5), the score it reaches, how fast it goes, how much warning an obstacle gives; for all the animals in
-// a row (the ladder: is each harder than the one before?) and for one, day by day. What was there before shows faintly
-// behind. The changes are kept in this browser (not yet written to the files).
-import { ANIMALS, PALETTES, FOOD, animal } from '../art.js';
+// a row (the ladder: is each harder than the one before? drag an animal to another place in it) and for one, day by
+// day. What was there before shows faintly behind. The changes are kept in this browser till Save writes them into the
+// files (POST /animals, /consts: see serve.mjs).
+import { ANIMALS, ORDER, PALETTES, FOOD, JUMP, GRAVITY, animal, setAnimals } from '../art.js';
+import animalsFile from '../assets/animals.js';
 import { chaserOf } from '../level.js';
-import { readConsts } from './balance-format.js';
+import { MAIN, SHARED, SHARED_BY_KEY, byFile, inFiles } from './shared.js';
 
-const KINDS = Object.keys(ANIMALS);
+const KINDS = ORDER; // (the animals in order, as the page has them now: see roster)
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => `&${{ '&': 'amp', '<': 'lt', '>': 'gt', '"': 'quot' }[c]};`);
 const decimals = (step) => (String(step).split('.')[1] || '').length;
 const fmt = (v, step) => (+v).toFixed(decimals(step));
 const same = (a, b) => Math.abs(a - b) < 1e-9;
+const round3 = (v) => +v.toFixed(3);
 const nameOf = (k) => ANIMALS[k].name.toLowerCase();
 
 // ------------------------------------------------------------------------------------------------------ the dials
-// an animal's (see tune in art.js), and the shared ones: [name, label, min, max, step, what it does] (file: level.js
-// unless said)
-const DIALS = [
-  ['mult', 'Score ×', 0.5, 5, 0.01, 'its points count this many times'],
-  ['speed', 'Speed', 0.8, 1.8, 0.005, 'start and top speed'],
-  ['jump', 'Jump', 0.8, 1.3, 0.01, 'how fast it leaves the ground'],
-  ['gravity', 'Gravity', 0.7, 1.5, 0.01, 'how fast it falls back'],
-  ['drain', 'Drain', 0.6, 2.2, 0.005, 'energy lost a second'],
-  ['meals', 'Meals', 0.4, 1.3, 0.002, 'how often food comes'],
-  ['bump', 'Bump', 0.6, 2.2, 0.005, 'what a bump costs'],
-  ['early', 'Early', 0, 500, 25, 'crows and branches this many points sooner'],
-  ['packs', 'Packs', 0.5, 3.5, 0.05, 'obstacles in groups'],
-  ['tight', 'Tight', 0.5, 1.2, 0.005, 'gaps between obstacles (less: closer)'],
-].map(([key, label, min, max, step, help]) => ({ key, label, min, max, step, help }));
-const SHARED = [
-  ['Speed', [
-    ['START_SPEED', 'Start', 60, 200, 5, 'px/s as a run starts'],
-    ['ACCEL', 'Accel', 0.5, 8, 0.1, 'how quickly it speeds up as it runs'],
-    ['MAX_SPEED', 'Top', 150, 400, 5, 'top speed on the first day (px/s)'],
-    ['DAY_SPEED', 'Day speed', 0, 60, 1, 'top speed added every day of hardness'],
-    ['KNEE', 'Knee', 200, 450, 5, 'past this, the speed rises ever more slowly…'],
-    ['TOP', 'Ceiling', 300, 600, 5, '…never reaching this'],
-    ['CHASE', 'Chase', 1, 1.4, 0.01, 'the world goes this much faster while chased'],
-  ]],
-  ['Days and nights', [
-    ['DAY', 'Day', 400, 3000, 50, 'a day’s run (points)'],
-    ['NIGHT', 'Night', 200, 2000, 50, 'a night’s run (points, times the animal’s speed)'],
-    ['HUNT', 'Hunt', 0, 600, 10, 'the chaser comes this far into the night'],
-    ['HEAD', 'Head start', 0, 0.3, 0.005, 'each animal after the rabbit starts this much harder (days)'],
-  ]],
-  ['Obstacles', [
-    ['DAY_TIGHT', 'Day tight', 0, 0.2, 0.005, 'gaps closer every day…'],
-    ['MIN_TIGHT', 'Min tight', 0.3, 1, 0.01, '…down to this'],
-    ['DAY_CROWS', 'Day crows', 0, 0.1, 0.005, 'more crows every day (branches twice as many)'],
-    ['MOST_CROWS', 'Most crows', 0, 1, 0.01, 'at most this share of obstacles crows'],
-    ['MOST_BRANCHES', 'Most branches', 0, 1, 0.01, '… and branches'],
-    ['DAY_PACKS', 'Day packs', 0, 1, 0.01, 'packs more often every day'],
-    ['BRANCHES_FROM', 'Branches from', 0, 1000, 10, 'points into a run'],
-    ['CROWS_FROM', 'Crows from', 0, 1000, 10, 'points into a run'],
-    ['REACT', 'React', 0.05, 0.4, 0.01, 'the least time to act after landing (s)'],
-  ]],
-  ['Energy and food', [
-    ['DRAIN', 'Drain', 0.5, 5, 0.05, 'energy lost a second (of 100)'],
-    ['DAY_DRAIN', 'Day drain', 0, 1, 0.01, 'more tiring every day'],
-    ['DAY_FOOD', 'Day food', 0, 0.2, 0.005, 'food rarer every day…'],
-    ['LEAST_FOOD', 'Least food', 0, 1, 0.01, '…down to this'],
-    ['MEAL', 'Meal', 4, 30, 1, 'energy from one food', 'game.js'],
-  ]],
-  ['Bumps and the chase', [
-    ['BUMP', 'Bump', 5, 60, 1, 'energy a bump costs (times the animal’s bump)', 'game.js'],
-    ['RECOVER', 'Recover', 1, 15, 0.5, 'seconds the chaser takes to fall back after a bump (a second bump before: caught)', 'game.js'],
-    ['DAY_RECOVER', 'Day recover', 0, 5, 0.25, 'seconds more every day of hardness', 'game.js'],
-  ]],
-  ['Golden food', [
-    ['GOLD_FIRST', 'First', 0, 1000, 10, 'the first some this many points in'],
-    ['DAY_GOLD', 'Day gold', 0, 0.5, 0.01, 'rarer every day'],
-  ]],
-].map(([group, items]) => ({ group, items: items.map(([key, label, min, max, step, help, file = 'level.js']) => ({ key, label, min, max, step, help, file })) }));
-const SHARED_BY_KEY = Object.fromEntries(SHARED.flatMap((g) => g.items.map((d) => [d.key, d])));
-const DIAL_BY_KEY = Object.fromEntries(DIALS.map((d) => [d.key, d]));
+// [name, label, min, max, step, what it does, unit]: a place's (the difficulty of the n-th animal: see tune in art.js),
+// an animal's own (its feel: it takes them to any place), the shared ones (file: level.js unless said)
+const dial = ([key, label, min, max, step, help, unit = '']) => ({ key, label, min, max, step, help, unit });
+const PLACE = [
+  ['mult', 'Score', 0.5, 5, 0.01, 'its points count this many times', '×'],
+  ['speed', 'Speed', 0.8, 1.8, 0.005, 'start and top speed', '×'],
+  ['drain', 'Drain', 0.6, 2.2, 0.005, 'energy lost a second', '×'],
+  ['meals', 'Meals', 0.4, 1.3, 0.002, 'how often food comes', '×'],
+  ['bump', 'Bump', 0.6, 2.2, 0.005, 'what a bump costs', '×'],
+  ['early', 'Early', 0, 500, 25, 'crows and branches come this many points sooner', 'pts'],
+  ['packs', 'Packs', 0.5, 3.5, 0.05, 'obstacles in groups, this many times as often', '×'],
+  ['tight', 'Tight', 0.5, 1.2, 0.005, 'the gaps between obstacles (less: closer)', '×'],
+].map(dial);
+const FEEL = [
+  ['jump', 'Jump', 0.8, 1.3, 0.01, 'how fast it leaves the ground', '×'],
+  ['gravity', 'Gravity', 0.7, 1.5, 0.01, 'how fast it falls back', '×'],
+].map(dial);
+const DIFFICULTY = dial(['difficulty', 'Difficulty', 0, 120, 1, '', '%']);
+const HEIGHT = dial(['height', 'Jump height', 20, 60, 0.5, 'how high its feet get, the jump held', 'px']);
+const AIR = dial(['air', 'Air time', 0.25, 0.75, 0.005, 'how long a held jump keeps it off the ground', 's']);
 
-const ORIG = Object.fromEntries(KINDS.map((k) => [k, Object.fromEntries(DIALS.map((d) => [d.key, ANIMALS[k][d.key]]))]));
-const [levelSrc, courseSrc, gameSrc] = await Promise.all(['../level.js', './course.mjs', '../game.js'].map((p) => fetch(new URL(p, import.meta.url)).then((r) => r.text())));
-const DEFAULTS = { ...readConsts(gameSrc), ...readConsts(levelSrc), MEAL: readConsts(courseSrc).MEAL };
+// as in the files: the animals (in order, each its feel), the places (each its dials), the shared constants
+const FILE = JSON.parse(JSON.stringify(animalsFile)), FILE_ORDER = FILE.animals.map((a) => a.kind), N = FILE.places.length;
+const ORIG_FEEL = Object.fromEntries(FILE.animals.map((a) => [a.kind, { jump: a.jump, gravity: a.gravity }]));
+const DEFAULTS = await inFiles();
 const SKILLS = [0.03, 0.06, 0.12]; // (the miss rates the worker tries: see unlocking in balance-worker.js)
 const pct = (v) => `${(v * 100).toFixed(v < 0.1 ? 1 : 0)}%`;
 const oneIn = (q) => (q > 0 ? `1 in ${Math.round(1 / q)}` : 'none');
 
-// the changes: { dials: { kind: { key: v } }, shared: { NAME: v } }, kept in this browser
+// the changes, kept in this browser: { order: the kinds (null: as in the file), feel: { kind: { key: v } },
+// places: { n: { key: v } }, shared: { NAME: v } } (kept before as dials by animal: each its feel, its place's)
 const STORE = 'lop.balance';
-let edits = { dials: {}, shared: {} };
+const none = () => ({ order: null, feel: {}, places: {}, shared: {} });
+let edits = none();
 try {
-  const e = JSON.parse(localStorage.getItem(STORE));
-  for (const k in e?.dials || {}) for (const key in e.dials[k]) if (ORIG[k] && DIAL_BY_KEY[key] && !same(e.dials[k][key], ORIG[k][key])) (edits.dials[k] ||= {})[key] = +e.dials[k][key];
-  for (const n in e?.shared || {}) if (SHARED_BY_KEY[n] && !same(e.shared[n], DEFAULTS[n])) edits.shared[n] = +e.shared[n];
+  const e = JSON.parse(localStorage.getItem(STORE)) || {}, isFeel = (key) => FEEL.some((d) => d.key === key);
+  if (Array.isArray(e.order) && e.order.length === N && FILE_ORDER.every((k) => e.order.includes(k))) edits.order = e.order;
+  const order = edits.order || FILE_ORDER;
+  for (const k in e.dials || {}) for (const key in e.dials[k]) (isFeel(key) ? ((edits.feel[k] ||= {})[key] = +e.dials[k][key]) : order.includes(k) && ((edits.places[order.indexOf(k)] ||= {})[key] = +e.dials[k][key]));
+  for (const k in e.feel || {}) if (ORIG_FEEL[k]) for (const key in e.feel[k]) if (isFeel(key)) (edits.feel[k] ||= {})[key] = +e.feel[k][key];
+  for (const i in e.places || {}) if (FILE.places[i]) for (const key in e.places[i]) if (PLACE.some((d) => d.key === key)) (edits.places[i] ||= {})[key] = +e.places[i][key];
+  for (const n in e.shared || {}) if (SHARED_BY_KEY[n] && !same(e.shared[n], DEFAULTS[n])) edits.shared[n] = +e.shared[n];
 } catch { /* none */ }
 const keep = () => { try { localStorage.setItem(STORE, JSON.stringify(edits)); } catch { /* no storage */ } };
-const dialOf = (k, key) => edits.dials[k]?.[key] ?? ORIG[k][key];
+const feelOf = (k) => ({ ...ORIG_FEEL[k], ...edits.feel[k] });
+const placeOf = (i) => ({ ...FILE.places[i], ...edits.places[i] });
 const sharedOf = (n) => edits.shared[n] ?? DEFAULTS[n];
-const dialsNow = () => Object.fromEntries(KINDS.map((k) => [k, { ...ORIG[k], ...edits.dials[k] }]));
-const changes = () => Object.values(edits.dials).reduce((t, d) => t + Object.keys(d).length, 0) + Object.keys(edits.shared).length;
+// the animals as the page has them (the file's, as changed): what the game's code is given (setAnimals; the worker's too)
+const roster = () => ({ animals: (edits.order || FILE_ORDER).map((k) => ({ ...FILE.animals.find((a) => a.kind === k), ...feelOf(k) })), places: FILE.places.map((_, i) => placeOf(i)) });
+const count = (o) => Object.values(o).reduce((t, d) => t + Object.keys(d).length, 0);
+const changes = () => (edits.order ? 1 : 0) + count(edits.feel) + count(edits.places) + Object.keys(edits.shared).length;
+setAnimals(roster());
+
+// a place's difficulty: where its dials are between the first place's and the last's (as in the file), on average (0:
+// the first's, 1: the last's); set: every dial put there on that line
+const linear = PLACE.filter((d) => !same(FILE.places[0][d.key], FILE.places[N - 1][d.key]));
+const levelOf = (p) => linear.reduce((t, d) => t + (p[d.key] - FILE.places[0][d.key]) / (FILE.places[N - 1][d.key] - FILE.places[0][d.key]), 0) / linear.length;
+// an animal's feel as a player sees it: how high a held jump gets it (px), how long it is up (s); and back
+const heightOf = (f) => (JUMP * f.jump) ** 2 / (2 * GRAVITY * f.gravity);
+const airOf = (f) => (2 * JUMP * f.jump) / (GRAVITY * f.gravity);
+const feelFrom = (h, t) => ({ jump: round3((4 * h) / (t * JUMP)), gravity: round3((8 * h) / (t * t * GRAVITY)) });
 
 let sel = KINDS.includes(localStorage.getItem(`${STORE}.kind`)) ? localStorage.getItem(`${STORE}.kind`) : 'rabbit';
-let metric = localStorage.getItem(`${STORE}.metric`) || 'next';
+let metric = localStorage.getItem(`${STORE}.metric`) || 'difficulty';
+let fine = localStorage.getItem(`${STORE}.fine`) === '1'; // (⚙: the raw dials too)
 const view = () => (location.hash === '#shared' ? 'shared' : 'animals');
 
 // ----------------------------------------------------------------------------------------------- the numbers
@@ -119,7 +104,7 @@ baseWorker.onmessage = ({ data }) => {
   if (data.kind && mirror) { now[data.kind] = data.m; pending.delete(data.kind); }
   if (data.kind || data.error) redraw();
 };
-baseWorker.postMessage({ dials: ORIG, shared: {}, kinds: firstSel(KINDS) });
+baseWorker.postMessage({ roster: FILE, shared: {}, kinds: firstSel(KINDS) });
 
 let live = null, busy = false, timer = 0;
 function recompute(kinds) {
@@ -139,15 +124,64 @@ function recompute(kinds) {
       };
     }
     busy = true;
-    live.postMessage({ dials: dialsNow(), shared: edits.shared, kinds: firstSel(pending) });
+    live.postMessage({ roster: roster(), shared: edits.shared, kinds: firstSel(pending) });
   }, 120);
 }
 
 function status() {
   const s = $('status'), n = pending.size;
-  s.textContent = n ? `working out ${n === 1 ? nameOf([...pending][0]) : `${KINDS.length - n} of ${KINDS.length}`}…` : changes() ? `${changes()} change${changes() > 1 ? 's' : ''}, kept in this browser` : 'as in the files';
+  s.textContent = n ? `working out ${n === 1 ? nameOf([...pending][0]) : `${KINDS.length - n} of ${KINDS.length}`}…` : changes() ? `${changes()} change${changes() > 1 ? 's' : ''}, not saved yet` : 'as in the files';
   s.classList.toggle('busy', !!n);
-  $('resetAll').disabled = !changes();
+  $('resetAll').disabled = $('save').disabled = !changes();
+}
+
+// ------------------------------------------------------------------------------------------------ the changes made
+// each through here: kept, the game's code given the animals as they are now, worked out again for those it touches
+function changed(kinds) { keep(); setAnimals(roster()); recompute(kinds); }
+function setPlace(i, key, v, again = true) {
+  const e = (edits.places[i] ||= {});
+  if (same(v, FILE.places[i][key])) delete e[key]; else e[key] = v;
+  if (!Object.keys(e).length) delete edits.places[i];
+  if (again) changed([KINDS[i]]);
+}
+function setLevel(i, h) {
+  for (const d of PLACE) {
+    const a = FILE.places[0][d.key], z = FILE.places[N - 1][d.key];
+    if (!same(a, z)) setPlace(i, d.key, snap(d, a + (z - a) * h), false);
+  }
+  changed([KINDS[i]]);
+}
+function setFeel(k, f) {
+  const e = {};
+  for (const d of FEEL) if (!same(f[d.key], ORIG_FEEL[k][d.key])) e[d.key] = f[d.key];
+  if (Object.keys(e).length) edits.feel[k] = e; else delete edits.feel[k];
+  changed([k]);
+}
+// k moved to before the one at place `to` (KINDS.length: the end); each keeps its feel, the places their dials
+function moveTo(k, to) {
+  const list = [...KINDS], from = list.indexOf(k);
+  if (to === from || to === from + 1) return;
+  list.splice(from, 1); list.splice(to > from ? to - 1 : to, 0, k);
+  edits.order = list.every((x, i) => x === FILE_ORDER[i]) ? null : list;
+  changed(KINDS);
+  left();
+}
+const snap = (d, v) => +Math.min(d.max, Math.max(d.min, Math.round(v / d.step) * d.step)).toFixed(decimals(d.step));
+
+// written into the files (the animals; the shared constants, each into the files it is in), then the page anew
+async function save() {
+  const post = async (url, body) => { const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); if (!r.ok) throw new Error(await r.text()); return r.text(); };
+  try {
+    const said = [];
+    if (edits.order || count(edits.feel) || count(edits.places)) said.push(await post('/animals', roster()));
+    const into = byFile(edits.shared);
+    if (Object.keys(into).length) said.push(await post('/consts', into));
+    edits = none(); keep();
+    $('status').textContent = `${said.join(' · ')}: reloading…`;
+    setTimeout(() => location.reload(), 500);
+  } catch (e) {
+    $('status').textContent = `not saved: ${e.message === 'Failed to fetch' ? 'is the dev server running? (npm run dev)' : e.message}`;
+  }
 }
 
 // ------------------------------------------------------------------------------------------------------- pictures
@@ -172,11 +206,14 @@ function foodPic(k) {
 }
 
 // --------------------------------------------------------------------------------------------------------- ladder
-// what the ladder shows: the bar, and a dot (if any), from an animal's numbers; up / down: which way it should go
-// from one animal to the next (harder), so one that goes the other way is marked
+// what the ladder shows: the bar, and a dot (if any), from an animal's numbers (place: from its place's dials, as
+// now and as in the file); up / down: which way it should go from one animal to the next (harder), so one that goes
+// the other way is marked
 const days = (v) => v ?? 12; // (null: not within 12 days)
 const daysText = (v) => (v == null ? '12+' : v.toFixed(1));
 const METRICS = {
+  difficulty: { label: 'Difficulty', place: true, text: (v) => `${Math.round(v)}%`, expect: 'up',
+    note: 'each place’s difficulty (0: the first’s dials, 100%: the last’s). Drag a bar up or down to set it; drag an animal sideways to another place' },
   next: { label: 'Getting the next one', bar: (m) => m.next.half * 100, text: (v) => `${v.toFixed(1)}%`, expect: 'down',
     note: 'how many obstacles a player can run into (at the rabbit’s first speed; more when faster) and still get home at dawn (away from the next animal), half the time' },
   nextChance: { label: 'Chance to get home', bar: (m) => m.next.chance[1] * 100, dot: (m) => m.next.chance[0] * 100, text: (v) => `${Math.round(v)}%`, expect: 'down',
@@ -185,14 +222,14 @@ const METRICS = {
     note: 'bars: days a player who never misses lasts, eating all the food; dots: eating 4 in 5' },
   score: { label: 'Score reached', bar: (m) => (days(m.some) - 1) * m.cycle * m.mult, text: (v) => Math.round(v / 100) / 10 + 'k', expect: null,
     note: 'the score where energy runs out, eating 4 in 5 (distance × the animal’s score multiplier)' },
-  speed: { label: 'Speed, day 1', bar: (m) => m.days[0].speed, text: (v) => Math.round(v), expect: 'up', note: 'how fast the world goes on the first day, on average (px/s)' },
-  sees: { label: 'Warning, day 2', bar: (m) => m.days[1].sees, text: (v) => v.toFixed(2), expect: 'down', note: 'seconds an obstacle is on the screen before it reaches the animal, on day 2' },
-  every: { label: 'Obstacles, day 2', bar: (m) => m.days[1].every, text: (v) => v.toFixed(2), expect: 'down', note: 'an obstacle every so many seconds on day 2' },
-  jump: { label: 'Jump height', bar: (m) => m.jumpH, text: (v) => Math.round(v), expect: null, note: 'how high its feet get, the jump held (px)' },
+  speed: { label: 'Speed, day 1', bar: (m) => m.days[0].speed, text: (v) => `${Math.round(v)} px/s`, expect: 'up', note: 'how fast the world goes on the first day, on average' },
+  sees: { label: 'Warning, day 2', bar: (m) => m.days[1].sees, text: (v) => `${v.toFixed(2)} s`, expect: 'down', note: 'how long an obstacle is on the screen before it reaches the animal, on day 2' },
+  every: { label: 'Obstacles, day 2', bar: (m) => m.days[1].every, text: (v) => `${v.toFixed(2)} s`, expect: 'down', note: 'an obstacle every so many seconds on day 2' },
+  jump: { label: 'Jump height', bar: (m) => m.jumpH, text: (v) => `${Math.round(v)} px`, expect: null, note: 'how high its feet get, the jump held' },
 };
 const metricSel = $('metric');
 metricSel.innerHTML = Object.entries(METRICS).map(([k, m]) => `<option value="${k}">${m.label}</option>`).join('');
-if (!METRICS[metric]) metric = 'next';
+if (!METRICS[metric]) metric = 'difficulty';
 metricSel.value = metric;
 metricSel.onchange = () => { metric = metricSel.value; localStorage.setItem(`${STORE}.metric`, metric); redraw(); };
 
@@ -206,12 +243,15 @@ function outOfOrder(M, vals) { // the animals that go the wrong way from the one
   return KINDS.filter((k, i) => i > 0 && vals[i] != null && vals[i - 1] != null && (M.expect === 'down' ? vals[i] >= vals[i - 1] - 1e-9 && vals[i] > 0.05 : vals[i] <= vals[i - 1] + 1e-9));
 }
 
+let lad = {}, grab = null; // (the ladder as last drawn: where its columns are, its scale; grab: an animal being dragged)
 function ladder() {
   const M = METRICS[metric], CW = 44, L = 40, TOP = 16, CH = 170, H = TOP + CH + 48, Wd = L + KINDS.length * CW + 4;
   const val = (src, f) => KINDS.map((k) => (src[k] && f ? f(src[k]) : null));
-  const bars = val(now, M.bar), dots = val(now, M.dot), baseBars = val(base, M.bar), baseDots = val(base, M.dot);
-  const max = niceMax(Math.max(1e-6, ...[...bars, ...dots, ...baseBars, ...baseDots].filter((v) => v != null)) * 1.08);
+  const bars = M.place ? KINDS.map((_, i) => levelOf(placeOf(i)) * 100) : val(now, M.bar), dots = M.place ? [] : val(now, M.dot);
+  const baseBars = M.place ? KINDS.map((_, i) => levelOf(FILE.places[i]) * 100) : val(base, M.bar), baseDots = M.place ? [] : val(base, M.dot);
+  const max = grab?.max ?? niceMax(Math.max(1e-6, ...[...bars, ...dots, ...baseBars, ...baseDots].filter((v) => v != null)) * 1.08);
   const y = (v) => TOP + CH - (v / max) * CH, cx = (i) => L + i * CW + CW / 2;
+  lad = { L, CW, TOP, CH, max };
   const warn = new Set(outOfOrder(M, bars));
   let s = '';
   for (let t = 0; t <= 4; t++) {
@@ -219,9 +259,9 @@ function ladder() {
     s += `<line x1="${L}" x2="${Wd}" y1="${y(v)}" y2="${y(v)}" stroke="var(--grid)"/><text x="${L - 4}" y="${y(v) + 3}" text-anchor="end">${M.text(v)}</text>`;
   }
   KINDS.forEach((k, i) => {
-    const x = L + i * CW, b = bars[i], bb = baseBars[i], stale = pending.has(k);
-    const title = `${nameOf(k)}: ${b == null ? '…' : M.text(b)}${bb != null && b != null && Math.abs(b - bb) > 1e-6 ? ` (was ${M.text(bb)})` : ''}`;
-    s += `<g class="col" data-k="${k}"><title>${esc(title)}</title><rect class="hl" x="${x}" y="0" width="${CW}" height="${H}" fill="${k === sel ? 'var(--sel)' : 'transparent'}"/>`;
+    const x = L + i * CW, b = bars[i], bb = baseBars[i], stale = !M.place && pending.has(k);
+    const title = `${nameOf(k)}: ${b == null ? '…' : M.text(b)}${bb != null && b != null && Math.abs(b - bb) > 1e-6 ? ` (was ${M.text(bb)})` : ''} · drag it sideways to another place${M.place ? ', its bar up or down' : ''}`;
+    s += `<g class="col${grab?.k === k && grab.how === 'move' ? ' dragging' : ''}" data-k="${k}"><title>${esc(title)}</title><rect class="hl" x="${x}" y="0" width="${CW}" height="${H}" fill="${k === sel ? 'var(--sel)' : 'transparent'}"/>`;
     if (bb != null) s += `<rect x="${cx(i) - 13}" y="${y(bb)}" width="26" height="${TOP + CH - y(bb)}" fill="none" stroke="var(--dim)" stroke-dasharray="3 2" rx="2"/>`;
     if (b != null) {
       s += `<rect x="${cx(i) - 11}" y="${y(b)}" width="22" height="${TOP + CH - y(b)}" rx="2" fill="${warn.has(k) ? 'var(--warn)' : 'var(--bar)'}" opacity="${stale ? 0.35 : 1}"/>`;
@@ -241,6 +281,7 @@ function ladder() {
     dots.forEach((v, i) => { if (v != null) s += `<circle cx="${cx(i)}" cy="${y(v)}" r="3" fill="var(--ink)" pointer-events="none"/>`; });
   }
   s += `<line x1="${L}" x2="${Wd}" y1="${TOP + CH}" y2="${TOP + CH}" stroke="var(--dim)"/>`;
+  if (grab?.how === 'move' && grab.to != null) s += `<line x1="${L + grab.to * CW}" x2="${L + grab.to * CW}" y1="0" y2="${H}" stroke="var(--accent)" stroke-width="3" pointer-events="none"/>`;
   const svg = $('ladder');
   svg.setAttribute('viewBox', `0 0 ${Wd} ${H}`);
   svg.innerHTML = s;
@@ -251,87 +292,121 @@ function ladder() {
     ${M.expect ? `<span class="key"><span class="sw" style="background:var(--warn)"></span>${M.expect === 'down' ? 'not lower' : 'not higher'} than the animal before</span>` : ''}
     ${ws.length ? `<span class="warns">Out of order:${ws.map((k) => `<button data-k="${k}">${esc(nameOf(k))}</button>`).join('')}</span>` : M.expect && !pending.size ? '<span class="note">Every animal harder than the one before.</span>' : ''}`;
 }
-$('ladder').addEventListener('click', (e) => { const g = e.target.closest('[data-k]'); if (g) select(g.dataset.k); });
+// on the ladder: a click picks an animal; dragged sideways it goes to another place (where the line is), its bar
+// dragged up or down (Difficulty) sets its place's difficulty
+const ladderAt = (e) => { const svg = $('ladder'), r = svg.getBoundingClientRect(), vb = svg.viewBox.baseVal; return [((e.clientX - r.left) * vb.width) / r.width, ((e.clientY - r.top) * vb.height) / r.height]; };
+$('ladder').addEventListener('pointerdown', (e) => {
+  const g = e.target.closest('[data-k]');
+  if (!g || e.button) return;
+  const [x, y] = ladderAt(e);
+  grab = { k: g.dataset.k, x, y, how: null, max: lad.max };
+  $('ladder').setPointerCapture(e.pointerId);
+});
+$('ladder').addEventListener('pointermove', (e) => {
+  if (!grab) return;
+  const [x, y] = ladderAt(e);
+  if (!grab.how && Math.hypot(x - grab.x, y - grab.y) > 5) grab.how = METRICS[metric].place && grab.y < lad.TOP + lad.CH && Math.abs(y - grab.y) > Math.abs(x - grab.x) ? 'level' : 'move';
+  if (grab.how === 'move') { grab.to = Math.max(0, Math.min(KINDS.length, Math.round((x - lad.L) / lad.CW))); ladder(); }
+  if (grab.how === 'level') { setLevel(KINDS.indexOf(grab.k), snap(DIFFICULTY, ((lad.TOP + lad.CH - y) / lad.CH) * grab.max) / 100); if (grab.k === sel) syncRows(); ladder(); }
+});
+$('ladder').addEventListener('pointerup', () => {
+  if (!grab) return;
+  const g = grab;
+  grab = null;
+  if (!g.how) select(g.k);
+  else if (g.how === 'move' && g.to != null) moveTo(g.k, g.to);
+  redraw();
+});
+$('ladder').addEventListener('pointercancel', () => { grab = null; redraw(); });
 $('ladderNote').addEventListener('click', (e) => { const b = e.target.closest('button[data-k]'); if (b) select(b.dataset.k); });
 
 // ---------------------------------------------------------------------------------------------------- the sliders
-// a dial: its slider over a strip with where every animal has it (the ones before and after marked), and where it was
+// a dial: its slider over a strip with where every animal has it (the ones before and after marked), and where it was;
+// its number in a box, its unit in it
 function dialRow(d, value, orig, strip) {
   const pos = (v) => `${((Math.min(d.max, Math.max(d.min, v)) - d.min) / (d.max - d.min)) * 100}%`;
   let marks = '';
   for (const m of strip) marks += `<line x1="${pos(m.v)}" x2="${pos(m.v)}" y1="${m.c ? 3 : 7}" y2="${m.c ? 23 : 19}" stroke="${m.c || 'var(--dim)'}" stroke-width="${m.c ? 2 : 1}" opacity="${m.c ? 1 : 0.55}"><title>${esc(m.t)}</title></line>`;
-  marks += `<circle cx="${pos(orig)}" cy="13" r="5" fill="none" stroke="var(--dim)" stroke-width="1.5"><title>as it was: ${fmt(orig, d.step)}</title></circle>`;
-  return `<div class="dial${same(value, orig) ? '' : ' changed'}" data-key="${d.key}">
-    <div class="top"><span class="label">${esc(d.label)}</span><span class="help">${esc(d.help)}${d.file ? ` <span class="file">${d.key} · ${d.file}</span>` : ''}</span>
+  marks += `<circle cx="${pos(orig)}" cy="13" r="5" fill="none" stroke="var(--dim)" stroke-width="1.5"><title>as it was: ${fmt(orig, d.step)} ${d.unit}</title></circle>`;
+  return `<div class="dial${same(value, orig) ? '' : ' changed'}" data-key="${d.key}" title="${esc(`${d.label}: ${d.help}`)}">
+    <div class="top"><span class="label">${esc(d.label)}</span><span class="help">${esc(d.help)}${d.file ? ` <span class="file">${d.key} · ${d.files.join(', ')}</span>` : ''}</span>
       <span class="was" title="back to as it was">was ${fmt(orig, d.step)} ↺</span>
-      <input type="number" min="${d.min}" max="${d.max}" step="${d.step}" value="${fmt(value, d.step)}"></div>
+      <label class="numBox"><input type="number" min="${d.min}" max="${d.max}" step="${d.step}" value="${fmt(value, d.step)}">${d.unit ? `<span class="unit">${esc(d.unit)}</span>` : ''}</label></div>
     <div class="track"><svg>${marks}</svg><input type="range" min="${d.min}" max="${d.max}" step="${d.step}" value="${value}"></div>
   </div>`;
 }
 
+// the rows shown, by their dial's key: { d, now(), was(), set(v) }
+let rows = {};
+const row = (d, now, was, set, strip = []) => { rows[d.key] = { d, now, was, set }; return dialRow(d, now(), was(), strip); };
+// the others' values on a row's strip: the animal before and after marked
+const stripOf = (d, f) => {
+  const i = KINDS.indexOf(sel);
+  return KINDS.map((k, j) => ({ k, j })).filter(({ k }) => k !== sel).map(({ k, j }) => ({ v: f(k, j), t: `${nameOf(k)}: ${fmt(f(k, j), d.step)} ${d.unit}`, c: j === i - 1 ? 'var(--prev)' : j === i + 1 ? 'var(--next)' : null })).sort((a, b) => !!a.c - !!b.c);
+};
+const gear = (on) => `<button class="gear${on ? ' on' : ''}" id="fine" title="${on ? 'Hide' : 'Show'} the raw numbers these are made from">⚙</button>`;
+
 function left() {
   const box = $('left');
+  rows = {};
   if (view() === 'shared') {
-    box.innerHTML = `<h2>Shared by all the animals <span class="note">the numbers of every animal are worked out again (a few seconds)</span></h2>
+    const items = SHARED.flatMap((g) => g.items), rest = SHARED.map((g) => ({ ...g, items: g.items.filter((d) => !MAIN.includes(d.key)) })).filter((g) => g.items.length);
+    const shared = (d) => row(d, () => sharedOf(d.key), () => DEFAULTS[d.key], (v) => { if (same(v, DEFAULTS[d.key])) delete edits.shared[d.key]; else edits.shared[d.key] = v; changed(KINDS); });
+    box.innerHTML = `<h2>Shared by all the animals <span class="note">every animal is worked out again (a few seconds) · also on <a href="../settings/#speed">Settings</a></span><span class="right">${gear(fine)}</span></h2>
       <div class="legend"><span><span class="ring"></span> as it was</span></div>
-      ${SHARED.map((g) => `<div class="group">${esc(g.group)}</div>${g.items.map((d) => dialRow(d, sharedOf(d.key), DEFAULTS[d.key], [])).join('')}`).join('')}`;
-    return;
-  }
-  const i = KINDS.indexOf(sel), prev = KINDS[i - 1], next = KINDS[i + 1];
-  box.innerHTML = `<div id="who"><canvas width="44" height="30"></canvas>
-      <div><div class="name">#${String(i + 1).padStart(2, '0')} ${esc(nameOf(sel))}</div><div class="food"><span class="fp"></span>${esc(ANIMALS[sel].food)}</div></div>
-      <div class="nav"><button id="prev" ${prev ? '' : 'disabled'} title="the animal before (←)">‹</button><button id="next" ${next ? '' : 'disabled'} title="the animal after (→)">›</button></div></div>
-    <div class="legend"><span><span class="tick" style="background:var(--prev)"></span> ${prev ? esc(nameOf(prev)) : '—'} (before)</span>
-      <span><span class="tick" style="background:var(--next)"></span> ${next ? esc(nameOf(next)) : '—'} (after)</span>
-      <span><span class="tick" style="background:var(--line)"></span> the others</span><span><span class="ring"></span> as it was</span></div>
-    ${DIALS.map((d) => dialRow(d, dialOf(sel, d.key), ORIG[sel][d.key], KINDS.filter((k) => k !== sel).map((k) => ({
-      v: dialOf(k, d.key), t: `${nameOf(k)}: ${fmt(dialOf(k, d.key), d.step)}`, c: k === prev ? 'var(--prev)' : k === next ? 'var(--next)' : null,
-    })).sort((a, b) => !!a.c - !!b.c))).join('')}
-    <div style="margin-top:8px"><button id="resetAnimal" ${edits.dials[sel] ? '' : 'disabled'}>Reset ${esc(nameOf(sel))}</button></div>`;
-  box.querySelector('#who canvas').getContext('2d').drawImage(pic(sel), 0, 0);
-  box.querySelector('.fp').append(foodPic(sel));
-  $('prev').onclick = () => select(prev);
-  $('next').onclick = () => select(next);
-  $('resetAnimal').onclick = () => { delete edits.dials[sel]; keep(); left(); recompute([sel]); redraw(); };
-}
-
-function setValue(key, v) {
-  const shared = view() === 'shared', d = shared ? SHARED_BY_KEY[key] : DIAL_BY_KEY[key];
-  v = Math.min(d.max, Math.max(d.min, Math.round(v / d.step) * d.step));
-  v = +v.toFixed(decimals(d.step));
-  const orig = shared ? DEFAULTS[key] : ORIG[sel][key];
-  if (shared) {
-    if (same(v, orig)) delete edits.shared[key]; else edits.shared[key] = v;
-    recompute(KINDS);
+      <div class="group">Main</div>${MAIN.map((n) => shared(items.find((d) => d.key === n))).join('')}
+      ${fine ? rest.map((g) => `<div class="group">${esc(g.group)}</div>${g.items.map(shared).join('')}`).join('') : `<p class="note more">${rest.reduce((t, g) => t + g.items.length, 0)} more behind ⚙</p>`}`;
   } else {
-    const e = (edits.dials[sel] ||= {});
-    if (same(v, orig)) delete e[key]; else e[key] = v;
-    if (!Object.keys(e).length) delete edits.dials[sel];
-    recompute([sel]);
-    const r = $('resetAnimal'); if (r) r.disabled = !edits.dials[sel];
+    const i = KINDS.indexOf(sel), prev = KINDS[i - 1], next = KINDS[i + 1];
+    const place = (d) => row(d, () => placeOf(i)[d.key], () => FILE.places[i][d.key], (v) => setPlace(i, d.key, v), stripOf(d, (k, j) => placeOf(j)[d.key]));
+    const feel = (d) => row(d, () => feelOf(sel)[d.key], () => ORIG_FEEL[sel][d.key], (v) => setFeel(sel, { ...feelOf(sel), [d.key]: v }), stripOf(d, (k) => feelOf(k)[d.key]));
+    const diff = { ...DIFFICULTY, help: `of place ${i + 1}: 0 the first place’s dials, 100% the last’s; sets them all along the line between` };
+    box.innerHTML = `<div id="who"><canvas width="44" height="30"></canvas>
+        <div><div class="name">#${String(i + 1).padStart(2, '0')} ${esc(nameOf(sel))}</div><div class="food"><span class="fp"></span>${esc(ANIMALS[sel].food)}</div></div>
+        <div class="nav"><button id="prev" ${prev ? '' : 'disabled'} title="the animal before (←)">‹</button><button id="next" ${next ? '' : 'disabled'} title="the animal after (→)">›</button></div></div>
+      <div class="legend"><span><span class="tick" style="background:var(--prev)"></span> ${prev ? esc(nameOf(prev)) : '—'} (before)</span>
+        <span><span class="tick" style="background:var(--next)"></span> ${next ? esc(nameOf(next)) : '—'} (after)</span>
+        <span><span class="tick" style="background:var(--line)"></span> the others</span><span><span class="ring"></span> as it was</span></div>
+      <div class="group" title="What the place it unlocks at makes it: another animal moved here gets the same">Place ${i + 1} <span class="right">${gear(fine)}</span></div>
+      ${row(diff, () => levelOf(placeOf(i)) * 100, () => levelOf(FILE.places[i]) * 100, (v) => setLevel(i, v / 100), stripOf(diff, (k, j) => levelOf(placeOf(j)) * 100))}
+      ${fine ? PLACE.map(place).join('') : ''}
+      <div class="group" title="Its own: it takes them to any place">The ${esc(nameOf(sel))}’s feel</div>
+      ${row(HEIGHT, () => heightOf(feelOf(sel)), () => heightOf(ORIG_FEEL[sel]), (v) => setFeel(sel, feelFrom(v, airOf(feelOf(sel)))), stripOf(HEIGHT, (k) => heightOf(feelOf(k))))}
+      ${row(AIR, () => airOf(feelOf(sel)), () => airOf(ORIG_FEEL[sel]), (v) => setFeel(sel, feelFrom(heightOf(feelOf(sel)), v)), stripOf(AIR, (k) => airOf(feelOf(k))))}
+      ${fine ? FEEL.map(feel).join('') : ''}
+      <div style="margin-top:8px"><button id="resetAnimal" ${edits.feel[sel] || edits.places[i] ? '' : 'disabled'} title="Its feel and its place’s dials as in the files">Reset ${esc(nameOf(sel))}</button></div>`;
+    box.querySelector('#who canvas').getContext('2d').drawImage(pic(sel), 0, 0);
+    box.querySelector('.fp').append(foodPic(sel));
+    $('prev').onclick = () => select(prev);
+    $('next').onclick = () => select(next);
+    $('resetAnimal').onclick = () => { delete edits.feel[sel]; delete edits.places[i]; changed([sel]); left(); redraw(); };
   }
-  keep();
-  const row = $('left').querySelector(`.dial[data-key="${key}"]`);
-  row.classList.toggle('changed', !same(v, orig));
-  const num = row.querySelector('input[type=number]'), range = row.querySelector('input[type=range]');
-  if (document.activeElement !== num) num.value = fmt(v, d.step);
-  if (+range.value !== v) range.value = v;
-  redraw();
+  $('fine').onclick = () => { fine = !fine; localStorage.setItem(`${STORE}.fine`, fine ? '1' : '0'); left(); };
 }
+// every row shown as its value is now (one change moves others: a difficulty its dials, a jump height its jump)
+function syncRows() {
+  for (const [key, r] of Object.entries(rows)) {
+    const el = $('left').querySelector(`.dial[data-key="${key}"]`), v = r.now(), o = r.was();
+    if (!el) continue;
+    el.classList.toggle('changed', !same(+fmt(v, r.d.step), +fmt(o, r.d.step)));
+    const num = el.querySelector('input[type=number]'), range = el.querySelector('input[type=range]');
+    if (document.activeElement !== num) num.value = fmt(v, r.d.step);
+    if (document.activeElement !== range) range.value = v;
+  }
+  const r = $('resetAnimal'); if (r) r.disabled = !(edits.feel[sel] || edits.places[KINDS.indexOf(sel)]);
+}
+function setValue(key, v) { const r = rows[key]; if (!r) return; r.set(snap(r.d, v)); syncRows(); redraw(); }
 $('left').addEventListener('input', (e) => {
-  const row = e.target.closest('.dial');
-  if (row && e.target.type === 'range') setValue(row.dataset.key, +e.target.value);
+  const el = e.target.closest('.dial');
+  if (el && e.target.type === 'range') setValue(el.dataset.key, +e.target.value);
 });
 $('left').addEventListener('change', (e) => {
-  const row = e.target.closest('.dial');
-  if (row && e.target.type === 'number' && e.target.value !== '') setValue(row.dataset.key, +e.target.value);
+  const el = e.target.closest('.dial');
+  if (el && e.target.type === 'number' && e.target.value !== '') setValue(el.dataset.key, +e.target.value);
 });
 $('left').addEventListener('click', (e) => {
-  const row = e.target.closest('.dial');
-  if (row && e.target.classList.contains('was')) {
-    setValue(row.dataset.key, view() === 'shared' ? DEFAULTS[row.dataset.key] : ORIG[sel][row.dataset.key]);
-    left();
-  }
+  const el = e.target.closest('.dial');
+  if (el && e.target.classList.contains('was')) { setValue(el.dataset.key, rows[el.dataset.key].was()); left(); }
 });
 
 // ----------------------------------------------------------------------------------------------- one animal's numbers
@@ -404,23 +479,21 @@ function charts() {
   ].join('');
 }
 
+
 // --------------------------------------------------------------------------------------------------- the changes
 function changesList() {
   const items = [];
-  for (const k of KINDS) for (const d of DIALS) if (edits.dials[k]?.[d.key] != null) items.push({ what: `${nameOf(k)} · ${d.label}`, from: fmt(ORIG[k][d.key], d.step), to: fmt(edits.dials[k][d.key], d.step), k, key: d.key });
-  for (const g of SHARED) for (const d of g.items) if (edits.shared[d.key] != null) items.push({ what: `shared · ${d.label} (${d.key})`, from: fmt(DEFAULTS[d.key], d.step), to: fmt(edits.shared[d.key], d.step), key: d.key });
-  $('changes').innerHTML = `<h2>Changes <span class="note">kept in this browser; not written to the files yet</span></h2>${items.length
-    ? `<ul>${items.map((c, i) => `<li><span class="what">${esc(c.what)}</span><span>${c.from} → <b>${c.to}</b></span><button data-i="${i}" title="back to ${c.from}">↺</button></li>`).join('')}</ul>`
+  if (edits.order) items.push({ what: `the order: ${KINDS.filter((k, i) => FILE_ORDER[i] !== k).map(nameOf).join(', ')} moved`, from: '', to: '', undo: () => { edits.order = null; changed(KINDS); } });
+  for (const k of KINDS) for (const d of FEEL) if (edits.feel[k]?.[d.key] != null) items.push({ what: `${nameOf(k)} · ${d.label}`, from: fmt(ORIG_FEEL[k][d.key], d.step), to: fmt(edits.feel[k][d.key], d.step), undo: () => setFeel(k, { ...feelOf(k), [d.key]: ORIG_FEEL[k][d.key] }) });
+  for (let i = 0; i < N; i++) for (const d of PLACE) if (edits.places[i]?.[d.key] != null) items.push({ what: `place ${i + 1} (the ${nameOf(KINDS[i])}) · ${d.label}`, from: fmt(FILE.places[i][d.key], d.step), to: fmt(edits.places[i][d.key], d.step), undo: () => setPlace(i, d.key, FILE.places[i][d.key]) });
+  for (const g of SHARED) for (const d of g.items) if (edits.shared[d.key] != null) items.push({ what: `shared · ${d.label} (${d.key})`, from: fmt(DEFAULTS[d.key], d.step), to: fmt(edits.shared[d.key], d.step), undo: () => { delete edits.shared[d.key]; changed(KINDS); } });
+  $('changes').innerHTML = `<h2>Changes <span class="note">kept in this browser till saved</span>${items.length ? '<span class="right"><button class="primary" id="saveToo" title="Write them into the files (assets/animals.js, level.js, game.js)">Save</button></span>' : ''}</h2>${items.length
+    ? `<ul>${items.map((c, i) => `<li><span class="what">${esc(c.what)}</span>${c.from !== '' ? `<span>${c.from} → <b>${c.to}</b></span>` : ''}<button data-i="${i}" title="back to as in the files${c.from !== '' ? `: ${c.from}` : ''}">↺</button></li>`).join('')}</ul>`
     : '<span class="note">None: everything as in the files.</span>'}${error ? `<p class="err">${esc(error)}</p>` : ''}`;
-  $('changes').querySelectorAll('button[data-i]').forEach((btn) => {
-    btn.onclick = () => {
-      const c = items[+btn.dataset.i];
-      if (c.k) { delete edits.dials[c.k][c.key]; if (!Object.keys(edits.dials[c.k]).length) delete edits.dials[c.k]; recompute([c.k]); }
-      else { delete edits.shared[c.key]; recompute(KINDS); }
-      keep(); left(); redraw();
-    };
-  });
+  $('changes').querySelectorAll('button[data-i]').forEach((btn) => { btn.onclick = () => { items[+btn.dataset.i].undo(); left(); redraw(); }; });
+  if ($('saveToo')) $('saveToo').onclick = save;
 }
+
 
 // ------------------------------------------------------------------------------------------------------ your runs
 // the runs played (see the runs in game.js): those the game sent the dev server (data/runs.jsonl), and any shared from
@@ -457,6 +530,7 @@ $('real').addEventListener('click', (e) => { const tr = e.target.closest('tr[dat
 $('real').addEventListener('dragover', (e) => e.preventDefault());
 $('real').addEventListener('drop', async (e) => { e.preventDefault(); for (const f of e.dataTransfer.files) { try { addRuns(parseRuns(await f.text())); } catch { /* not runs */ } } });
 
+
 // ------------------------------------------------------------------------------------------------------- the page
 function redraw() { status(); ladder(); tiles(); charts(); changesList(); }
 function select(k) {
@@ -474,6 +548,7 @@ function route() {
 }
 addEventListener('hashchange', route);
 addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') { e.preventDefault(); if (changes()) save(); return; }
   if (e.target.closest('input, select, textarea') || e.metaKey || e.ctrlKey || e.altKey) return;
   const i = KINDS.indexOf(sel);
   if (e.key === 'ArrowLeft') select(KINDS[i - 1]);
@@ -481,11 +556,10 @@ addEventListener('keydown', (e) => {
 });
 $('resetAll').onclick = () => {
   if (!confirm(`Throw away all ${changes()} changes?`)) return;
-  const shared = Object.keys(edits.shared).length, kinds = Object.keys(edits.dials);
-  edits = { dials: {}, shared: {} };
-  keep();
-  recompute(shared ? KINDS : kinds);
+  edits = none();
+  changed(KINDS);
   left(); redraw();
 };
+$('save').onclick = save;
 route();
 if (!mirror) recompute(KINDS);

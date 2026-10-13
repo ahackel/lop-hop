@@ -1,8 +1,9 @@
 // The moves (see editor.js): a clip's keys on a timeline, a gait's settings, a move played
-import { COLOR, FOOT, PALETTES, animal, rigParts, setStyle, strides } from '../art.js';
+import { ANIMALS, COLOR, FOOT, PALETTES, animal, rigParts, setStyle, strides } from '../art.js';
 import { $, el, iconBtn, svg } from './dom.js';
 import { frameNames } from './face.js';
-import { field, inspect, numIn, numName, stack } from './inspector.js';
+import { field, gearBtn, inspect, numIn, numName, raw, stack } from './inspector.js';
+import { TIPS, unitOf } from './tips.js';
 import { listParts } from './lists.js';
 import { current, poseParts, spineShape } from './parts.js';
 import { draw } from './stage.js';
@@ -109,15 +110,34 @@ setStyle($('shading').checked ? 'between' : 'outlined');
 // key where a key sets something on it), what can be done at the frame shown, what the move is
 let strip = [];
 const goTo = (f, s) => { setPlay(false); view.frame = f; if (s) setSel(s); place(); listParts(); inspect(); timeline(); draw(); };
+// dragged across (a gait's frames, a clip's frame numbers or its dopesheet): the frame under the pointer shown as it
+// goes, the rest made anew as it is let go; a click, as the cell's own
+function scrubbing(box, cells) {
+  box.addEventListener('pointerdown', (e) => {
+    if (e.button) return;
+    const x0 = e.clientX;
+    let moved = false;
+    const at = (x) => cells.reduce((best, c, i) => { const r = c.getBoundingClientRect(), d = Math.abs(x - (r.left + r.width / 2)); return d < best.d ? { i, d } : best; }, { i: view.frame, d: Infinity }).i;
+    const move = (m) => {
+      if (!moved && Math.abs(m.clientX - x0) < 4) return;
+      if (!moved) { moved = true; document.body.classList.add('scrubbing'); }
+      const f = at(m.clientX);
+      if (f !== view.frame) { setPlay(false); view.frame = f; place(); markFrames(); draw(); }
+    };
+    const up = () => { removeEventListener('pointermove', move); removeEventListener('pointerup', up); removeEventListener('pointercancel', up); document.body.classList.remove('scrubbing'); if (moved) goTo(view.frame); };
+    addEventListener('pointermove', move); addEventListener('pointerup', up); addEventListener('pointercancel', up);
+  });
+}
 export function timeline() {
   const box = $('timeline'); box.textContent = ''; strip = [];
-  if (view.mode === 'play' || view.mode === 'game') return;
+  if (view.mode === 'play') return;
   if (view.move === 'edit') return; // (what the build is: the Setup button's tooltip)
   const n = frames(view.move), what = kindOf(view.move), can = editable();
   if (what === 'gait') {
     const row = el('div', { className: 'frames' });
     for (let i = 0; i < n; i++) { const b = el('button', { title: `Frame ${i + 1}`, onclick: () => goTo(i) }, el('canvas', { width: 42, height: 26 }), el('span', { textContent: i + 1 })); row.append(b); strip.push(b); }
-    row.title = `${ABOUT.gait} ${GAME[view.move] || ''}`;
+    row.title = `${ABOUT.gait} ${GAME[view.move] || ''} Drag across the frames to go through them.`;
+    scrubbing(row, strip);
     box.append(row);
     markFrames();
     return;
@@ -128,7 +148,9 @@ export function timeline() {
   const selOf = (r) => (r in (build.joints || {}) ? { type: 'joint', name: r } : r in (build.bones || {}) ? { type: 'bone', name: r } : r in (build.legs || {}) ? { type: 'paw', name: r } : r in (build.chains || {}) ? { type: 'chain', name: r } : { type: 'frame' });
   const dope = el('div', { className: 'dope', style: `grid-template-columns: 76px repeat(${n}, minmax(4px, 1fr))` });
   dope.append(el('span'));
-  for (let i = 0; i < n; i++) dope.append(el('span', { className: `fno${i === view.frame ? ' now' : ''}`, textContent: n <= 24 || i % 10 === 0 ? i + 1 : '', onclick: () => goTo(i) }));
+  const fnos = [...Array(n).keys()].map((i) => el('span', { className: `fno${i === view.frame ? ' now' : ''}`, textContent: n <= 24 || i % 10 === 0 ? i + 1 : '', title: `Frame ${i + 1}: drag along the frames to go through them`, onclick: () => goTo(i) }));
+  dope.append(...fnos);
+  scrubbing(dope, fnos);
   for (const r of [...rows.keys()].sort((a, b) => order.indexOf(a) - order.indexOf(b))) {
     const on = rowOfSel() === r || (!rowOfSel() && sel.type === 'frame');
     dope.append(el('span', { className: `name${on ? ' on' : ''}`, textContent: r, onclick: () => goTo(view.frame, selOf(r)) }));
@@ -187,31 +209,32 @@ export function inspectMove(box) {
   box.append(el('h2', {}, el('span', { textContent: p.label })));
   const keyed = (path) => keysAt(view.frame).some((k) => getPath(k, path) !== undefined);
   const mark = (f, path) => { if (keyed(path)) f.classList.add('own'); return f; };
-  const vec = (label, path, now, opts) => box.append(mark(field(label, stack(now.map((v, j) => numIn(v, (x) => { const q = now.slice(); q[j] = x; now = q; setKey(path, q); }, { ...opts, label: numName(null, now.length, j) }))), keyed(path) ? 'a key here' : 'between keys: setting it sets one'), path));
-  const one = (label, path, now, opts, note) => box.append(mark(field(label, numIn(now, (x) => setKey(path, x), opts), note), path));
+  const keyNote = (path, what) => `${what ? `${what}. ` : ''}${keyed(path) ? 'A key here' : 'Between keys: setting it sets one here'}`;
+  const vec = (label, path, now, opts) => box.append(mark(field(label, stack(now.map((v, j) => numIn(v, (x) => { const q = now.slice(); q[j] = x; now = q; setKey(path, q); }, { ...opts, label: numName(null, now.length, j).toUpperCase(), unit: 'px' }))), keyNote(path, TIPS[label])), path));
+  const one = (label, path, now, opts, note) => box.append(mark(field(label, numIn(now, (x) => setKey(path, x), { ...opts, ...unitOf(label) }), keyNote(path, note)), path));
   if (sel.type === 'joint') {
     vec('place', `joints.${row}`, P.J[row], { span: 3 });
-    if (row === 'head') one('turn', 'headAngle', pose.headAngle || 0, { step: 0.05, span: 1.5 }, 'radians, + down');
+    if (row === 'head') one('turn', 'headAngle', pose.headAngle || 0, { step: 0.05, span: 1.5 }, '+ down');
   } else if (sel.type === 'paw') {
     vec('paw', `paws.${row}`, pose.paws[row], { span: 4 });
     if (pose.roots?.[row]) vec('root', `roots.${row}`, pose.roots[row], { span: 3 });
   } else if (sel.type === 'bone') {
     const b = { angle: 0, at: [0, 0], ...build.bones[row], ...pose.bones?.[row] };
-    one('turn', `bones.${row}.angle`, b.angle, { step: 0.05, span: 1.5 }, 'radians on what it is on, + clockwise');
+    one('turn', `bones.${row}.angle`, b.angle, { step: 0.05, span: 1.5 }, 'its turn on what it is on, + clockwise');
     vec('place', `bones.${row}.at`, b.at, { span: 3 });
   } else if (sel.type === 'chain') {
     const c = { ...build.chains[row], ...pose.chains?.[row] };
     if (c.ear) vec('tip', `chains.${row}.tip`, c.tip, { span: 3 });
     else {
-      one('angle', `chains.${row}.angle`, c.angle, { step: 0.05, span: 1.5 }, 'radians from straight up, + back');
-      one('curl', `chains.${row}.curl`, c.curl || 0, { step: 0.05, span: 1 });
+      one('angle', `chains.${row}.angle`, c.angle, { step: 0.05, span: 1.5 }, 'from straight up, + back');
+      one('curl', `chains.${row}.curl`, c.curl || 0, { step: 0.05, span: 1 }, TIPS.curl);
     }
   } else {
     const sp = spineShape(), r0 = typeof sp?.r === 'number' ? sp.r : 1, e0 = sp?.ends || 0; // (the torso as the frame has it; a key: how much more than its shape's)
-    one('head turn', 'headAngle', pose.headAngle || 0, { step: 0.05, span: 1.5 }, 'radians, + down');
+    one('head turn', 'headAngle', pose.headAngle || 0, { step: 0.05, span: 1.5 }, 'the head’s turn, + down');
     if (sp?.r || pose.torso) {
-      box.append(mark(field('torso r', numIn(P.torso.r ?? r0, (x) => setKey('torso.thicker', +(x - r0).toFixed(3)), { min: 0, max: 12 }), 'Its torso here: a key keeps how much thicker than the torso shape (it grows with it)'), 'torso.thicker'));
-      box.append(mark(field('torso ends', numIn(P.torso.ends ?? e0, (x) => setKey('torso.longer', +(x - e0).toFixed(3)), { min: 0, max: 12 }), 'Its torso here: a key keeps how much longer than the torso shape'), 'torso.longer'));
+      box.append(mark(field('torso r', numIn(P.torso.r ?? r0, (x) => setKey('torso.thicker', +(x - r0).toFixed(3)), { min: 0, max: 12, unit: 'px' }), 'Its torso here: a key keeps how much thicker than the torso shape (it grows with it)'), 'torso.thicker'));
+      box.append(mark(field('torso ends', numIn(P.torso.ends ?? e0, (x) => setKey('torso.longer', +(x - e0).toFixed(3)), { min: 0, max: 12, unit: 'px' }), 'Its torso here: a key keeps how much longer than the torso shape'), 'torso.longer'));
     }
     const flip = el('input', { type: 'checkbox', checked: !!pose.flip, onchange: () => commit(() => setKey('flip', flip.checked || null)) });
     box.append(field('on its back', flip));
@@ -219,26 +242,39 @@ export function inspectMove(box) {
       if (part === 'mouth' && !build.face?.mouth) continue;
       const pick = el('select', { onchange: () => { commit(() => setKey(part, pick.value)); inspect(); } }), now = pose[part] || (part === 'eye' ? 'open' : 'shut');
       for (const n of frameNames(part)) pick.append(el('option', { value: n, textContent: n, selected: n === now }));
-      box.append(mark(field(part, pick, keyed(part) ? 'a key here' : 'its frame: setting it sets a key (blinking, open is blink)'), part));
+      box.append(mark(field(part, pick, keyed(part) ? `Its ${part}’s frame: a key here` : `Its ${part}’s frame: setting it sets a key here (blinking, open is blink)`), part));
     }
   }
 }
-// a gait's settings
+// a gait's settings: the main ones (the stride, the step, the bounce; a leap's height), one like another animal's (its
+// settings, not its legs' timing), the rest and the legs behind ⚙
+const MAIN_GAIT = ['frames', 'rate', 'reach', 'lift', 'bob', 'height'];
 function inspectGait(box) {
   const g = moveOf(view.move).gait, can = editable();
-  box.append(el('h2', { textContent: `${view.move}: ${g.leap ? 'a leap' : 'a gait'}` }));
+  box.append(el('h2', { textContent: `${view.move}: ${g.leap ? 'a leap' : 'a gait'}`, title: `${ABOUT.gait} ${GAME[view.move] || ''}` }));
   if (!can) return;
-  for (const k of Object.keys(g)) {
-    if (typeof g[k] !== 'number') continue;
-    const whole = k === 'frames';
-    box.append(field(k, numIn(g[k], (v) => { g[k] = v; }, whole ? { step: 1, min: 2, max: 24, whole: true } : { step: 0.05, min: 0, max: Math.max(1, g[k] * 2, k === 'ground' ? 20 : 0) }), GAIT[k]));
+  const others = KINDS_WITH(view.move, !!g.leap);
+  if (others.length) {
+    const like = el('select', { title: `Its settings as another animal’s ${view.move} has them (the legs’ timing stays its own)`, onchange: () => {
+      const o = rigParts.move(like.value, view.move).gait;
+      commit(() => { for (const k of Object.keys(o)) if (typeof o[k] === 'number' && k !== 'frames') g[k] = o[k]; });
+      inspect();
+    } }, el('option', { textContent: 'pick an animal…', value: '', disabled: true, selected: true }), ...others.map((k) => el('option', { value: k, textContent: k })));
+    box.append(field('like', like, `Its settings as another animal’s ${view.move} has them (the legs’ timing stays its own)`));
   }
+  const num = (k) => field(k, numIn(g[k], (v) => { g[k] = v; }, k === 'frames' ? { step: 1, min: 2, max: 24, whole: true } : { step: 0.05, min: 0, max: Math.max(1, g[k] * 2, k === 'ground' ? 20 : 0), ...unitOf(k) }), GAIT[k]);
+  for (const k of MAIN_GAIT) if (typeof g[k] === 'number') box.append(num(k));
+  const rest = Object.keys(g).filter((k) => typeof g[k] === 'number' && !MAIN_GAIT.includes(k));
+  box.append(el('div', { className: 'group', title: 'The rest of its settings, and when each leg is where in the stride' }, el('span', { textContent: `More (${rest.length + Object.keys(g.legs || {}).length})` }), gearBtn('gait', 'the rest of its settings and its legs')));
+  if (!raw.has('gait')) return;
+  for (const k of rest) box.append(num(k));
   box.append(el('div', { className: 'group', textContent: g.leap ? 'legs: down [touches, leaves] · at [touches, leaves] · air [x, y]' : 'legs: [when in the stride, where its sweep is]' }));
   for (const n in g.legs) {
     const L = g.legs[n], put = (arr, j, v) => { arr[j] = v; };
     const names = Array.isArray(L) ? ['when', 'where'] : ['down', 'up', 'at ↓', 'at ↑', 'air x', 'air y'];
     const ins = (Array.isArray(L) ? [L] : ['down', 'at', 'air'].map((k) => L[k])).flatMap((arr, a) => arr.map((v, j) => numIn(v, (x) => put(arr, j, x), { step: 0.05, label: names[a * 2 + j] })));
-    box.append(field(n, stack(ins)));
+    box.append(field(n, stack(ins), Array.isArray(L) ? `The ${n}: when in the stride it is down (0…1), and where its sweep is` : `The ${n}: when it touches down and leaves (0…1), where then, and where in the air`));
   }
 }
-
+// the other animals whose move of that name is a gait (a leap, or not, as this one)
+const KINDS_WITH = (name, leap) => Object.keys(ANIMALS).filter((k) => k !== kind && rigParts.move(k, name)?.gait && !!rigParts.move(k, name).gait.leap === leap);

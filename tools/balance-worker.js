@@ -1,11 +1,11 @@
 // The balance page's numbers (balance/), worked out off the page by the game's own code: level.js and
 // course.mjs with the shared constants as the page has them (a copy of each, its numbers changed, loaded as a module
-// of its own), every animal's dials as the page has them (set on ANIMALS here).
-//   ← { dials: { kind: {…} }, shared: { NAME: v }, kinds }   → { kind, m } for each kind, in that order; then { done }
+// of its own), the animals as the page has them (their order, feel and places: given to art.js here, see setAnimals).
+//   ← { roster: { animals, places } (as assets/animals.js has them), shared: { NAME: v }, kinds }   → { kind, m } for each kind, in that order; then { done }
 //   m: { all, some (the day energy runs out, eating all the food, 4 in 5; null: not within 12), cycle (points: a day
 //        and its night), mult, jumpH (px), air (s), days: [{ speed, every, sees, food, drain }] (days 1-8; food and
 //        drain: energy a second), next: getting the next animal (see unlocking) }
-import { ANIMALS, JUMP, GRAVITY, jumpHeight } from '../art.js';
+import { ANIMALS, JUMP, GRAVITY, jumpHeight, setAnimals } from '../art.js';
 import { readConsts, setConsts } from './balance-format.js';
 
 const url = (p) => new URL(p, import.meta.url).href;
@@ -89,9 +89,9 @@ function measure(kind, [level, course, c]) {
   };
 }
 
-onmessage = async ({ data: { dials, shared, kinds } }) => {
+onmessage = async ({ data: { roster, shared, kinds } }) => {
   try {
-    for (const k in dials) Object.assign(ANIMALS[k], dials[k]);
+    setAnimals(roster);
     const mods = await load(shared);
     for (const kind of kinds) postMessage({ kind, m: measure(kind, mods) });
     postMessage({ done: true });

@@ -5,10 +5,9 @@ import { $, css, el } from './dom.js';
 import { faceEdit } from './face.js';
 import { inspect } from './inspector.js';
 import { hover, isPicked, listParts, rightClick, togglePick } from './lists.js';
-import { castHit, drawCast, setHue } from './palette.js';
 import { current, isOwn, minus, parts, plus, same, setStep, setAlt } from './parts.js';
 import * as sandbox from './play.js';
-import { G, P, also, build, changed, drag, editable, hist, isProp, kind, nice, place, propSprite, reach, remember, restPoints, sel, snapshot, status, toWorld, view, setAlso, setSel, setDrag } from './state.js';
+import { G, P, also, build, changed, drag, editable, hist, isProp, kind, place, propSprite, reach, remember, restPoints, sel, snapshot, status, toWorld, view, setAlso, setSel, setDrag } from './state.js';
 import { frames, kindOf, markFrames, setPlay, timeline } from './timeline.js';
 
 // the stage shows art pixels from (X0, Y0), VW × VH of them (the 26×20 box and room around it; a prop: its box and a
@@ -35,7 +34,6 @@ const shows = (h) => h.anchor && ($('handles').value === 'all' || (h.joint && $(
 export function draw() {
   const c = $('stage'), ctx = c.getContext('2d');
   const box = $('stageBox'); // (as big as fits in what the window leaves it)
-  if (view.mode === 'game') { drawCast(c); return; }
   if (view.mode === 'play') {
     Z = Math.max(2, Math.floor(Math.min(box.clientWidth / sandbox.PW, box.clientHeight / sandbox.PH))) || 8;
     if (c.width !== sandbox.PW * Z || c.height !== sandbox.PH * Z) { c.width = sandbox.PW * Z; c.height = sandbox.PH * Z; c.style.width = `${c.width}px`; c.style.height = `${c.height}px`; }
@@ -181,7 +179,6 @@ function drawHandles(ctx) {
 export const playAt = (e) => { const r = $('stage').getBoundingClientRect(), k = $('stage').width / r.width; return [((e.clientX - r.left) * k) / Z, ((e.clientY - r.top) * k) / Z]; };
 const hand = (c) => { $('stage').style.cursor = c || ''; };
 $('stage').addEventListener('pointerdown', (e) => {
-  if (view.mode === 'game') { const h = castHit(e); if (h) { setHue(h.color); listParts(); inspect(); draw(); } return; }
   if (view.mode === 'play') { $('stage').setPointerCapture(e.pointerId); hand(sandbox.down(...playAt(e))); return; }
   if (!editing()) return;
   if (view.play) setPlay(false);
@@ -207,7 +204,6 @@ $('stage').addEventListener('pointerdown', (e) => {
   listParts(); inspect(); draw();
 });
 $('stage').addEventListener('pointermove', (e) => {
-  if (view.mode === 'game') { const h = castHit(e); $('stage').title = h ? `${nice(h.color)} · ${h.thing}` : ''; return; }
   if (view.mode === 'play') { const c = sandbox.move(...playAt(e)); if (c !== null) hand(c); return; }
   if (!drag) return;
   setStep(e.shiftKey ? 0.5 : 0.1); setAlt(e.altKey);

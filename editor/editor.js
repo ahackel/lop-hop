@@ -4,10 +4,10 @@
 // a frame), a gait's settings, a loop to look at; the frames before and after faded (onion skin). After every change the
 // animal is made again from its build (as the game makes it) and drawn by the game's own code; Save writes the build back into its
 // file (POST /save, see serve.mjs and rig-format.js). Three modes: Setup (the build), Animate (its moves), Play (handled
-// as on the home screen, see play.js: its handling's numbers, its chains' physics). And Game: the game's own, for every
-// animal (its palette, assets/palette.js).
+// as on the home screen, see play.js: its handling's numbers, its chains' physics). The game's own, for every animal (its
+// palette, the numbers they share): the settings page (settings/, tools/settings.js).
 // Its parts, each a module beside it: state.js (what is edited, the toolbar), parts.js, stage.js, lists.js,
-// inspector.js, timeline.js, face.js, handling.js, palette.js (Game), preview.js, keys.js; dom.js; lit/ (lit-html: the
+// inspector.js, timeline.js, face.js, handling.js, palette.js (a color picked), preview.js, keys.js; dom.js; lit/ (lit-html: the
 // lists' templates). This one starts it: the animals loaded, the panels as they were left
 import { ANIMALS, setRig } from '../art.js';
 import { toBuild } from '../asset.js';
@@ -15,7 +15,8 @@ import { $ } from './dom.js';
 import { tick } from './preview.js';
 import { draw } from './stage.js';
 import './keys.js'; // (the keyboard: its own)
-import { GAME_ANIMALS, KINDS, baseOf, builds, choose, dirty, files, kind, paletteDirty, rigFor, saved, setMode } from './state.js';
+import { menuBelow } from './menu.js';
+import { GAME_ANIMALS, KINDS, baseOf, builds, choose, dirty, files, isProp, kind, opened, paletteDirty, rigFor, saved, setMode, view } from './state.js';
 
 // the panels, folded away or not (as they were left: kept in this browser); the inspector folds sideways
 const FOLDED = 'lophop.editor.folded';
@@ -49,6 +50,19 @@ for (const [id, side] of [['splitLeft', 'left'], ['splitRight', 'right']]) {
   bar.ondblclick = () => { widths[side] = WIDE[side]; setWidths(); keepWidths(); };
 }
 setWidths();
+// the stage's View menu: what it shows (each its input, kept: the keys flip them too, see keys.js), which handles
+$('viewMenu').onclick = () => {
+  const on = (id) => $(id).checked, tip = (id) => $(id).closest('label').title, prop = isProp(), m = view.mode;
+  const flip = (id) => () => { $(id).checked = !$(id).checked; $(id).dispatchEvent(new Event('change')); };
+  const handles = (v) => () => { $('handles').value = v; $('handles').dispatchEvent(new Event('change')); };
+  menuBelow($('viewMenu'), [
+    ...(m === 'animate' ? [['Onion skin', flip('onion'), { on: on('onion'), key: 'O', tip: tip('onion') }]] : []),
+    ...(prop ? [] : [['Bones', flip('showBones'), { on: on('showBones'), key: 'B', tip: tip('showBones') }], ['Swings', flip('showSwings'), { on: on('showSwings'), key: 'W', tip: tip('showSwings') }]]),
+    ...(m === 'setup' ? [['Screen pixels', flip('fine'), { on: on('fine'), key: 'P', tip: tip('fine') }]] : []),
+    '-',
+    ...[...$('handles').options].filter((o) => !(prop && o.value === 'joints')).map((o) => [`Handles: ${o.textContent.toLowerCase()}`, handles(o.value), { on: $('handles').value === o.value, key: o.value === 'picked' ? 'A' : '', tip: o.title }]),
+  ]);
+};
 window.addEventListener('beforeunload', (e) => { if (KINDS.some((k) => builds[k] && dirty(k)) || paletteDirty()) e.preventDefault(); });
 new ResizeObserver(() => kind && draw()).observe($('stageBox')); // (the window, or the timeline under it, changing)
 
@@ -58,12 +72,12 @@ const listed = await fetch('/assets.json').then((r) => r.json()).catch(() => Obj
 for (const k of [...Object.keys(GAME_ANIMALS), ...listed.filter((k) => !(k in GAME_ANIMALS)).sort()]) {
   files[k] = (await import(`../assets/${k}.js`)).default;
   builds[k] = JSON.parse(JSON.stringify(toBuild(files[k]))); // (its own copy: the game's stays as loaded till it is made again)
-  saved[k] = JSON.stringify(builds[k]);
+  saved[k] = opened[k] = JSON.stringify(builds[k]);
   KINDS.push(k);
 }
 for (const k of KINDS) if (!ANIMALS[k] && !files[k].size) { ANIMALS[k] = { ...ANIMALS[baseOf(k)] || ANIMALS.cat, name: k.toUpperCase() }; setRig(k, rigFor(k)); } // (a food: no rig)
 const asked = new URLSearchParams(location.search).get('animal');
 await choose(KINDS.includes(asked) ? asked : 'cat');
-setMode(['setup', 'animate', 'play', 'game'].includes(new URLSearchParams(location.search).get('mode')) ? new URLSearchParams(location.search).get('mode') : 'setup');
+setMode(['setup', 'animate', 'play'].includes(new URLSearchParams(location.search).get('mode')) ? new URLSearchParams(location.search).get('mode') : 'setup');
 requestAnimationFrame(tick);
 

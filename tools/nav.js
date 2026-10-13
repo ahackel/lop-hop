@@ -1,6 +1,6 @@
-// The tools' bar, first in a page's header (the editor, balance, font): a link to each, the page open marked,
+// The tools' bar, first in a page's header (the editor, balance, settings, font): a link to each, the page open marked,
 // in the same tab; the game with ?cheats. The links from where this file is, so they work wherever the game is served
-const PAGES = [['Game', './?cheats'], ['Editor', 'editor/'], ['Balance', 'balance/'], ['Font', 'font/']];
+const PAGES = [['Game', './?cheats'], ['Editor', 'editor/'], ['Balance', 'balance/'], ['Settings', 'settings/'], ['Font', 'font/']];
 const root = new URL('../', import.meta.url), here = location.pathname.replace(/index\.html$/, '');
 
 document.head.insertAdjacentHTML('beforeend', `<style>

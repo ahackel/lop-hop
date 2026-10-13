@@ -82,31 +82,46 @@ from the home screen).
 
 The animals are edited in the editor: with `npm run dev` running, open http://localhost:8323/editor. It has three
 modes: Setup (the build), Animate (the moves) and Play, where the animal is handled as on the home screen, by the game's
-own code (picked up, carried, dropped, petted, fed), with a slider for each number of how it is handled and of its ears'
-and tails' physics (`handling` in its file; `?mode=play` opens it there). The face's frames (its eye open, blinking,
+own code (picked up, carried, dropped, petted, fed), with three feel sliders (heavy, lively, cuddly: each moves several
+of the numbers of how it is handled, `handling` in its file) and, behind each ⚙, those numbers and its ears' and tails'
+physics (`?mode=play` opens it there). The inspector is laid out as Figma's: a shape's place as X, Y, W, H and its turn
+whatever it is (its own numbers behind ⚙), each number in a box with its unit (px, °, %, s), a sum typed into one
+worked out (`*2`, `+1`: of what it is), the arrow keys a step (⇧ ten), its name dragged to scrub it; what can be added
+(a swing) a + by its section's title; every setting's tooltip says what it is for. A swing's stiffness, damping and
+weight are one number, how floppy it is; a gait's main settings are shown (the rest behind ⚙), or one like another
+animal's. The stage's View menu: the onion skin, the bones, the swings, the screen's pixels, which handles. In Setup the
+bones and the shapes are two tabs, the one a pick is in shown. The timeline's frames are dragged across to go through
+them. Changes are saved by themselves a moment after each (Revert: back to as the editor found it). The face's frames (its eye open, blinking,
 hurt, knocked out, happy; a mouth, if it has one) are drawn pixel by pixel in Setup (pick the face), and a clip's keys
 pick which one shows. An animal's skins (the wolf is the fox's: its colors swapped) are picked beside it, a new one
 made there, as is a new animal started from the one shown (in the editor until the game is given it: its place in
-`ANIMALS`); a leg or a pointed ear without one gets its far side made with a click (as the cat's: in every move, to tune).
+`assets/animals.js`); the library (⌘O) shows the game's animals in the order they unlock in, dragged to another place
+in it (saved at once: the animal takes that place's difficulty, its own jump and food go with it); a leg or a pointed ear without one gets its far side made with a click (as the cat's: in every move, to tune).
 Colors come from the game's one palette (`assets/palette.js`: named for how they look, orange, darkGreen; a few with a job,
-outline, ink, the sky's): a color is picked from it in a popup, where a new one can be added. Game, beside the modes, edits
-it: everything the game draws, by day and by night, the color picked standing out (click a pixel to pick its color); a
-color is set by day, worked out by night (by a rule, set there too). Shading needs no colors of its own: each color's
-outline, underside and far legs are worked out from it, always darker.
+outline, ink, the sky's): a color is picked from it in a popup, where a new one can be added. The settings page (/settings, in the
+tools' bar) edits it: a swatch each; a color is set by day, worked out by night (by a rule, set there too), a role (the
+sky, the words, the outline) set by night too. Shading needs no colors of its own: each color's
+outline, underside and far legs are worked out from it, always darker. The settings page also sets the numbers every
+animal shares (speed, days and nights, obstacles, energy and food, bumps, golden food: into `level.js`, `game.js`,
+`tools/course.mjs`); how they play out, animal by animal, is tried on the balance page.
 Drag the handles on the joints, shapes, legs, tails and ears, pick colors and layers in the list, watch the animal run in
 the game's scene, and save: it writes the animal's build back into its file. Its moves are on a timeline, with the frames
 before and after faded: a jump, hurt or knocked-out pose can be set by hand (drag the joints, paws, head, tail and ears of
 each keyframe), a run or a crawl tuned by its gait's settings. In the game, an animal eases from one move into the next
 and squashes as it lands.
 
-The balance is tuned on the balance page (http://localhost:8323/balance, with `npm run dev`): every animal's
-dials (speed, jump, drain, meals, …) and the numbers all the animals share, each with a slider, and what they come to,
+The balance is tuned on the balance page (http://localhost:8323/balance, with `npm run dev`): the animals in the order
+they unlock in (`assets/animals.js`: drag one along the ladder to another place), each place's difficulty (one slider:
+where its dials, speed, drain, meals, …, are between the first place's and the last's; the dials themselves behind ⚙),
+each animal's feel (its jump's height and time in the air), and the numbers all the animals share (the main ones; the
+rest behind ⚙), each with a slider, and what they come to,
 worked out by the game's own code: how hard it is to get the next animal (how often a player can run into something
 and still get home at dawn, away from it, half the time; and the chance, missing 1 in 33, 17 or 8), how many days
 a player who never misses lasts (eating all the food, or 4 in 5), the score that reaches, how fast it goes, how much
 warning an obstacle gives. The ladder shows all twenty-one in a row, each
-meant to be harder than the one before (one that is not is marked), and what was there before behind it. The changes
-are kept in the browser, not yet written to the files. Under the ladder, your runs: for each animal how many, how long,
+meant to be harder than the one before (one that is not is marked), and what was there before behind it (shown as their
+difficulty, a bar dragged up or down sets it). The changes are kept in the browser till Save writes them into the files
+(`assets/animals.js`, `level.js`, `game.js`). Under the ladder, your runs: for each animal how many, how long,
 how often it got home, the tries it took to get the next one, how often a jump or a duck
 was missed, how much food was eaten, how runs ended. The game writes every run down; played from the dev server (on this computer, or
 an iPad in the house at http://<this computer>.local:8323) they come in by themselves (`data/runs.jsonl`), from the
@@ -129,11 +144,12 @@ browser out for good (your own; `?nocount=off` counts it again).
 | `font.js` | the pixel font: capitals 3×5 in a cell of 7 rows (a row above and below: Ä Ö Ü's dots, the $'s line, the comma's and Q's tails, brackets and / the whole height; room for accents), `text()` and `textWidth()` |
 | `icons.js` | the buttons' icons (7×7) and the pads' (9×9), as rows of pixels |
 | `lang.js`, `lang/` | what the game writes, in English and German: a file per language, a line each, `id = words`, written as usual (the game writes them in capitals); `npm test` checks every language has every id, the same `{name}` holes, only letters the font has, and lines that fit. A new language: a file with the ids of `en.txt`, its code in `LANGS` (`lang.js`), the file in `sw.js`, and the language in the Xcode project (`knownRegions`, Info.plist `CFBundleLocalizations`: an app reports only the languages it declares) |
-| `asset.js`, `assets/` | an object as an asset: one file of data each (`assets/<animal>.js`, format 4: its bones (only what moves), its shapes in groups drawn back to front, each on a joint or a bone (all it looks like), its face, the physics of its chains, how it is handled on the home screen, its moves: gaits' settings and clips' keys), what the editor saves and the game draws from; and the game's palette (`assets/palette.js`); `asset.js` says what is in one |
+| `asset.js`, `assets/` | an object as an asset: one file of data each (`assets/<animal>.js`, format 4: its bones (only what moves), its shapes in groups drawn back to front, each on a joint or a bone (all it looks like), its face, the physics of its chains, how it is handled on the home screen, its moves: gaits' settings and clips' keys), what the editor saves and the game draws from; and the game's palette (`assets/palette.js`); the animals in the order they unlock in, each its name, food and jump, and each place's dials (`assets/animals.js`); `asset.js` says what is in one |
 | `editor/` | the editor, at /editor (through `npm run dev`, which saves for it: into the animal's file in `assets/`) |
-| `tools/nav.js` | the bar at the top of the editor, balance and font: a link to each, and to the game (with `?cheats`) |
-| `balance/` | the balance page (its code in `tools/`): the animals' dials and the shared numbers, how hard each animal is (`balance-worker.js` works it out with `course.mjs`), and your runs |
-| `font/` | every letter of the font (`font.js`), any size (with its pixel grid and the cell's rows), a line to try (in capitals, as the game writes it; letters the font lacks named), and a suggestion: square letters like the title's |
+| `tools/nav.js` | the bar at the top of the editor, balance, settings and font: a link to each, and to the game (with `?cheats`) |
+| `settings/` | the settings page (its code `tools/settings.js`; the shared numbers' list `tools/shared.js`): the game's palette; the numbers every animal shares (each a number as the editor's inspector has it, `editor/num.js`) |
+| `balance/` | the balance page (its code in `tools/`): the animals' order, each place's difficulty, each animal's feel, and the shared numbers, how hard each animal is (`balance-worker.js` works it out with `course.mjs`), and your runs |
+| `font/` | every letter of the font (`font.js`), any size (with its pixel grid and the cell's rows), a line to try (in capitals, as the game writes it; letters the font lacks named) |
 | `data/runs.jsonl` | the runs played from the dev server, a line each (not in git) |
 | `version.js` | when the build was made, and its engine (written at each commit, `tools/version.mjs`) |
 | `song.zip` | the music: the song and its recordings, loaded as it is (`music.loadZip`); a new version comes from the [editor](https://github.com/ahackel/stardrift)'s *Export for a game*, saved over it |

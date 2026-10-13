@@ -25,6 +25,16 @@
   button { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
   button:hover { border-color: var(--dim); }
   button:disabled { opacity: 0.45; cursor: default; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.gear { border: 0; background: none; padding: 0 4px; color: var(--dim); font-size: 14px; }
+  button.gear.on, button.gear:hover { color: var(--accent); }
+  /* a number: in a filled box, its unit in it (as Figma has them) */
+  .numBox { display: inline-flex; align-items: center; height: 24px; background: var(--bg); border: 1px solid transparent; border-radius: 5px; padding-right: 6px; }
+  .numBox:hover { border-color: var(--line); } .numBox:focus-within { border-color: var(--prev); }
+  .numBox input[type=number] { border: 0; background: none; width: 62px; padding: 0 3px 0 6px; outline: none; -moz-appearance: textfield; appearance: textfield; }
+  .numBox input::-webkit-inner-spin-button, .numBox input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  .numBox .unit { color: var(--dim); font-size: 11px; }
+  .more { margin: 8px 0 0; font-size: 11px; }
   select, input[type=number] { background: var(--panel); border: 1px solid var(--line); border-radius: 5px; padding: 2px 5px; }
   input[type=number] { width: 70px; text-align: right; }
   #status { color: var(--dim); margin-left: auto; }
@@ -33,11 +43,14 @@
   @media (max-width: 1000px) { main { grid-template-columns: minmax(0, 1fr); } }
   .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; min-width: 0; }
   .card h2 { font-size: 13px; margin: 0 0 8px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .group .right { float: right; text-transform: none; }
   .card h2 .right { margin-left: auto; display: flex; gap: 6px; align-items: center; font-weight: normal; }
   .note { color: var(--dim); }
   #ladderCard { grid-column: 1 / -1; }
   #ladder { display: block; width: 100%; height: auto; user-select: none; }
-  #ladder .col { cursor: pointer; }
+  #ladder { touch-action: none; }
+  #ladder .col { cursor: grab; }
+  #ladder .col.dragging { opacity: 0.4; }
   #ladder .col:hover .hl { fill: var(--sel); }
   #ladder image { image-rendering: pixelated; }
   #ladder text { fill: var(--dim); font-size: 9px; }
@@ -103,7 +116,8 @@
 <header>
   <nav><a href="#" id="tabAnimals">Animals</a><a href="#shared" id="tabShared">Shared</a></nav>
   <span id="status"></span>
-  <button id="resetAll" disabled>Reset all</button>
+  <button id="resetAll" disabled title="Throw away every change not saved">Reset all</button>
+  <button id="save" class="primary" disabled title="Write the changes into the files: assets/animals.js, level.js, game.js (⌘S)">Save</button>
 </header>
 <main>
   <section class="card" id="ladderCard">

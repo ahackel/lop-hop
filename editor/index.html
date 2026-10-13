@@ -43,13 +43,8 @@
   .modes button + button { border-left: 1px solid var(--line); }
   .modes button.on { background: var(--accent-soft); color: var(--ink); font-weight: 600; }
   /* what belongs to one mode or another (body's class: the mode) */
-  body.setup :is(.animate, .play, .game):not(.setup), body.animate :is(.setup, .play, .game):not(.animate), body.play :is(.setup, .animate, .game):not(.play),
-  body.game :is(.setup, .animate, .play):not(.game) { display: none; }
-  body.game :is(#files, #modes) { display: none; } /* (the game's own: no animal, none of its modes) */
+  body.setup :is(.animate, .play):not(.setup), body.animate :is(.setup, .play):not(.animate), body.play :is(.setup, .animate):not(.play) { display: none; }
   body.prop :is([data-mode=animate], [data-mode=play]), body.prop :is(.animate, .play):not(.setup), body.prop #stageWrap label:has(#showBones, #showSwings), body.prop #handles option[value=joints], body.prop #bonesCard, body.prop #previewCard .bar > :not(:has(#light)) { display: none; } /* (a prop: Setup only, no bones) */
-  .gameTitle { font-weight: 600; }
-  body.game #stage { cursor: pointer; }
-  #gameMode.on { background: var(--accent-soft); font-weight: 600; }
   body.play #stage { cursor: grab; }
   .group.own span:first-child, .field.own > span:first-child { color: var(--accent); }
   #status.dirty { color: var(--accent); }
@@ -85,6 +80,15 @@
   #stage { display: block; image-rendering: pixelated; cursor: crosshair; touch-action: none; border-radius: 4px; }
   .bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 6px 4px; color: var(--dim); }
   .bar label { display: flex; gap: 4px; align-items: center; }
+  .bar label.inView { display: none !important; } /* (in the View menu: their inputs kept, the keys flip them) */
+  /* Setup: the bones and the shapes as two tabs (the one a pick is in shown) */
+  #leftTabs { display: none; }
+  body.setup:not(.prop) #leftTabs { display: flex; }
+  #leftTabs .seg { width: 100%; } #leftTabs .seg button { flex: 1; justify-content: center; font-weight: 600; padding: 4px; }
+  body.setup:not(.prop) #left[data-tab=bones] #shapesCard, body.setup:not(.prop) #left[data-tab=shapes] #bonesCard { display: none; }
+  body.setup:not(.prop) #left .card > .title { display: none; }
+  body.setup:not(.prop) #left .card.collapsed > :not(.title) { display: block !important; }
+  body.setup:not(.prop) #left .panel.collapsed { flex: 1; }
   .group { padding: 6px 10px 2px; display: flex; align-items: center; justify-content: space-between; color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
   .group button { padding: 0 6px; font-size: 11px; text-transform: none; }
   .row { display: flex; align-items: center; gap: 6px; padding: 3px 10px; cursor: pointer; }
@@ -167,12 +171,32 @@
   /* the inspector, as Figma has it: sections with small titles, compact rows, numbers in boxes with their names in them */
   .section { padding: 8px 0 6px; border-top: 1px solid var(--line); }
   #inspector h2 + .section { border-top: 0; padding-top: 0; }
-  .sectionTitle { font-size: 11px; font-weight: 600; margin: 0 0 6px; cursor: default; }
+  .sectionTitle { font-size: 11px; font-weight: 600; margin: 0 0 6px; cursor: default; display: flex; align-items: center; min-height: 20px; }
+  .sectionTitle .acts { margin-left: auto; display: flex; gap: 2px; }
+  .sectionTitle .acts button, button.rawBtn { border: 0; background: none; padding: 2px 4px; color: var(--dim); }
+  .sectionTitle .acts button:hover:not(:disabled), button.rawBtn:hover { background: var(--bg); color: var(--ink); }
+  button.rawBtn.on { color: var(--sel); background: var(--bg); }
+  .section:has(> .sectionTitle:only-child) { padding-bottom: 2px; } .sectionTitle:only-child { margin-bottom: 0; } /* (a section with nothing yet: its title, its +) */
+  /* Figma's place: X Y, W H, ↻ ◜ in two columns, the ⚙ by them; its own numbers under them */
+  .section > .nums { margin: 4px 0; }
+  .nums.withMore { grid-template-columns: 1fr 1fr auto; }
+  .raw { margin: 4px 0 2px; padding: 4px 0 2px 8px; border-left: 2px solid var(--line); display: flex; flex-direction: column; gap: 4px; }
+  .withGear { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px; }
+  .withGear > .field { margin: 0; }
+  /* buttons side by side, one on (segmented); switches as icons, bright when on */
+  .seg { display: inline-flex; background: var(--bg); border-radius: 6px; padding: 2px; gap: 2px; justify-self: start; }
+  .seg button { border: 0; background: none; padding: 3px 7px; border-radius: 4px; color: var(--dim); display: flex; }
+  .seg button svg.i { width: 14px; height: 14px; display: block; }
+  .seg button:hover { color: var(--ink); }
+  .seg button.on { background: var(--panel); color: var(--ink); box-shadow: 0 0 0 1px var(--line); }
+  .toggles { display: flex; flex-wrap: wrap; gap: 4px; }
+  .toggles .tog { display: inline-flex; align-items: center; gap: 5px; border: 1px solid transparent; background: var(--bg); color: var(--dim); padding: 3px 8px; font-size: 12px; }
+  .toggles .tog svg.i { width: 13px; height: 13px; display: block; }
+  .toggles .tog.on { color: var(--ink); background: var(--accent-soft); }
+  .toggles .tog:not(.on) svg { opacity: 0.45; }
   .field { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 8px; align-items: center; margin: 3px 0; min-height: 26px; }
   .field > span:first-child { color: var(--dim); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .field > span.scrub, .lbl.scrub { cursor: ew-resize; user-select: none; -webkit-user-select: none; }
   .field > span.scrub:hover { color: var(--ink); }
-  body.scrubbing, body.scrubbing * { cursor: ew-resize !important; user-select: none; }
   .field input[type=text], .field select { width: 100%; min-width: 0; height: 26px; }
   /* numbers in pairs: x and y side by side; a shape's under its type, the width of the panel */
   .nums { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 6px; min-width: 0; }
@@ -187,17 +211,7 @@
   #timeline input[type=range] { width: min(420px, 60vw); }
   #timeline .note { flex-basis: 100%; }
   .field.own > span:first-child { color: var(--accent); }
-  /* a number: a box with its name in it (drag the name), a slider beside it only for one between a least and a most */
-  .num { display: flex; align-items: center; gap: 8px; min-width: 0; }
-  .num .box { display: flex; align-items: center; flex: 1; min-width: 0; height: 26px; background: var(--bg); border: 1px solid transparent; border-radius: 5px; padding-left: 7px; }
-  .num.ranged .box { flex: none; width: 68px; }
-  .num .box:hover { border-color: var(--line); }
-  .num .box:focus-within { border-color: var(--sel); }
-  .num .lbl { color: var(--dim); font-size: 11px; min-width: 10px; padding-right: 2px; white-space: nowrap; }
-  .num input[type=number] { border: 0; background: transparent; width: 100%; min-width: 0; padding: 0 6px 0 3px; height: 24px; -moz-appearance: textfield; appearance: textfield; }
-  .num input[type=number]:focus { outline: none; }
-  .num input[type=number]::-webkit-inner-spin-button, .num input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-  .num input[type=range] { flex: 1; min-width: 40px; height: 14px; margin: 0; accent-color: var(--accent); }
+  /* a number (its own rules: num.js) */
   :is(.bar, .keys) label > .num { display: inline-flex; }
   :is(.bar, .keys) label > .num .box { width: 56px; flex: none; }
   :is(.bar, .keys) label > .num input[type=range] { width: 90px; flex: none; }
@@ -205,7 +219,7 @@
   .dope { display: grid; gap: 1px; font-size: 10px; user-select: none; width: 100%; max-height: 26vh; overflow: auto; }
   .dope .name { color: var(--dim); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 4px; }
   .dope .name.on { color: var(--ink); font-weight: 600; }
-  .dope .fno { color: var(--dim); text-align: center; cursor: pointer; white-space: nowrap; overflow: visible; }
+  .dope .fno { color: var(--dim); text-align: center; cursor: ew-resize; white-space: nowrap; overflow: visible; }
   .dope .cell { height: 13px; background: var(--bg); cursor: pointer; position: relative; }
   .dope .now { background: var(--accent-soft); }
   .dope .key::after { content: ''; position: absolute; left: 50%; top: 50%; width: 7px; height: 7px; background: var(--sel); transform: translate(-50%, -50%) rotate(45deg); }
@@ -272,6 +286,12 @@
   .libCard .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .libCard small { color: var(--dim); font-size: 11px; padding: 0 2px; }
   .libCard .dot { width: 6px; height: 6px; border-radius: 3px; background: var(--accent); flex: none; }
+  .libPic { position: relative; }
+  .libPic .place { position: absolute; top: 0; left: 2px; font-size: 10px; font-weight: 600; color: var(--dim); font-variant-numeric: tabular-nums; }
+  .libHint { margin-left: 8px; font-weight: 400; text-transform: none; letter-spacing: 0; }
+  .libCard.dragging { opacity: 0.4; }
+  .libCard.dropBefore { box-shadow: inset 3px 0 0 var(--sel); }
+  .libCard.dropAfter { box-shadow: inset -3px 0 0 var(--sel); }
   .libCard .tag { font-size: 10px; font-weight: 400; color: var(--dim); border: 1px solid var(--line); border-radius: 4px; padding: 0 3px; }
   input[type=color] { width: 32px; height: 24px; padding: 0 2px; border: 1px solid var(--line); border-radius: 5px; background: var(--panel); }
   .sw.big { display: inline-block; width: 22px; height: 22px; border-radius: 4px; border: 1px solid rgba(0,0,0,.2); }
@@ -292,8 +312,6 @@
 </head>
 <body>
 <header>
-  <button id="leaveGame" class="game" data-icon="back" title="Back to the animal, as you left it (4)">Back</button>
-  <span class="game gameTitle">Game settings</span>
   <button id="files" class="withIcon" title="The asset open. Click: every asset, to open another or make a new one (⌘O)" aria-haspopup="dialog"></button>
   <span class="modes" id="modes">
     <button data-mode="setup" title="Its bones and shapes: the build every move is made from. Its moves are in Animate (1)">Setup</button>
@@ -302,18 +320,18 @@
   </span>
   <button id="undo" data-icon="undo" title="Undo (⌘Z)"></button>
   <button id="redo" data-icon="redo" title="Redo (⇧⌘Z)"></button>
-  <button id="revert" data-icon="revert" title="Revert: back to the file as it was loaded"></button>
-  <button id="save" class="primary" data-icon="save" title="Save into its file, assets/… (⌘S)">Save</button>
+  <button id="revert" data-icon="revert" title="Revert: back to as it was when the editor was opened"></button>
+  <button id="save" class="primary" data-icon="save" title="Save into its file now, assets/… (⌘S). Changes are saved by themselves a moment after each">Save</button>
   <label class="toggle" title="Off: the sprites' own colors, outlined in black (?style=outlined in the game)"><input id="shading" type="checkbox" checked> Shading</label>
   <span id="status"></span>
-  <button id="gameMode" data-icon="cog" title="Game settings: the game’s own, for every animal: its palette (4)"></button>
   <button id="keysButton" data-icon="keyboard" title="Keyboard shortcuts (?)"></button>
 </header>
 <div id="keys" class="keysHelp" hidden></div>
 <main>
   <div class="splitter" id="splitLeft" title="Drag: the bones and shapes wider or narrower (double-click: as they were)"></div>
   <div class="splitter" id="splitRight" title="Drag: the inspector wider or narrower (double-click: as it was)"></div>
-  <aside id="left">
+  <aside id="left" data-tab="shapes">
+    <div id="leftTabs"><span class="seg" role="tablist"><button data-tab="bones" title="The skeleton: what moves">Bones</button><button data-tab="shapes" title="What it looks like: groups of shapes on the bones, back to front">Shapes</button></span></div>
     <div class="card panel" id="bonesCard"><div class="title" id="bonesTitle" title="The skeleton: what moves">Bones</div><div class="scroll" id="bones"></div></div>
     <div class="card panel setup play" id="shapesCard"><div class="title" title="On the bones, back to front: drag a shape up or down its list to draw it earlier or later">Shapes</div><div class="scroll" id="shapes"></div></div>
   </aside>
@@ -324,14 +342,14 @@
     <div class="bar">
       <label class="animate">Move <select id="move"></select></label>
       <button class="animate" id="play" data-icon="play" title="Play the move, stop (Space)"></button>
-      <label class="animate" title="The frames before (blue) and after (orange), faded (O)"><input id="onion" type="checkbox" checked> Onion skin</label>
-      <label class="setup animate" title="Which handles the stage shows, besides the picked part’s: none (Picked), the joints’ too (Joints), every part’s (All). Click a shape to pick it either way (A: the next)">Handles <select id="handles"><option value="picked" title="Only the picked part’s handles">Picked</option><option value="joints" title="The picked part’s, and every joint’s">Joints</option><option value="all" selected title="Every part’s handle (its middle): drag one to move that part">All</option></select></label>
-      <label class="setup animate" title="The bones as lines: how they hang together (dashed: what a leg or a chain hangs from) (B)"><input id="showBones" type="checkbox" checked> Bones</label>
-      <label class="setup animate" title="The swings’ bones, as the pose has them at rest: cyan, a dot at each link (W)"><input id="showSwings" type="checkbox" checked> Swings</label>
-      <label class="setup" title="Drawn a screen pixel a pixel: the shapes as they are, not yet in the game’s pixels (the grid: its pixels) (P)"><input id="fine" type="checkbox"> Screen pixels</label>
+      <button class="setup animate withIcon" id="viewMenu" data-icon="eye" title="What the stage shows: the frames before and after, the bones, the swings, the screen's pixels, which handles">View</button>
+      <label class="animate inView" title="The frames before (blue) and after (orange), faded (O)"><input id="onion" type="checkbox" checked> Onion skin</label>
+      <label class="setup animate inView" title="Which handles the stage shows, besides the picked part’s: none (Picked), the joints’ too (Joints), every part’s (All). Click a shape to pick it either way (A: the next)">Handles <select id="handles"><option value="picked" title="Only the picked part’s handles">Picked</option><option value="joints" title="The picked part’s, and every joint’s">Joints</option><option value="all" selected title="Every part’s handle (its middle): drag one to move that part">All</option></select></label>
+      <label class="setup animate inView" title="The bones as lines: how they hang together (dashed: what a leg or a chain hangs from) (B)"><input id="showBones" type="checkbox" checked> Bones</label>
+      <label class="setup animate inView" title="The swings’ bones, as the pose has them at rest: cyan, a dot at each link (W)"><input id="showSwings" type="checkbox" checked> Swings</label>
+      <label class="setup inView" title="Drawn a screen pixel a pixel: the shapes as they are, not yet in the game’s pixels (the grid: its pixels) (P)"><input id="fine" type="checkbox"> Screen pixels</label>
       <label class="play" title="Everything at a quarter speed"><input id="slow" type="checkbox"> Slow motion</label>
       <button class="play" id="replay" data-icon="revert" title="The animal back in its place, as it was">Reset</button>
-      <span class="game">Everything the game draws: by day, by night. Click a pixel to pick its color.</span>
     </div>
     <div id="timeline"></div>
   </div>

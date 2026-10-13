@@ -7,13 +7,13 @@ import { popup, unpop } from './palette.js';
 import { isOpen as libraryOpen, libraryKeys, show as showLibrary } from './browser.js';
 import { current, parts, plus, same, times } from './parts.js';
 import { draw, editing, withIt } from './stage.js';
-import { changed, gameToggle, hidden, hide, kind, picked, place, rebuild, redo, remember, save, sel, setMode, undo, view, setAlso, setSel } from './state.js';
+import { changed, hidden, hide, kind, picked, place, rebuild, redo, remember, save, sel, setMode, undo, view, setAlso, setSel } from './state.js';
 import { frames, setPlay, timeline } from './timeline.js';
 import { deleteBone } from './bones.js';
 
 // the keyboard: what each key does (shown with ?), by when it works
 const KEYS = [
-  ['Everywhere', [['⌘Z', 'Undo'], ['⇧⌘Z', 'Redo'], ['⌘S', 'Save'], ['1 2 3', 'Setup, Animate, Play'], ['4', 'Game settings (the palette), and back'], ['⌘O', 'Every asset (the library), to open one'], ['?', 'These shortcuts'], ['Esc', 'Pick nothing (close a popup)']]],
+  ['Everywhere', [['⌘Z', 'Undo'], ['⇧⌘Z', 'Redo'], ['⌘S', 'Save'], ['1 2 3', 'Setup, Animate, Play'], ['⌘O', 'Every asset (the library), to open one'], ['?', 'These shortcuts'], ['Esc', 'Pick nothing (close a popup)']]],
   ['Parts', [['Tab  ⇧Tab', 'The next part in the lists, the one before'], ['← → ↑ ↓', 'Move the part picked a tenth of a pixel (in a move: its key at the frame)'], ['⇧ + arrows', 'A whole pixel'],
     ['⌘ click  ⇧ click', 'Pick more shapes, markings, dots or groups (⇧: the rows between too)'], ['⌘A', 'Pick all in the list of the one picked'],
     ['⌘D', 'Copy what is picked'], ['⌫', 'Delete what is picked'], ['[  ]', 'Drawn earlier, later'], ['H', 'Hide or show what is picked'], ['Enter', 'Rename the shape or group picked (or double-click it)'], ['⌥H', 'Show everything hidden'], ['Right-click', 'What can be done to a part (in the lists, on the stage)']]],
@@ -55,7 +55,7 @@ function pickAll() {
 }
 function frameBy(f) { setPlay(false); const n = frames(view.move); view.frame = ((f % n) + n) % n; place(); listParts(); inspect(); timeline(); draw(); }
 function nextPart(by) {
-  const rows = [...document.querySelectorAll('#bones .row, #shapes .row')].filter((r) => r.sel && r.sel.type !== 'section');
+  const rows = [...document.querySelectorAll('#bones .row, #shapes .row')].filter((r) => r.sel && r.sel.type !== 'section' && r.offsetParent); // (the tab shown's)
   if (!rows.length) return;
   const i = rows.findIndex((r) => r.classList.contains('on')), r = rows[(i + by + rows.length) % rows.length];
   setSel(r.sel); listParts(); inspect(); draw();
@@ -66,7 +66,7 @@ document.addEventListener('keydown', (e) => {
   const cmd = e.metaKey || e.ctrlKey, k = e.key, low = k.length === 1 ? k.toLowerCase() : k;
   const take = () => { e.preventDefault(); return true; };
   if (libraryKeys(e)) return; // (the library open: its own)
-  if (cmd && low === 'o' && view.mode !== 'game' && kind) { take(); showLibrary(); return; }
+  if (cmd && low === 'o' && kind) { take(); showLibrary(); return; }
   if (k === 'Escape' && popup) { unpop(); return; }
   if (k === 'Escape' && !$('keys').hidden) { $('keys').hidden = true; return; }
   if (cmd && low === 'z' && !typing) { take(); e.shiftKey ? redo() : undo(); return; }
@@ -79,9 +79,8 @@ document.addEventListener('keydown', (e) => {
   }
   if (k === '?') { take(); $('keysButton').click(); return; }
   if (['1', '2', '3'].includes(k)) { take(); setMode(['setup', 'animate', 'play'][k - 1]); return; }
-  if (k === '4') { take(); gameToggle(); return; }
   if (low === 's') { take(); flip('shading'); return; }
-  if (view.mode === 'play' || view.mode === 'game') return;
+  if (view.mode === 'play') return;
   if (low === 'b') { take(); flip('showBones'); return; }
   if (low === 'w') { take(); flip('showSwings'); return; }
   if (low === 'a') { take(); nextHandles(); return; }

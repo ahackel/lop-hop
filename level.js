@@ -13,7 +13,7 @@
 //                                         edge comes in at the right of the screen; items (obstacles), food and gold
 //                                         from there (dx)
 //   pace(kind, d) → speed               hardness(kind, s), drain(kind, s), dayOf(kind, s), nightAt(kind, day), chaserOf(kind)
-import { W, GROUND, ANIMALS, DUCK_UNDER, CROW_BOTTOM, JUMP, GRAVITY, FOOD, LANDS, crow, hitbox, stride, jumpFrame } from './art.js';
+import { W, GROUND, ANIMALS, ORDER, DUCK_UNDER, CROW_BOTTOM, JUMP, GRAVITY, FOOD, LANDS, crow, hitbox, stride, jumpFrame } from './art.js';
 
 // ------------------------------------------------------------------------------------------------------------- tuning
 export const START_SPEED = 110, MAX_SPEED = 255, ACCEL = 3; // art pixels per second (per second, as it runs: see pace)
@@ -33,7 +33,7 @@ const REACT = 0.15; // seconds: what a gap leaves, at the least, to act after a 
 // rarer every day (DAY_GOLD)
 export const GOLD_FIRST = 250, GOLD_SECS = [24, 36], DAY_GOLD = 0.1;
 
-const KINDS = Object.keys(ANIMALS);
+const KINDS = ORDER; // (the animals in order, as art.js has them now)
 const T = (kind) => ANIMALS[kind];
 // who chases an animal at night (and joins it, the first time it gets away till dawn): the next one (see ANIMALS); the
 // last, the rabbit

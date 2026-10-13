@@ -1,14 +1,13 @@
 // What the editor edits (see editor.js): every animal's file and build, the game's palette; the animal shown, the mode,
 // the part picked; undo, saving, the toolbar. The other modules read it from here; what they change of it, by its
 // setter (setSel, setDrag, setLastMove)
-import { ANIMALS, FOOD, OBSTACLES, PALETTES, prop, rigOf, rigParts, setPalette, setRig } from '../art.js';
+import { ANIMALS, FOOD, OBSTACLES, PALETTES, prop, rigOf, rigParts, setRig } from '../art.js';
 import { toAsset } from '../asset.js';
 import paletteFile from '../assets/palette.js';
 import { fileLabel } from './browser.js';
 import { $ } from './dom.js';
 import { inspect } from './inspector.js';
 import { listParts } from './lists.js';
-import { castOf, setCast } from './palette.js';
 import { current } from './parts.js';
 import * as sandbox from './play.js';
 import { pv } from './preview.js';
@@ -28,7 +27,7 @@ export const paletteDirty = () => JSON.stringify(palette) !== savedPalette;
 export const COLOR_KEYS = ['color', 'fur', 'tipColor', 'noseColor', 'socks'];
 export const GEOMS = ['ellipse', 'capsule', 'box', 'triangle'];
 export const swatch = (name) => PALETTES.day[NAMED[name]] || 'transparent';
-export const files = {}, builds = {}, saved = {}, histories = {}; // (each animal's file as loaded, its build as edited; saved: as in its file, null: no file yet)
+export const files = {}, builds = {}, saved = {}, opened = {}, histories = {}; // (each animal's file as loaded, its build as edited; saved: as in its file, null: no file yet; opened: as the editor found it)
 const fileOf = (k) => `assets/${k}.js`; // (an animal's build: its file, see asset.js)
 // kind: the animal shown; base: the one it is made from, if it is a skin (the wolf: the fox), else itself. build: the
 // base's build (its bones, shapes, moves, handling: what Setup, Animate and Play edit, for its skins too); skin: the
@@ -51,10 +50,11 @@ export const isProp = (k = kind) => !!files[k]?.size;
 export const folderOf = (k = kind) => k.split('/')[0];
 const propsOf = (k) => (folderOf(k) === 'food' ? FOOD : OBSTACLES);
 export const propSprite = (S = 1) => prop({ ...shown(build), up: 0 }, S); // (as the game draws it, S times finer; what is hidden left out; a branch: not its trunk on up)
-export const hist = () => (histories[view.mode === 'game' ? '' : kind] ||= { past: [], future: [] }); // (Game: one of its own)
-export const snapshot = () => JSON.stringify(view.mode === 'game' ? palette : { build, skin });
+export const hist = () => (histories[kind] ||= { past: [], future: [] });
+export const snapshot = () => JSON.stringify({ build, skin });
 export const dirty = (k) => JSON.stringify(builds[k]) !== saved[k];
 const touched = () => [base, ...(skin ? [kind] : [])].filter(dirty); // (the files the one shown is made from, changed)
+const reverted = () => [base, ...(skin ? [kind] : [])].some((k) => JSON.stringify(builds[k]) !== opened[k]); // (changed since the editor was opened)
 
 // made again from its build, as the game makes it (rigOf): drawn anew, and the frames its parts are placed in (standing:
 // the pose the build's handles edit; a move's frame: the one its handles edit). One another is made from (the fox: the
@@ -99,13 +99,12 @@ export function place() {
   P = view.move === 'edit' ? rigParts.posed(kind, 'hurt', 0) : rigParts.posed(kind, view.move, view.frame);
   G = rigParts.growth(kind, view.move === 'edit' ? 'hurt' : view.move); // (the bigger animals: drawn grown, their handles with them)
 }
-export function changed() { if (view.mode === 'game') { setPalette(palette); draw(); listParts(); status(); return; } rebuild(); draw(); status(); }
+export function changed() { rebuild(); draw(); status(); }
 export function refresh() { listParts(); inspect(); timeline(); draw(); }
 export function commit(fn) { remember(); fn(); changed(); timeline(); }
 export function remember() { const h = hist(); h.past.push(snapshot()); if (h.past.length > 300) h.past.shift(); h.future = []; }
 function restore(json) {
   const was = JSON.parse(json), into = (o, v) => { for (const k of Object.keys(o)) delete o[k]; Object.assign(o, v); };
-  if (view.mode === 'game') { into(palette, was); setPalette(palette); refresh(); status(); return; }
   const keep = [...hidden].map(pathOf).filter(Boolean);
   into(build, was.build);
   if (skin && was.skin) into(skin, was.skin);
@@ -131,16 +130,12 @@ export function choose(k) {
   }
   fillMoves(); rebuild(); sandbox.reset(k); refresh(); status(); fileLabel();
 }
-// the mode: Setup (the build: what every move is made from), Animate (a move), Play (see play.js); Game (the game's own)
-let before = 'setup'; // (the mode Game was opened from: back to it)
+// the mode: Setup (the build: what every move is made from), Animate (a move), Play (see play.js)
 export function setMode(m) {
-  if (isProp() && (m === 'animate' || m === 'play')) m = 'setup'; // (a prop: Setup, or Game)
-  if (m === 'game' && view.mode !== 'game') { before = view.mode || 'setup'; $('leaveGame').querySelector('span').textContent = `Back to the ${kind.replace(/^\w+\//, '')}`; }
+  if (isProp() && (m === 'animate' || m === 'play')) m = 'setup'; // (a prop: Setup only)
   view.mode = m; document.body.className = m; document.body.classList.toggle('prop', isProp());
   for (const b of $('modes').children) b.classList.toggle('on', b.dataset.mode === m);
-  $('gameMode').classList.toggle('on', m === 'game');
   setPlay(false);
-  if (m === 'game') { view.move = 'edit'; setCast(castOf()); place(); refresh(); status(); return; }
   if (m === 'play') { view.move = 'edit'; sandbox.reset(kind); also = []; sel = { type: 'rig' }; place(); refresh(); status(); return; }
   show(m === 'setup' ? 'edit' : animated());
   status();
@@ -149,34 +144,40 @@ export const animated = () => (rigParts.move(kind, lastMove) ? lastMove : rigPar
 for (const b of $('modes').children) b.onclick = () => setMode(b.dataset.mode);
 
 export function status() {
-  if (view.mode === 'game') {
-    const d = paletteDirty(), s = $('status');
-    s.className = d ? 'dirty' : ''; s.textContent = d ? 'unsaved changes in assets/palette.js' : 'assets/palette.js';
-    $('undo').disabled = !hist().past.length; $('redo').disabled = !hist().future.length; $('revert').disabled = $('save').disabled = !d;
-    return;
-  }
   const s = $('status'), mine = touched(), others = KINDS.filter((k) => k !== kind && k !== base && dirty(k)), files = [base, ...(skin ? [kind] : [])].map(fileOf).join(' + ');
   s.className = mine.length || others.length ? 'dirty' : '';
   if (paletteDirty()) others.push('the palette');
   s.textContent = (mine.length ? `unsaved changes in ${mine.map(fileOf).join(', ')}` : files) + (inGame(kind) || isProp() ? '' : ' · not in the game yet') + (others.length ? ` · also unsaved: ${others.join(', ')}` : '');
   $('undo').disabled = !hist().past.length; $('redo').disabled = !hist().future.length;
-  $('revert').disabled = !mine.length; $('save').disabled = !mine.length && !paletteDirty();
+  $('revert').disabled = !reverted(); $('save').disabled = !mine.length && !others.length;
+  if (mine.length || others.length) autosave();
 }
+// saved by itself a moment after a change (not while one is being dragged: see numIn, stage.js); not again after it
+// failed, till Save works
+let autoAt = 0, autoFailed = false, saving = false;
+function autosave() { clearTimeout(autoAt); if (!autoFailed) autoAt = setTimeout(() => { if (!drag) save(true); else autosave(); }, 1000); }
 
-// saved into its files: the base's, the skin's (each only if changed; a new one: its file made); the palette, if changed
-export async function save() {
+// saved into their files: every one changed (a new one: its file made; a skin's: its own); the palette, if changed.
+// auto: by itself (see autosave)
+export async function save(auto = false) {
+  if (saving) { autosave(); return; }
+  saving = true;
   let said = [];
   const post = async (url, body) => {
     const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).catch(() => null);
-    if (!res?.ok) { $('status').className = 'dirty'; $('status').textContent = `not saved: ${res ? await res.text() : 'is the dev server running? (npm run dev)'}`; return false; }
+    if (!res?.ok) { autoFailed = true; $('status').className = 'dirty'; $('status').textContent = `not saved: ${res ? await res.text() : 'is the dev server running? (npm run dev)'}${auto ? ' · ⌘S to try again' : ''}`; return false; }
     said.push(await res.text()); return true;
   };
-  for (const k of view.mode === 'game' ? [] : touched()) {
-    if (!await post('/save', { kind: k, build: builds[k], of: files[k].of })) return;
-    saved[k] = JSON.stringify(builds[k]);
-  }
-  if (paletteDirty()) { if (!await post('/palette', palette)) return; savedPalette = JSON.stringify(palette); }
-  status(); if (said.length) $('status').textContent = said.join(' · ');
+  try {
+    for (const k of KINDS.filter(dirty)) {
+      const json = JSON.stringify(builds[k]);
+      if (!await post('/save', { kind: k, build: builds[k], of: files[k].of })) return;
+      saved[k] = json;
+    }
+    if (paletteDirty()) { const json = JSON.stringify(palette); if (!await post('/palette', palette)) return; savedPalette = json; }
+    autoFailed = false;
+    status(); if (said.length) $('status').textContent = said.join(' · ');
+  } finally { saving = false; }
 }
 
 // new ones (see browser.js): an animal (a copy of the one shown, skin and all), a skin of it (colors as they are)
@@ -213,11 +214,8 @@ export function newProp(folder) {
   files[k] = { format: 1, name: n, size: [...size], ...(up && { up }) }; builds[k] = JSON.parse(JSON.stringify(builds[from])); saved[k] = null; KINDS.push(k);
   choose(k); status();
 }
-$('undo').onclick = undo; $('redo').onclick = redo; $('save').onclick = save;
-export const gameToggle = () => setMode(view.mode === 'game' ? before : 'game');
-$('gameMode').onclick = gameToggle;
-$('leaveGame').onclick = gameToggle;
-$('revert').onclick = () => { remember(); if (view.mode === 'game') { restore(savedPalette); return; } restore(JSON.stringify({ build: saved[base] ? JSON.parse(saved[base]) : build, skin: skin && saved[kind] ? JSON.parse(saved[kind]) : skin })); };
+$('undo').onclick = undo; $('redo').onclick = redo; $('save').onclick = () => save();
+$('revert').onclick = () => { remember(); restore(JSON.stringify({ build: opened[base] ? JSON.parse(opened[base]) : build, skin: skin && opened[kind] ? JSON.parse(opened[kind]) : skin })); }; // (as it was when the editor was opened: one undo back)
 export function setSel(v, keep = false) { if (!keep) also = []; return (sel = v); } // (keep: what is picked with it too)
 export function setAlso(v) { return (also = v); }
 export function setDrag(v) { return (drag = v); }

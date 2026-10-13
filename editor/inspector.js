@@ -1,18 +1,19 @@
 // The inspector (see editor.js): the part picked, each of its settings in its section; a skin's colors, the far side
-import { $, el, iconBtn } from './dom.js';
+import { $, el, iconBtn, segmented, svg } from './dom.js';
 import { faceFrames } from './face.js';
 import { inspectPlay } from './handling.js';
 import { SWITCHES, addDot, addPaint, addShape, bodyIndex, itemDo, layers, setSpikes, swingOff, swingOn, swingable, switchOn, switchesNow, toggle } from './layers.js';
 import { listParts, reparent } from './lists.js';
-import { colorPick, inspectPalette } from './palette.js';
+import { colorPick } from './palette.js';
 import { ALONG, ON_BONE, alongOf, boneChoices, boneDefaults, current, geomOf, isOwn, middleOf, onChoices, ownChain, parts, repivot, withDefaults } from './parts.js';
 import { COLOR_KEYS, GEOMS, GROUP_SWING, also, base, build, builds, changed, choose, commit, editable, isGroup, isProp, kind, folderOf, newAnimal, newProp, newSkin, nice, paints, refresh, remember, sel, skin, skinsOf, status, view, setSel } from './state.js';
 import { inspectMove, timeline } from './timeline.js';
 import { addBone, deleteBone, reachChoices, reachTo, renameBone, reparentBone, under } from './bones.js';
+import { TIPS, unitOf } from './tips.js';
+import { numField } from './num.js';
 
 export function inspect() {
   const box = $('inspector'); box.textContent = '';
-  if (view.mode === 'game') { inspectPalette(box); return; }
   if (!editable()) { box.append(el('p', { className: 'note', textContent: `The ${kind} has no bones.` })); return; }
   if (view.mode === 'play') { inspectPlay(box); return; }
   if (view.move !== 'edit') { inspectMove(box); return; }
@@ -27,7 +28,7 @@ export function inspect() {
     const head = []; // (its name: renamed in its row, see lists.js)
     if (t === 'item' && !isProp()) head.push(field('bone', attach(o), 'The bone it is on: a joint (in its frame; the box: none), or a bone it is drawn along (as the pose has it)'));
     if (t === 'item' || t === 'paint') head.push(field('shape', shapeKind(o), o.bone ? 'What it is drawn as along its bone' : 'What it is: fitted to where it was'));
-    if (head.length) box.append(section(t === 'group' ? 'Group' : 'Shape', head));
+    if (head.length) box.append(section('', head)); // (what it is and where: no title, as Figma has its top row)
   }
   if (t === 'bone') { boneFields(sel.name, o, box, title); return; }
   if (t === 'joint') {
@@ -35,7 +36,7 @@ export function inspect() {
     box.append(el('div', { className: 'keys' }, iconBtn('plus', 'Bone', { title: `A new bone on the ${sel.name}: what is on it goes with it, and it turns in a move`, onclick: () => addBone(sel.name) })));
     if (sel.name === 'head') { // (what it turns about)
       const pv = () => build.headPivot || [0, 0], put = (q) => { if (q[0] || q[1]) build.headPivot = q; else delete build.headPivot; };
-      box.append(field('pivot', stack(pv().map((v, j) => numIn(v, (x) => { const q = pv().slice(); q[j] = x; put(q); }, { label: 'xy'[j] }))), 'What it turns about, from the joint: where the neck meets it (drag the ring by the joint)'));
+      box.append(field('pivot', stack(pv().map((v, j) => numIn(v, (x) => { const q = pv().slice(); q[j] = x; put(q); }, { label: 'XY'[j], unit: 'px' }))), 'What it turns about, from the joint: where the neck meets it (drag the ring by the joint)'));
     }
     return;
   }
@@ -43,12 +44,12 @@ export function inspect() {
   if (t === 'item' && o.bone) { // (a shape on a bone: all it can be; a bone of its own: that too)
     fields(withDefaults(o, boneDefaults(o)), box, ['name', 'bone', 'along']);
     const own = ownChain(o);
-    if (own) box.append(section('Swing', [swingBox(o, true), ...chainFields(o.name, own)], SWING_TIP));
+    if (own) box.append(section('Swing', chainFields(o.name, own), SWING_TIP, [swingBtn(o, true)]));
     return;
   }
   if (t === 'item') { // (an ellipse, a box: turned)
     fields(withDefaults(o, { color: undefined, ...(!isProp() && { smooth: 1 }), ...((o.ellipse || o.box) && { angle: 0 }) }), box, ['name', 'on']);
-    if (!isProp()) box.append(section('Swing', [swingBox(o, false)], SWING_TIP));
+    if (!isProp()) box.append(section('Swing', [], SWING_TIP, [swingBtn(o, false)]));
     return;
   }
   const skip = t === 'rig' ? ['joints', 'headPivot', 'layers', 'dots', 'legs', 'chains', 'face', 'moves', 'handling', 'recolor'] : t === 'paint' || t === 'dot' ? ['name'] : t === 'leg' || t === 'chain' ? ['on'] : []; // (a bone's joint: dragged onto another in the list)
@@ -79,9 +80,28 @@ function roleSelect(o, roles) {
   return field('role', input, roles.map(([, l, tip]) => `${l}: ${tip}`).join('\n'));
 }
 const SWING_TIP = 'Swung as the body moves, on a bone of its own made from it: a capsule bends from its first point to its second (a tail, a strand of hair), a triangle swings from its base (an ear), an ellipse or a box swings from below its middle. Off: the shape it is at rest';
-function swingBox(o, on) {
+function swingBtn(o, on) {
   const no = !on && swingable(o);
-  return field('swings', el('input', { type: 'checkbox', checked: on, disabled: !!no, onchange: () => { commit(() => (on ? swingOff(o) : swingOn(o))); listParts(); inspect(); } }), no || SWING_TIP);
+  return iconBtn(on ? 'minus' : 'plus', '', { disabled: !!no, title: no || (on ? 'Not swung: the shape it is at rest' : `Swung: ${SWING_TIP}`), onclick: () => { commit(() => (on ? swingOff(o) : swingOn(o))); listParts(); inspect(); } });
+}
+// how floppy a swing is, one number for its three (0: stiff and quick as an ear, 1: loose and heavy); its three
+// themselves behind ⚙
+const STIFF = { stiffness: 1600, damping: 30, weight: 20 }, FLOPPY = { stiffness: 60, damping: 6, weight: 140 };
+const floppyOf = (c) => Math.max(0, Math.min(1, Math.log(STIFF.stiffness / (c.stiffness || 1)) / Math.log(STIFF.stiffness / FLOPPY.stiffness)));
+function physics(c, defaults, key) {
+  const now = () => ({ ...defaults, ...c }), out = [];
+  const floppy = numIn(floppyOf(now()), (f) => {
+    c.stiffness = Math.round(STIFF.stiffness * (FLOPPY.stiffness / STIFF.stiffness) ** f);
+    c.damping = +(STIFF.damping + (FLOPPY.damping - STIFF.damping) * f).toFixed(1);
+    c.weight = Math.round(STIFF.weight + (FLOPPY.weight - STIFF.weight) * f);
+  }, { min: 0, max: 1, step: 0.02, ...unitOf('floppy') });
+  out.push(el('div', { className: 'withGear' }, field('floppy', floppy), gearBtn(key)));
+  if (raw.has(key)) for (const k of ['stiffness', 'damping', 'weight']) out.push(field(k, numIn(now()[k], (x) => { c[k] = x; }, { min: 0, max: Math.max(k === 'stiffness' ? 3000 : k === 'damping' ? 80 : 300, now()[k] * 2), step: k === 'stiffness' ? 10 : 1 })));
+  return out;
+}
+// ⚙: the numbers a setting is made from, shown or not (kept while the editor is open)
+export function gearBtn(key, tip = 'the numbers this is made from') {
+  return iconBtn('gear', '', { className: `rawBtn${raw.has(key) ? ' on' : ''}`, title: `${raw.has(key) ? 'Hide' : 'Show'} ${tip}`, onclick: () => { if (!raw.delete(key)) raw.add(key); inspect(); } });
 }
 // a bone: its name, what it is on (a joint, a bone, a leg's part; the box), where (its root there), its turn, how long it
 // is (a shape drawn along it: so long); a bone on it, or none
@@ -92,24 +112,23 @@ function boneFields(n, B, box, title) {
   for (const c of onChoices().filter((x) => !no.has(x))) on.append(el('option', { value: c, textContent: c.replace('.', ' ') || 'the box', selected: c === (B.on || '') }));
   const reaches = el('select', { onchange: () => { commit(() => reachTo(n, reaches.value)); inspect(); } });
   for (const c of ['', ...reachChoices(n)]) reaches.append(el('option', { value: c, textContent: c || 'nothing', selected: c === (B.to || '') }));
-  const xy = (k) => stack((B[k] || [0, 0]).map((v, j) => numIn(v, (x) => { const q = (B[k] || [0, 0]).slice(); q[j] = x; B[k] = q; }, { label: 'xy'[j] })));
-  const bend = el('select', { onchange: () => commit(() => { if (+bend.value) B.bend = +bend.value; else delete B.bend; }) });
-  for (const [v, t] of [[1, 'up / back'], [0, 'straight'], [-1, 'down / forward']]) bend.append(el('option', { value: v, textContent: t, selected: v === (B.bend || 0) }));
+  const xy = (k) => stack((B[k] || [0, 0]).map((v, j) => numIn(v, (x) => { const q = (B[k] || [0, 0]).slice(); q[j] = x; B[k] = q; }, { label: 'XY'[j], unit: 'px' })));
+  const bend = segmented([[1, 'bendUp', 'Bowed up / back'], [0, 'straight', 'Straight'], [-1, 'bendDown', 'Bowed down / forward']], B.bend || 0, (v) => { commit(() => { if (v) B.bend = v; else delete B.bend; }); inspect(); });
   box.append(section('Bone', [field('name', name, 'Its name: what is on it, and its keys in the moves, go by it'), field('on', on, 'What it is on: it goes with it (where it is, kept)'),
     field('at', xy('at'), 'Where it is on what it is on (in its frame)'),
     field('reaches', reaches, 'A joint or a bone it reaches: from where it is to its end there, wherever a pose puts it, bowed to keep its length (a neck reaching the head)'),
     ...(B.to ? [field('end', xy('end'), 'Where it ends on what it reaches (in its frame)'),
       field('bend', bend, 'Which way it bows when what it reaches comes nearer (as it goes from its root to its end)'),
       field('links', numIn(B.links || 2, (x) => { if (x === 2) delete B.links; else B.links = x; }, { step: 1, min: 1, max: 12, whole: true }), 'How smooth its bow: so many straight parts')]
-      : [field('angle', numIn(B.angle || 0, (x) => { B.angle = x; }, { min: -3.14, max: 3.14, step: 0.01 }), 'Its turn on what it is on, radians (+: clockwise); a move turns it from there')]),
-    field('length', numIn(B.length || 0, (x) => { B.length = x; }, { min: 0 }), B.to ? 'How long it is along its bow: further apart than that, it stretches straight' : 'How long it is: a shape drawn along it is so long (none: a joint, only turned)'),
+      : [field('angle', numIn(B.angle || 0, (x) => { B.angle = x; }, { min: -3.14, max: 3.14, step: 0.01, ...unitOf('angle') }), 'Its turn on what it is on, + clockwise; a move turns it from there')]),
+    field('length', numIn(B.length || 0, (x) => { B.length = x; }, { min: 0, unit: 'px' }), B.to ? 'How long it is along its bow: further apart than that, it stretches straight' : 'How long it is: a shape drawn along it is so long (none: a joint, only turned)'),
     el('div', { className: 'keys' }, iconBtn('plus', 'Bone', { title: 'A new bone on this one, at its end', onclick: () => addBone(n) }))], 'A bone of its own: shapes, swings, legs and bones go on it'));
 }
 // a group that swings: all of it, about its pivot, as the body moves (see swungGroup in art.js); on, its pivot at the top
 // of its shapes if it had none (where things hang from: drag it), its settings
 const GROUP_SWING_TIP = 'All of it swung about its pivot as the body moves (drag the pivot to where it hangs from)';
 function groupSwing(G) {
-  const on = !!G.swing, box = el('input', { type: 'checkbox', checked: on, onchange: () => {
+  const on = !!G.swing, btn = iconBtn(on ? 'minus' : 'plus', '', { title: on ? 'Not swung' : `Swung: ${GROUP_SWING_TIP}`, onclick: () => {
     commit(() => {
       if (on) { delete G.swing; return; }
       G.swing = {};
@@ -117,18 +136,14 @@ function groupSwing(G) {
     });
     listParts(); inspect();
   } });
-  const out = [field('swings', box, GROUP_SWING_TIP)];
-  if (!on) return out;
-  const inner = el('div');
-  fields(withDefaults(G.swing, GROUP_SWING), inner, ['role'], true);
-  return [...out, roleSelect(G.swing, GROUP_ROLES), ...inner.childNodes];
+  return [btn, on ? [roleSelect(G.swing, GROUP_ROLES), ...physics(G.swing, GROUP_SWING, `groupSwing:${sel.g}`)] : []];
 }
 function chainFields(n, c) {
   const on = el('select', { onchange: () => reparent({ type: 'chain', name: n }, on.value) });
   for (const j of [...Object.keys(build.joints), ...Object.keys(build.bones || {})]) on.append(el('option', { value: j, textContent: j, selected: j === c.on }));
   const inner = el('div');
-  fields(c.ear ? c : withDefaults(c, { links: 1, curl: 0 }), inner, ['on', 'role', 'ear'], true);
-  return [field('joint', on, 'The joint it hangs from'), roleSelect(c, ROLES), ...inner.childNodes];
+  fields(c.ear ? c : withDefaults(c, { links: 1, curl: 0 }), inner, ['on', 'role', 'ear', 'stiffness', 'damping', 'weight'], true);
+  return [field('joint', on, 'The joint it hangs from'), roleSelect(c, ROLES), ...physics(c, {}, `swing:${n}`), ...inner.childNodes];
 }
 function reattach(o, how, n) {
   if (how === 'on') {
@@ -149,10 +164,10 @@ function reattach(o, how, n) {
 }
 // what a shape is: an ellipse, a capsule, a box or a triangle (on a joint: fitted to where it was; along a bone: its
 // settings kept where the kinds share them)
+const KIND_TIPS = { ellipse: 'An ellipse', capsule: 'A capsule: a line with round ends', box: 'A box, its corners as round as it likes', triangle: 'A triangle' };
 function shapeKind(o) {
-  const now = o.bone ? alongOf(o) : geomOf(o), input = el('select', { onchange: () => { commit(() => reshape(o, input.value)); listParts(); inspect(); } });
-  for (const g of GEOMS) input.append(el('option', { value: g, textContent: g, selected: g === now }));
-  return input;
+  const now = o.bone ? alongOf(o) : geomOf(o);
+  return segmented(GEOMS.map((g) => [g, g, `${KIND_TIPS[g]}${g === now ? '' : ': it becomes one, about where it is'}`]), now, (g) => { commit(() => reshape(o, g)); listParts(); inspect(); });
 }
 function reshape(o, to) {
   if (o.bone) {
@@ -181,16 +196,17 @@ function tidy(o) {
 // shapes, paint and spikes added here, each picked in the list or on the stage
 function groupFields(G, box) {
   const g = sel.g;
-  box.append(section('Drawn', switchesNow().map(([k, , yes, no, label]) => field(label, el('input', { type: 'checkbox', checked: switchOn(G, k), onchange: () => toggle(g, k) }), `${yes}. Off: ${no}`)), 'How the group is drawn: as one, in the order of the list'));
+  box.append(section('Drawn', [el('div', { className: 'toggles' }, ...switchesNow().map(([k, ic, yes, no, label]) => { const on = switchOn(G, k); return el('button', { type: 'button', className: `tog${on ? ' on' : ''}`, title: `${on ? yes : no}. Click: ${on ? no.toLowerCase() : yes.toLowerCase()}`, innerHTML: svg(ic), onclick: () => toggle(g, k) }, el('span', { textContent: label })); }))], 'How the group is drawn: as one, in the order of the list'));
   if (G.shapes.length && !G.shapes.some((s) => s.bone) && !isProp()) {
     const on = el('select', { onchange: () => { commit(() => { for (const s of G.shapes) { if (on.value) s.on = on.value; else delete s.on; } }); listParts(); } });
     for (const c of onChoices()) on.append(el('option', { value: c, textContent: c.replace('.', ' ') || 'the box', selected: c === (G.shapes[0]?.on || '') }));
     const at = G.at || [0, 0];
     box.append(section('Place', [field('bone', on, 'The joint all its shapes are on'),
-      field('pivot', stack(at.map((v, j) => numIn(v, (x) => { const q = (G.at || [0, 0]).slice(); q[j] = x; G.at = q; }, { label: 'xy'[j] }))), 'Drag the pivot: the group moves. ⌥-drag: the pivot alone.'),
-      field('angle', numIn(G.angle || 0, (x) => { if (x) G.angle = x; else delete G.angle; }, { min: -3.14, max: 3.14, step: 0.01 }), 'Its shapes turned about the pivot'),
+      field('pivot', stack(at.map((v, j) => numIn(v, (x) => { const q = (G.at || [0, 0]).slice(); q[j] = x; G.at = q; }, { label: 'XY'[j], unit: 'px' }))), 'Drag the pivot: the group moves. ⌥-drag: the pivot alone.'),
+      field('angle', numIn(G.angle || 0, (x) => { if (x) G.angle = x; else delete G.angle; }, { min: -3.14, max: 3.14, step: 0.01, ...unitOf('angle') }), 'Its shapes turned about the pivot'),
       el('div', { className: 'keys' }, iconBtn('pivot', 'Pivot to the middle', { title: 'The pivot in the middle of its shapes; they stay where they are', onclick: () => { commit(() => repivot(G, middleOf(G))); inspect(); } }))]));
-    box.append(section('Swing', groupSwing(G), GROUP_SWING_TIP));
+    const [btn, els] = groupSwing(G);
+    box.append(section('Swing', els, GROUP_SWING_TIP, [btn]));
   }
   const color = el('span', { className: 'keys' }, colorPick(G.color || build.fur, (c) => { commit(() => { if (c === build.fur) delete G.color; else G.color = c; }); listParts(); inspect(); }));
   const outline = isProp() && G.outline !== false && el('span', { className: 'keys' }, colorPick(G.outline || 'outline', (c) => { commit(() => { if (c === 'outline') delete G.outline; else G.outline = c; }); inspect(); }));
@@ -204,7 +220,7 @@ function groupFields(G, box) {
 }
 // a setting: its name, what sets it (what it is: the tooltip, not a note under it). A number's name drags it, as its own
 // does (see numIn)
-export function field(label, input, note) {
+export function field(label, input, note = TIPS[label]) {
   const name = el('span', { textContent: label }), f = el('label', { className: 'field' }, name, input);
   if (note) f.title = note;
   if (input.scrub) { name.classList.add('scrub'); name.addEventListener('pointerdown', input.scrub); }
@@ -218,17 +234,18 @@ const SECTION_OF = {
   color: 'Look', fur: 'Look', noseColor: 'Look', tipColor: 'Look', socks: 'Look', speck: 'Look', marks: 'Look', grows: 'Look',
   stiffness: 'Motion', damping: 'Motion', weight: 'Motion',
 };
-const sectionOf = (k) => (GEOMS.includes(k) ? 'Shape' : SECTION_OF[k] || 'More');
-function section(title, els, tip) {
-  const s = el('div', { className: 'section' }, el('div', { className: 'sectionTitle', textContent: title, ...(tip && { title: tip }) }));
+const sectionOf = (k) => (GEOMS.includes(k) ? 'Place' : SECTION_OF[k] || 'More');
+function section(title, els, tip, acts = []) {
+  const s = el('div', { className: 'section' }, ...(title || acts.length ? [el('div', { className: 'sectionTitle', ...(tip && { title: tip }) }, el('span', { textContent: title }), ...(acts.length ? [el('span', { className: 'acts' }, ...acts)] : []))] : []));
   s.append(...els);
   return s;
 }
 // an editor for each of an object's settings, by what it holds, in sections (flat: all in the box, as they come)
 function fields(o, box, skip, flat = false) {
   const into = {}, put = (k, ...els) => { if (flat) box.append(...els); else (into[sectionOf(k)] ||= []).push(...els); };
+  const shaped = GEOMS.some((g) => Array.isArray(o[g]));
   for (const k of Object.keys(o)) {
-    if (skip.includes(k)) continue;
+    if (skip.includes(k) || (k === 'angle' && shaped)) continue; // (a shape's turn: with its place)
     const v = o[k];
     let input;
     if (COLOR_KEYS.includes(k)) { // (a shape's own color, an ear's tip: none, as it may be)
@@ -250,9 +267,7 @@ function fields(o, box, skip, flat = false) {
       input = el('select', { onchange: () => commit(() => { if (input.value) o.on = input.value; else delete o.on; }) });
       for (const c of onChoices()) input.append(el('option', { value: c, textContent: c.replace('.', ' ') || 'the box', selected: c === (v || '') }));
     } else if (GEOMS.includes(k) && Array.isArray(v)) {
-      const type = el('select', { onchange: () => commit(() => { const g = type.value; delete o[k]; o[g] = convert(v, k, g); }) });
-      for (const g of GEOMS) type.append(el('option', { value: g, textContent: g, selected: g === k }));
-      put(k, ...(sel.type === 'item' || sel.type === 'paint' ? [] : [field('shape', type)]), k === 'triangle' ? el('div', { className: 'numsWide' }, ...v.map((_, i) => nums(v, i, null, [`x${i + 1}`, `y${i + 1}`]))) : el('div', { className: 'numsWide' }, nums(o, k, k)));
+      put(k, ...(sel.type === 'item' || sel.type === 'paint' ? [] : [field('shape', shapeKind(o))]), ...placeBlock(o, k));
       continue;
     } else if (typeof v === 'number') input = num(o, k);
     else if (typeof v === 'boolean') input = el('input', { type: 'checkbox', checked: v, onchange: () => commit(() => { o[k] = input.checked; }) });
@@ -266,39 +281,18 @@ function fields(o, box, skip, flat = false) {
   }
   if (!flat) for (const t of SECTIONS) if (into[t]) box.append(section(t, into[t]));
 }
-// a number to set, as Figma has it: a box with its name in it (drag the name, or the setting's: on by step a pixel, ⇧ ten
-// times as fast, ⌥ a tenth; the arrow keys in the box: a step), live as it goes (one undo for the drag). A slider beside
-// it only for a setting between a least and a most (min and max). whole: whole numbers; commit: set makes its own undo
-// and redraws
-export function numIn(value, set, { step = 0.1, min, max, whole = false, commit: own = false, label } = {}) {
-  let v = +(+value || 0).toFixed(3);
-  const put = (x) => { x = whole ? Math.round(x) : +x.toFixed(3); if (min !== undefined) x = Math.max(min, x); if (max !== undefined) x = Math.min(max, x); return x; };
-  const box = el('input', { type: 'number', step: whole ? 1 : step, value: v, ...(min !== undefined && { min }), ...(max !== undefined && { max }) });
-  const bounded = min !== undefined && max !== undefined;
-  const range = bounded ? el('input', { type: 'range', min: Math.min(min, v), max: Math.max(max, v), step: whole ? 1 : step / 2, value: v }) : null;
+// a number to set (see num.js): live as it goes (one undo for the drag); commit: set makes its own undo and redraws
+export function numIn(value, set, { commit: own = false, ...o } = {}) {
   let live = false;
-  const going = (x) => { v = x; box.value = x; if (range) range.value = x; if (own) return; if (!live) { remember(); live = true; } set(x); changed(); };
-  const gone = () => { if (own) set(v); else if (live) { live = false; timeline(); listParts(); status(); } };
-  if (range) { range.oninput = () => going(put(+range.value)); range.onchange = gone; }
-  box.onchange = () => { const x = put(+box.value); v = x; box.value = x; if (range) range.value = x; if (own) set(x); else commit(() => set(x)); };
-  const scrub = (e) => { // (dragging a name)
-    if (e.button) return;
-    e.preventDefault();
-    const t = e.currentTarget, x0 = e.clientX, from = v;
-    t.setPointerCapture(e.pointerId); document.body.classList.add('scrubbing');
-    const move = (m) => going(put(from + (m.clientX - x0) * (whole ? 0.25 : step) * (m.shiftKey ? 10 : m.altKey ? 0.1 : 1)));
-    const up = () => { t.removeEventListener('pointermove', move); t.removeEventListener('pointerup', up); t.removeEventListener('pointercancel', up); document.body.classList.remove('scrubbing'); gone(); };
-    t.addEventListener('pointermove', move); t.addEventListener('pointerup', up); t.addEventListener('pointercancel', up);
-  };
-  const lbl = label !== undefined ? el('span', { className: 'lbl scrub', textContent: label }) : null;
-  if (lbl) lbl.addEventListener('pointerdown', scrub);
-  const wrap = el('span', { className: `num${range ? ' ranged' : ''}` }, el('span', { className: 'box' }, ...(lbl ? [lbl] : []), box), ...(range ? [range] : []));
-  if (!lbl) wrap.scrub = scrub; // (the setting's name drags it: see field)
-  return wrap;
+  return numField(value, { ...o,
+    live: (x) => { if (own) return; if (!live) { remember(); live = true; } set(x); changed(); },
+    done: (x) => { if (own) set(x); else if (live) { live = false; timeline(); listParts(); status(); } },
+    set: (x) => { if (own) set(x); else commit(() => set(x)); },
+  });
 }
 // how a setting's slider goes, by its name (sizes from 0; counts in whole numbers)
 const SIZES = ['r', 'ends', 'thigh', 'shin', 'length', 'end', 'smooth', 'stiffness', 'damping', 'weight', 'tipSize'], WHOLE = ['links'];
-const optsFor = (k) => (WHOLE.includes(k) ? { step: 1, min: 1, max: 12, whole: true } : SIZES.includes(k) ? { min: 0 } : {});
+const optsFor = (k) => ({ ...(WHOLE.includes(k) ? { step: 1, min: 1, max: 12, whole: true } : SIZES.includes(k) ? { min: 0 } : {}), ...unitOf(k) });
 const num = (o, k) => numIn(o[k], (x) => { o[k] = x; }, optsFor(k));
 // numbers in pairs (x and y side by side, as Figma has them), each with its name in its box (see numIn)
 export const stack = (inputs) => el('div', { className: 'nums' }, ...inputs);
@@ -306,8 +300,40 @@ export const stack = (inputs) => el('div', { className: 'nums' }, ...inputs);
 const RADII = { ellipse: [2, 3], capsule: [4], box: [4] };
 const LABELS = { ellipse: ['x', 'y', 'rx', 'ry'], capsule: ['ax', 'ay', 'bx', 'by', 'r'], box: ['x0', 'y0', 'x1', 'y1', 'r'] };
 export const numName = (labels, n, j) => labels?.[j] ?? (n === 2 ? 'xy'[j] : `${j + 1}`);
-const nums = (o, k, geom, labels = LABELS[geom]) => stack(o[k].map((_, j) => numIn(o[k][j], (x) => { o[k][j] = x; }, { ...(RADII[geom]?.includes(j) && { min: 0 }), label: numName(labels, o[k].length, j) })));
+const nums = (o, k, geom, labels = LABELS[geom]) => stack(o[k].map((_, j) => numIn(o[k][j], (x) => { o[k][j] = x; }, { ...(RADII[geom]?.includes(j) && { min: 0 }), label: numName(labels, o[k].length, j), unit: 'px' })));
 const json = (o, k) => { const i = el('input', { type: 'text', value: JSON.stringify(o[k]) }); i.onchange = () => { try { const v = JSON.parse(i.value); commit(() => { o[k] = v; }); } catch { i.style.borderColor = 'red'; } }; return i; };
+// a shape's place as Figma has it, whatever it is: its middle (X, Y), its size (W, H), its turn (↻: an ellipse's, a box's
+// angle; a capsule's from a to b) and a box's corners (◜); set, the shape made so. ⋯: its own numbers too
+const R3 = (n) => +n.toFixed(3);
+export const raw = new Set(); // (the ⚙s open: their numbers shown)
+function frameOf(o, g) {
+  const v = o[g];
+  if (g === 'ellipse') return { x: v[0], y: v[1], w: 2 * v[2], h: 2 * v[3], rotation: o.angle || 0 };
+  if (g === 'box') return { x: (v[0] + v[2]) / 2, y: (v[1] + v[3]) / 2, w: Math.abs(v[2] - v[0]), h: Math.abs(v[3] - v[1]), rotation: o.angle || 0, radius: v[4] ?? 0 };
+  if (g === 'capsule') return { x: (v[0] + v[2]) / 2, y: (v[1] + v[3]) / 2, w: Math.hypot(v[2] - v[0], v[3] - v[1]) + 2 * v[4], h: 2 * v[4], rotation: Math.atan2(v[3] - v[1], v[2] - v[0]) };
+  const xs = v.map((q) => q[0]), ys = v.map((q) => q[1]), [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+  return { x: (x0 + x1) / 2, y: (y0 + y1) / 2, w: x1 - x0, h: y1 - y0 };
+}
+function setFrame(o, g, f) {
+  const into = (k, v) => o[k].splice(0, o[k].length, ...v), turn = () => { if (Math.abs(f.rotation) < 1e-4) delete o.angle; else o.angle = R3(f.rotation); };
+  if (g === 'ellipse') { into('ellipse', [R3(f.x), R3(f.y), R3(Math.max(0.1, f.w / 2)), R3(Math.max(0.1, f.h / 2))]); turn(); }
+  else if (g === 'box') { const [a, b] = [o.box[0] <= o.box[2] ? -1 : 1, o.box[1] <= o.box[3] ? -1 : 1]; into('box', [R3(f.x + (a * f.w) / 2), R3(f.y + (b * f.h) / 2), R3(f.x - (a * f.w) / 2), R3(f.y - (b * f.h) / 2), R3(Math.max(0, f.radius))]); turn(); }
+  else if (g === 'capsule') {
+    const r = Math.max(0.1, f.h / 2), half = Math.max(0, f.w - 2 * r) / 2, d = [Math.cos(f.rotation) * half, Math.sin(f.rotation) * half];
+    into('capsule', [R3(f.x - d[0]), R3(f.y - d[1]), R3(f.x + d[0]), R3(f.y + d[1]), R3(r)]);
+  } else {
+    const was = frameOf(o, g), k = [was.w ? f.w / was.w : 1, was.h ? f.h / was.h : 1];
+    for (const q of o.triangle) q.splice(0, 2, R3(f.x + (q[0] - was.x) * k[0]), R3(f.y + (q[1] - was.y) * k[1]));
+  }
+}
+function placeBlock(o, g) {
+  const now = () => frameOf(o, g), n = (key, label, opts = {}) => numIn(now()[key], (x) => setFrame(o, g, { ...now(), [key]: x }), { label, tip: TIPS[key], ...unitOf(key), ...opts });
+  const more = gearBtn('geom', `its own numbers (${TIPS[g].toLowerCase()})`);
+  const third = [...('rotation' in now() ? [n('rotation', '↻', { step: 0.01 })] : []), ...(g === 'box' ? [n('radius', '◜', { min: 0 })] : [])];
+  const out = [stack([n('x', 'X'), n('y', 'Y')]), stack([n('w', 'W', { min: 0 }), n('h', 'H', { min: 0 })]), el('div', { className: 'nums withMore' }, ...third, ...(third.length < 2 ? [el('span')] : []), more)];
+  if (raw.has('geom')) out.push(el('div', { className: 'raw' }, ...(g === 'triangle' ? o.triangle.map((_, i) => nums(o.triangle, i, null, [`x${i + 1}`, `y${i + 1}`])) : [nums(o, g, g)])));
+  return out;
+}
 // a capsule's or a triangle's points turned by a about their middle
 function turnedAbout(v, g, a) {
   const pts = g === 'capsule' ? [[v[0], v[1]], [v[2], v[3]]] : v, c = [pts.reduce((x, q) => x + q[0], 0) / pts.length, pts.reduce((x, q) => x + q[1], 0) / pts.length];
@@ -349,7 +375,7 @@ function recolors(box, o) {
   const map = o.recolor || {}, put = (fn) => { commit(() => { const m = { ...o.recolor }; fn(m); if (Object.keys(m).length) o.recolor = m; else delete o.recolor; }); inspect(); };
   for (const [from, to] of Object.entries(map)) {
     const rename = (f) => put((m) => { const out = {}; for (const [a, b] of Object.entries(m)) out[a === from ? f : a] = b; for (const k of Object.keys(m)) delete m[k]; Object.assign(m, out); });
-    box.append(field('', el('span', { className: 'nums' }, pick(from, rename), el('span', { textContent: '→' }), pick(to, (t) => put((m) => { m[from] = t; })), iconBtn('x', '', { title: 'Not swapped', onclick: () => put((m) => { delete m[from]; }) }))));
+    box.append(field('', el('span', { className: 'nums', title: `${nice(from)} swapped for ${nice(to)}, everywhere: click either to pick another` }, pick(from, rename), el('span', { textContent: '→' }), pick(to, (t) => put((m) => { m[from] = t; })), iconBtn('x', '', { title: 'Not swapped', onclick: () => put((m) => { delete m[from]; }) }))));
   }
   const free = has.find((c) => !(c in map));
   box.append(iconBtn('plus', 'Swap a color', { disabled: !free, onclick: () => put((m) => { m[free] = free; }) }));

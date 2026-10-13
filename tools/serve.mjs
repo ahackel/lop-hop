@@ -2,13 +2,14 @@
 // (AudioWorklet module imports are cached aggressively and survive normal reloads). The editor (editor/) saves through it:
 // POST /save {kind, build, of} writes an animal's build into its file, assets/<kind>.js (see asset.js and
 // tools/rig-format.js; a new one: made from of, if it is a skin; a prop, kind food/<name> or obstacles/<name>: its file
-// there, and its folder's index.js, every one in it), GET /assets.json lists the files there (a prop's as its kind); POST /palette writes the palette, assets/palette.js. The game sends its runs to it: POST /runs [run, …] adds those not there yet to data/runs.jsonl
+// there, and its folder's index.js, every one in it), GET /assets.json lists the files there (a prop's as its kind); POST /palette writes the palette, assets/palette.js (the settings page, settings/); POST /animals the animals in order, their places' dials, assets/animals.js (the editor's library, the balance page); POST /consts {file: {NAME: number}} the shared constants into level.js, game.js and tools/course.mjs (the balance page, the settings page). The game sends its runs to it: POST /runs [run, …] adds those not there yet to data/runs.jsonl
 // (a run a line; see the runs in game.js), which the balance page reads (balance/).
 import http from 'node:http';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { formatAsset, formatIndex } from './rig-format.js';
+import { setConsts } from './balance-format.js';
 import { toAsset } from '../asset.js';
 
 const root = path.resolve(process.argv[2] || '.');
@@ -48,6 +49,35 @@ async function savePalette(req, res) {
   res.writeHead(200, { 'Content-Type': 'text/plain' }).end('saved assets/palette.js');
 }
 
+// the animals (assets/animals.js): as sent, if it is them (each one with a file, once; a place's dials for each)
+const PLACE = ['mult', 'speed', 'drain', 'meals', 'bump', 'early', 'packs', 'tight'];
+async function saveAnimals(req, res) {
+  let body = '';
+  for await (const chunk of req) body += chunk;
+  const { animals, places } = JSON.parse(body), files = new Set(await fs.readdir(path.join(root, 'assets'))), n = (v) => typeof v === 'number' && Number.isFinite(v);
+  if (!Array.isArray(animals) || !Array.isArray(places) || animals.length !== places.length || new Set(animals.map((a) => a?.kind)).size !== animals.length
+    || animals.some((a) => !/^[a-z]+$/.test(a?.kind) || !files.has(`${a.kind}.js`) || typeof a.name !== 'string' || typeof a.food !== 'string' || !n(a.jump) || !n(a.gravity))
+    || places.some((p) => !PLACE.every((k) => n(p?.[k])))) throw new Error('the animals?');
+  await fs.writeFile(path.join(root, 'assets', 'animals.js'), formatAsset({ format: 1, name: 'animals',
+    animals: animals.map(({ kind, name, food, jump, gravity }) => ({ kind, name, food, jump, gravity })), places: places.map((p) => Object.fromEntries(PLACE.map((k) => [k, p[k]]))) }));
+  res.writeHead(200, { 'Content-Type': 'text/plain' }).end('saved assets/animals.js');
+}
+
+// the shared constants (see balance-format.js): their numbers put in place in the files they are in
+const CONST_FILES = ['level.js', 'game.js', 'tools/course.mjs'];
+async function saveConsts(req, res) {
+  let body = '';
+  for await (const chunk of req) body += chunk;
+  const sent = JSON.parse(body), said = [];
+  if (!sent || typeof sent !== 'object' || Object.keys(sent).some((f) => !CONST_FILES.includes(f))) throw new Error('which files?');
+  for (const [f, values] of Object.entries(sent)) {
+    if (!values || Object.entries(values).some(([k, v]) => !/^[A-Z][A-Z0-9_]*$/.test(k) || !Number.isFinite(v))) throw new Error(`${f}: the numbers?`);
+    const file = path.join(root, f), was = await fs.readFile(file, 'utf8'), now = setConsts(was, values);
+    if (now !== was) { await fs.writeFile(file, now); said.push(f); }
+  }
+  res.writeHead(200, { 'Content-Type': 'text/plain' }).end(said.length ? `saved ${said.join(', ')}` : 'nothing to save');
+}
+
 async function runs(req, res) {
   let body = '';
   for await (const chunk of req) body += chunk;
@@ -65,7 +95,7 @@ const FOLDERS = ['food', 'obstacles'], PROP = /^(food|obstacles)\/([a-z]+\d*)$/;
 const propsIn = async (folder) => (await fs.readdir(path.join(root, 'assets', folder)).catch(() => [])).filter((f) => /^[a-z]+\d*\.js$/.test(f) && f !== 'index.js').map((f) => f.slice(0, -3)).sort();
 
 // the assets there (for the editor: the animals not in the game yet too; not the game's own: GLOBAL)
-const GLOBAL = ['palette'];
+const GLOBAL = ['palette', 'animals'];
 async function assets(req, res) {
   const names = (await fs.readdir(path.join(root, 'assets'))).filter((f) => /^[a-z]+\.js$/.test(f)).map((f) => f.slice(0, -3)).filter((n) => !GLOBAL.includes(n));
   const props = (await Promise.all(FOLDERS.map(async (f) => (await propsIn(f)).map((n) => `${f}/${n}`)))).flat();
@@ -73,7 +103,7 @@ async function assets(req, res) {
 }
 
 http.createServer(async (req, res) => {
-  const act = req.method === 'POST' ? { '/save': save, '/palette': savePalette, '/runs': runs }[req.url] : req.method === 'GET' && { '/assets.json': assets }[req.url];
+  const act = req.method === 'POST' ? { '/save': save, '/palette': savePalette, '/animals': saveAnimals, '/consts': saveConsts, '/runs': runs }[req.url] : req.method === 'GET' && { '/assets.json': assets }[req.url];
   if (act) {
     try { await act(req, res); } catch (e) { res.writeHead(400, { 'Content-Type': 'text/plain' }).end(String(e.message || e)); }
     return;

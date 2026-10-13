@@ -49,6 +49,10 @@ const ICONS = {
   root: '<circle cx="12" cy="15.5" r="4"/><circle cx="5.5" cy="10" r="1.8"/><circle cx="9.5" cy="5.5" r="1.8"/><circle cx="14.5" cy="5.5" r="1.8"/><circle cx="18.5" cy="10" r="1.8"/>',
   bone: '<path d="M17 10c.7-.7 1.69 0 2.5 0a2.5 2.5 0 1 0 0-5 .5.5 0 0 1-.5-.5 2.5 2.5 0 1 0-5 0c0 .81.7 1.8 0 2.5l-7 7c-.7.7-1.69 0-2.5 0a2.5 2.5 0 0 0 0 5c.28 0 .5.22.5.5a2.5 2.5 0 1 0 5 0c0-.81-.7-1.8 0-2.5z"/>',
   chevron: '<path d="m6 9 6 6 6-6"/>',
+  more: '<circle cx="5" cy="12" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="19" cy="12" r="1.2" fill="currentColor"/>',
+  minus: '<path d="M5 12h14"/>',
+  bendUp: '<path d="M4 16c4-8 12-8 16 0"/>', straight: '<path d="M4 12h16"/>', bendDown: '<path d="M4 8c4 8 12 8 16 0"/>',
+  gear: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/>',
   search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
   grid: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
   swing: '<path d="M2 12c1.7-4 3.3-4 5 0s3.3 4 5 0 3.3-4 5 0 3.3 4 5 0"/>',
@@ -70,3 +74,9 @@ for (const b of document.querySelectorAll('button[data-icon]')) { // (the page's
   if (text) b.append(el('span', { textContent: text })); else b.setAttribute('aria-label', b.title);
 }
 
+// buttons side by side, one of them on (as Figma's segmented controls): [value, icon, tooltip] each; picked: on(value)
+export function segmented(options, now, on) {
+  const box = el('span', { className: 'seg', role: 'radiogroup' });
+  for (const [v, ic, tip] of options) box.append(el('button', { type: 'button', className: v === now ? 'on' : '', title: tip, innerHTML: svg(ic), role: 'radio', ariaChecked: String(v === now), onclick: () => { if (v !== now) on(v); } }));
+  return box;
+}

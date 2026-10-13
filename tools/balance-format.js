@@ -1,7 +1,7 @@
 // The tuning constants of a game file (level.js, course.mjs, game.js), for the balance page (balance/): the
-// `NAME = number` of its top-level const lines (not `DT = 1 / 60`: worked out), a comment after them left as it is.
+// `NAME = number` of its top-level const (or let: KNEE, TOP) lines (not `DT = 1 / 60`: worked out), a comment after them left as it is.
 //   readConsts(src) → { NAME: number }        setConsts(src, { NAME: number }) → src with those numbers in place
-const LINE = /^(export )?const [A-Z]/;
+const LINE = /^(export )?(const|let) [A-Z]/;
 const PAIR = /\b([A-Z][A-Z0-9_]*) = (-?\d+(?:\.\d+)?)(?![\d.]|\s*[-+*/])/g;
 const split = (line) => { const i = line.indexOf('//'); return i < 0 ? [line, ''] : [line.slice(0, i), line.slice(i)]; };
 
