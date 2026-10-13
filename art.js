@@ -230,7 +230,8 @@ function sprite(g, mask, extra) {
         }
         made.sprites++;
         const cx = c.getContext('2d'), { img, out } = imageFor(cx, g.w, g.h), rw = img.width, word = wordsOf(pal), px = look();
-        for (let y = 0, i = 0; y < g.h; y++) for (let x = 0, o = y * rw; x < g.w; x++, i++, o++) out[o] = px[i] ? word[px[i]] : 0;
+        const marks = pal.face && extra?.marks, face = marks && wordsOf(pal.face); // (the face in its own colors: see golden)
+        for (let y = 0, i = 0; y < g.h; y++) for (let x = 0, o = y * rw; x < g.w; x++, i++, o++) out[o] = px[i] ? (marks && marks[i] ? face : word)[px[i]] : 0;
         cx.putImageData(img, 0, 0, 0, 0, g.w, g.h); // (its corner, the clear pixels too: what was there before is gone)
       }
       ctx.drawImage(c, 0, 0, g.w, g.h, snap(x + ox), snap(y + oy), g.w, g.h); // (its corner of the canvas)
@@ -1401,14 +1402,15 @@ export const fullMoon = fromRows([
   '..ooooo..',
 ], { o: OUT, w: WHITE, c: BEIGE });
 
-// the golden look of a super power (golden food, the animal flashing): every color but the outlines turned to gold
+// the golden look of a super power (golden food, the animal flashing): every color but the outlines turned to gold, an
+// animal's face (its eyes, its mouth, its nose) as it is (face: the palette it is drawn in, see sprite)
 const golds = {};
 export function golden(pal) {
   return (golds[pal.bg] ||= { ...Object.fromEntries(Object.entries(pal).map(([k, hex]) => {
     if (k === 'bg' || +k === OUT || +k === INK) return [k, hex];
     const l = luma(hex) / 255;
     return [k, l > 0.8 ? '#fff4b8' : l > 0.5 ? '#ffd23f' : '#e3a21a'];
-  })), bg: `${pal.bg} gold` });
+  })), bg: `${pal.bg} gold`, face: pal });
 }
 
 // a palette that draws anything flushed red, as golden does golden (an animal almost out of energy, a flash now and then)

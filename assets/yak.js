@@ -1,11 +1,22 @@
 // yak: an asset (see asset.js), written by the editor; data only
 export default {
-  format: 4,
+  format: 5,
   name: 'yak',
   fur: 'darkBrown',
   joints: { hip: [7.5, 10.6], chest: [14.5, 10.6], head: [19.4, 11] },
   layers: [
-    { name: 'tail', shapes: [{ name: 'tail', bone: 'tail', along: 'capsule', r: 0.5, end: 1.2 }] },
+    {
+      name: 'tail',
+      shapes: [
+        {
+          name: 'tail',
+          chain: { on: 'hip', at: [-3.3, -0.2], angle: 2.813, links: 2, length: 4.6, stiffness: 500, damping: 14, weight: 60, role: 'tail' },
+          along: 'capsule',
+          r: 0.5,
+          end: 1.2,
+        },
+      ],
+    },
     {
       name: 'far legs',
       far: true,
@@ -31,10 +42,30 @@ export default {
         { name: 'torso', bone: 'spine', along: 'ellipse', r: 4.6, ends: 3.8 },
         { name: 'hump', on: 'spine', ellipse: [6, -3.4, 4, 3] },
         { name: 'skirt', on: 'spine', box: [-3.6, 0, 10.6, 4.6, 1.4] },
-        { name: 'tuft', bone: 'tuft', along: 'triangle', base: [[-1.1, 0], [1.1, 0]] },
-        { name: 'tuft2', bone: 'tuft2', along: 'triangle', base: [[-1.2, 0], [1.2, 0]] },
-        { name: 'tuft3', bone: 'tuft3', along: 'triangle', base: [[-1.2, 0], [1.2, 0]] },
-        { name: 'tuft4', bone: 'tuft4', along: 'triangle', base: [[-1.1, 0], [1.1, 0]] },
+        {
+          name: 'tuft',
+          chain: { on: 'spine', ear: true, at: [-2.5, 3.8], tip: [-2.8, 6.4], stiffness: 300, damping: 22, weight: 60 },
+          along: 'triangle',
+          base: [[-1.1, 0], [1.1, 0]],
+        },
+        {
+          name: 'tuft2',
+          chain: { on: 'spine', ear: true, at: [2, 3.8], tip: [1.8, 6.6], stiffness: 300, damping: 22, weight: 60 },
+          along: 'triangle',
+          base: [[-1.2, 0], [1.2, 0]],
+        },
+        {
+          name: 'tuft3',
+          chain: { on: 'spine', ear: true, at: [6.4, 3.8], tip: [6.2, 6.6], stiffness: 300, damping: 22, weight: 60 },
+          along: 'triangle',
+          base: [[-1.2, 0], [1.2, 0]],
+        },
+        {
+          name: 'tuft4',
+          chain: { on: 'spine', ear: true, at: [9.5, 3.8], tip: [9.8, 6.4], stiffness: 300, damping: 22, weight: 60 },
+          along: 'triangle',
+          base: [[-1.1, 0], [1.1, 0]],
+        },
         { name: 'head', on: 'head', ellipse: [0.4, 0.2, 3.7, 3.6] },
         { name: 'muzzle', on: 'head', ellipse: [2.8, 1.8, 1.9, 1.7] },
         { name: 'hindNear', bone: 'hindNear', along: 'capsule', r: 0.759, smooth: 0.5 },
@@ -52,7 +83,7 @@ export default {
       name: 'horns',
       color: 'grey',
       shapes: [
-        { on: 'head', capsule: [-0.4, -2.8, 2.8, -4, 0.85] },
+        { on: 'head', capsule: [-0.3, -2.8, 2.9, -4, 0.85] },
         { on: 'head', capsule: [2.8, -4, 4, -5.6, 0.7] },
         { on: 'head', capsule: [4, -5.6, 3.2, -7.1, 0.5] },
       ],
@@ -69,13 +100,6 @@ export default {
   },
   face: { eye: [1.2, -0.4] },
   handling: { fed: { chewFor: 1.75, nod: 1.05 } },
-  chains: {
-    tail: { on: 'hip', at: [-3.3, -0.2], angle: 2.813, links: 2, length: 4.6, stiffness: 500, damping: 14, weight: 60, role: 'tail' },
-    tuft: { on: 'spine', ear: true, at: [-2.5, 3.8], tip: [-2.8, 6.4], stiffness: 300, damping: 22, weight: 60 },
-    tuft2: { on: 'spine', ear: true, at: [2, 3.8], tip: [1.8, 6.6], stiffness: 300, damping: 22, weight: 60 },
-    tuft3: { on: 'spine', ear: true, at: [6.4, 3.8], tip: [6.2, 6.6], stiffness: 300, damping: 22, weight: 60 },
-    tuft4: { on: 'spine', ear: true, at: [9.5, 3.8], tip: [9.8, 6.4], stiffness: 300, damping: 22, weight: 60 },
-  },
   moves: {
     run: {
       gait: {

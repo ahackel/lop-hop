@@ -49,7 +49,7 @@ const FEAST = 4; // food eaten one after another (no bump, none missed) is worth
 // The rest, where it happens (the kind's own checks)
 const POWER_SECS = 8; // (where golden food comes: level.js)
 // so they are not missed, on the animal (the eye is on it, not on the bars): a power's last ENDING seconds (it
-// flickers, faster and faster, its sparkles thinning, the seconds counted over its head, golden, outlined, big); energy under LOW (it sweats,
+// flickers, faster and faster, its sparkles thinning, the seconds counted over it, golden, big); energy under LOW (it sweats,
 // the food glints), under VERY_LOW (it sweats more, and flushes red a moment every second)
 const ENDING = 3, LOW = 30, VERY_LOW = 15;
 // treats: food eaten with too little room for it in the energy (it would fill it past full) fills it and goes into the
@@ -1354,7 +1354,7 @@ function update(dt) {
   // a super power wears off (a warning first: see ENDING)
   if (power) {
     power = Math.max(0, power - dt);
-    if (rnd() < dt * 30 * Math.min(1, power / ENDING)) sparkle(1);
+    if (rnd() < dt * 10 * Math.min(1, power / ENDING)) { const [x, y, w, h] = giantBox(); twinkle(x, y + h - 3, w - 6, h); } // (twinkling as a new animal on the title, fewer as it ends)
     if (kind === 'dino') { // giant: what its big body touches tumbles away
       const [x, y, w, h] = giantBox();
       for (const o of obstacles) if (!o.smashed && o.x < x + w && o.x + o.sprite.w > x && o.y < y + h && o.y + o.sprite.h > y) smash(o);
@@ -1580,9 +1580,10 @@ function eaten() {
   for (let i = 0; i < 3; i++) floats.push({ sprite: heart, x: mx - 8 + i * 5, y: my - 10 - i * 3, life: 0.9 + i * 0.15, rise: 16 });
   call('sting', 'reward');
 }
-// an animal (in its box at x) just unlocked, not played yet: twinkling, little yellow crosses floating up off it
-function twinkle(x) {
-  parts.push({ x: x + 3 + rnd() * 20, y: GROUND - 3 - rnd() * 20, vx: (rnd() - 0.5) * 6, vy: -6 - rnd() * 8, g: 0, life: 0.4 + rnd() * 0.4, color: COLOR.YELLOW, star: true });
+// an animal (in its box at x) just unlocked, not played yet, or golden with a super power: twinkling, little yellow
+// crosses floating up off it (from its box: bottom, how wide, how tall)
+function twinkle(x, bottom = GROUND - 3, w = 20, h = 20) {
+  parts.push({ x: x + 3 + rnd() * w, y: bottom - rnd() * h, vx: (rnd() - 0.5) * 6, vy: -6 - rnd() * 8, g: 0, life: 0.4 + rnd() * 0.4, color: COLOR.YELLOW, star: true });
 }
 // a crumb of the treat flying off its mouth, in one of the treat's colors (mostly forward, now and then back)
 function crumb([mx, my]) {
@@ -1863,6 +1864,15 @@ function drawTossed(pal) {
 function powerBar(pal) {
   if (power && !(power < 2 && Math.floor(power * 6) % 2)) bar(pal, star, 12, power / POWER_SECS, COLOR.YELLOW);
 }
+// a power's last seconds counted, big and golden, over where the animal's head is standing: still on the screen, not
+// jumping or ducking with it (each a little hop as it comes). (Where: by its first idle frame, once for each animal)
+const countAt = {};
+function countdown(pal) {
+  if (!(power > 0 && power <= ENDING && state === 'run')) return;
+  const [x, y] = countAt[kind] ||= ((h) => [RUN_X + h[0], GROUND - FOOT + h[1] - 17])(animal(kind, 'idle', 0).head);
+  const hop = power - Math.floor(power) > 0.85 ? 1 : 0;
+  text(ctx, String(Math.ceil(power)), x, y - hop, pal[COLOR.YELLOW], 'center', 2);
+}
 
 // birds circling a knocked-out head; the ones behind it are drawn first
 function dizzyBirds(pal, behind) {
@@ -2040,10 +2050,7 @@ function scene(pal) {
     ctx.globalAlpha = 1;
     if (state === 'paused') sleepZs(pal);
     if (state === 'ko' && !won) dizzyBirds(pal, false);
-    if (power > 0 && power <= ENDING && state === 'run') { // the seconds left, over its head (each a little hop as it comes)
-      const [hx, hy] = headAt(), left = Math.ceil(power), hop = power - Math.floor(power) > 0.85 ? 1 : 0;
-      outlined(String(left), hx, Math.min(hy, gy) - 17 - hop, pal[COLOR.YELLOW], pal[COLOR.INK], 2); // (golden as the power, outlined: legible on any sky)
-    }
+    countdown(pal);
   }
   let color = null;
   for (const p of parts) {
@@ -2057,12 +2064,6 @@ function scene(pal) {
     if (f.sprite) f.sprite.draw(ctx, f.x, Math.round(f.y), pal);
     else text(ctx, f.text, f.x, Math.round(f.y), pal[COLOR.INK], 'left', f.size || 1, f.size > 1 ? LOGO : undefined);
   }
-}
-
-// text with a dark edge around it (a pixel of the font's size), centred on x
-function outlined(s, x, y, color, edge, size = 1) {
-  for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]]) text(ctx, s, x + dx, y + dy, edge, 'center', size);
-  text(ctx, s, x, y, color, 'center', size);
 }
 
 // what is written over the world (and the high scores), in one palette
