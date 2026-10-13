@@ -2,7 +2,7 @@
 import { $, el, iconBtn } from './dom.js';
 import { faceFrames } from './face.js';
 import { inspectPlay } from './handling.js';
-import { SWITCHES, addDot, addPaint, addShape, bodyIndex, itemDo, layers, rename, setSpikes, swingOff, swingOn, swingable, switchOn, switchesNow, toggle } from './layers.js';
+import { SWITCHES, addDot, addPaint, addShape, bodyIndex, itemDo, layers, setSpikes, swingOff, swingOn, swingable, switchOn, switchesNow, toggle } from './layers.js';
 import { listParts, reparent } from './lists.js';
 import { colorPick, inspectPalette } from './palette.js';
 import { ALONG, ON_BONE, alongOf, boneChoices, boneDefaults, current, geomOf, isOwn, middleOf, onChoices, ownChain, parts, repivot, withDefaults } from './parts.js';
@@ -24,10 +24,10 @@ export function inspect() {
     for (const [ic, what, arg, tip] of [['up', 'move', -1, 'Drawn earlier ( [ )'], ['down', 'move', 1, 'Drawn later ( ] )'], ['copy', 'copy', 0, 'Copy (⌘D)'], ['trash', 'delete', 0, 'Delete (⌫)']]) acts.append(iconBtn(ic, '', { title: tip, onclick: () => itemDo(what, arg) }));
     title.append(acts);
     if (also.length) box.append(el('p', { className: 'note', textContent: `${also.length + 1} selected`, title: `Moved, copied, deleted, hidden and dragged together; below: ${p.label}, picked last` }));
-    const name = el('input', { type: 'text', value: o.name || '', placeholder: p.label, onchange: () => rename(sel, o, name.value) }), head = [field('name', name, 'Its name (Enter, or double-click its row): a move uses it by it')];
+    const head = []; // (its name: renamed in its row, see lists.js)
     if (t === 'item' && !isProp()) head.push(field('bone', attach(o), 'The bone it is on: a joint (in its frame; the box: none), or a bone it is drawn along (as the pose has it)'));
     if (t === 'item' || t === 'paint') head.push(field('shape', shapeKind(o), o.bone ? 'What it is drawn as along its bone' : 'What it is: fitted to where it was'));
-    box.append(section(t === 'group' ? 'Group' : 'Shape', head));
+    if (head.length) box.append(section(t === 'group' ? 'Group' : 'Shape', head));
   }
   if (t === 'bone') { boneFields(sel.name, o, box, title); return; }
   if (t === 'joint') {
@@ -51,7 +51,7 @@ export function inspect() {
     if (!isProp()) box.append(section('Swing', [swingBox(o, false)], SWING_TIP));
     return;
   }
-  const skip = t === 'rig' ? ['joints', 'headPivot', 'layers', 'dots', 'legs', 'chains', 'face', 'moves', 'handling', 'recolor'] : (t === 'paint' && !isProp()) || t === 'dot' ? ['name'] : t === 'leg' || t === 'chain' ? ['on'] : []; // (a bone's joint: dragged onto another in the list)
+  const skip = t === 'rig' ? ['joints', 'headPivot', 'layers', 'dots', 'legs', 'chains', 'face', 'moves', 'handling', 'recolor'] : t === 'paint' || t === 'dot' ? ['name'] : t === 'leg' || t === 'chain' ? ['on'] : []; // (a bone's joint: dragged onto another in the list)
   fields(o, box, t === 'face' ? ['frames'] : skip);
   if (t === 'face') faceFrames(box);
   if (t === 'rig' && isProp()) box.append(el('div', { className: 'keys' }, iconBtn('plus', `New ${folderOf() === 'food' ? 'food' : 'obstacle'} from this…`, { title: `A new ${folderOf() === 'food' ? 'food' : 'obstacle (a variant: the same name, a number after it)'}: a copy of this one, to change as it likes`, onclick: () => newProp(folderOf()) })));

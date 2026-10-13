@@ -4,7 +4,7 @@ import { COLOR, FOOT, PALETTES, animal, colorOf, rgb, rigParts } from '../art.js
 import { $, css, el } from './dom.js';
 import { faceEdit } from './face.js';
 import { inspect } from './inspector.js';
-import { hover, isPicked, listParts, togglePick } from './lists.js';
+import { hover, isPicked, listParts, rightClick, togglePick } from './lists.js';
 import { castHit, drawCast, setHue } from './palette.js';
 import { current, isOwn, minus, parts, plus, same, setStep, setAlt } from './parts.js';
 import * as sandbox from './play.js';
@@ -187,6 +187,11 @@ $('stage').addEventListener('pointerdown', (e) => {
   if (view.play) setPlay(false);
   const p = toArt(e), near = (h) => Math.hypot(...minus(toScreen(h.at), toScreen(p))) < 9;
   const all = parts(), on = current();
+  if (e.button === 2) { // (a right-click: the part under the pointer picked, unless it is already, for its menu; see lists.js)
+    const q = [...all].reverse().find((x) => !x.off && x.hit?.(p));
+    if (q && !isPicked(q.sel)) { setSel(q.sel); listParts(); inspect(); draw(); }
+    return;
+  }
   let hit = on?.handles.find(near), owner = on;
   if (!hit) for (const q of all) { if (q.off) continue; const h = q.handles.find((x) => shows(x) && near(x)); if (h) { hit = h; owner = q; break; } }
   if (hit) {
@@ -214,6 +219,7 @@ $('stage').addEventListener('pointermove', (e) => {
   }
   changed();
 });
+$('stage').addEventListener('contextmenu', (e) => { if (editing() && view.mode === 'setup') rightClick(e, sel); });
 for (const type of ['pointerup', 'pointercancel']) $('stage').addEventListener(type, () => { if (view.mode === 'play') { sandbox.up(); hand(''); } });
 $('stage').addEventListener('pointerup', () => {
   if (!drag) return;

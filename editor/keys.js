@@ -16,7 +16,7 @@ const KEYS = [
   ['Everywhere', [['⌘Z', 'Undo'], ['⇧⌘Z', 'Redo'], ['⌘S', 'Save'], ['1 2 3', 'Setup, Animate, Play'], ['4', 'Game settings (the palette), and back'], ['⌘O', 'Every asset (the library), to open one'], ['?', 'These shortcuts'], ['Esc', 'Pick nothing (close a popup)']]],
   ['Parts', [['Tab  ⇧Tab', 'The next part in the lists, the one before'], ['← → ↑ ↓', 'Move the part picked a tenth of a pixel (in a move: its key at the frame)'], ['⇧ + arrows', 'A whole pixel'],
     ['⌘ click  ⇧ click', 'Pick more shapes, markings, dots or groups (⇧: the rows between too)'], ['⌘A', 'Pick all in the list of the one picked'],
-    ['⌘D', 'Copy what is picked'], ['⌫', 'Delete what is picked'], ['[  ]', 'Drawn earlier, later'], ['H', 'Hide or show what is picked'], ['Enter', 'Rename the shape or group picked (or double-click it)'], ['⌥H', 'Show everything hidden']]],
+    ['⌘D', 'Copy what is picked'], ['⌫', 'Delete what is picked'], ['[  ]', 'Drawn earlier, later'], ['H', 'Hide or show what is picked'], ['Enter', 'Rename the shape or group picked (or double-click it)'], ['⌥H', 'Show everything hidden'], ['Right-click', 'What can be done to a part (in the lists, on the stage)']]],
   ['Animate', [['Space', 'Play the move, stop'], [',  .', 'A frame back, on'], ['← →', 'A frame back, on (nothing picked)'], ['Home  End', 'The first frame, the last']]],
   ['The stage', [['B', 'Bones'], ['W', 'Swings’ bones'], ['A', 'All handles'], ['O', 'Onion skin'], ['P', 'Screen pixels (Setup)'], ['S', 'Shading']]],
 ];
@@ -55,7 +55,7 @@ function pickAll() {
 }
 function frameBy(f) { setPlay(false); const n = frames(view.move); view.frame = ((f % n) + n) % n; place(); listParts(); inspect(); timeline(); draw(); }
 function nextPart(by) {
-  const rows = [...document.querySelectorAll('#bones .row, #shapes .row')].filter((r) => r.sel);
+  const rows = [...document.querySelectorAll('#bones .row, #shapes .row')].filter((r) => r.sel && r.sel.type !== 'section');
   if (!rows.length) return;
   const i = rows.findIndex((r) => r.classList.contains('on')), r = rows[(i + by + rows.length) % rows.length];
   setSel(r.sel); listParts(); inspect(); draw();

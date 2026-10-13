@@ -2,14 +2,15 @@
 import { $, el, icon } from './dom.js';
 import { playHelp } from './handling.js';
 import { inspect } from './inspector.js';
-import { addDot, addGroup, addShape, many, moveMany, rename, switchOn, switchesNow, toggle } from './layers.js';
+import { addDot, addGroup, addPaint, addShape, itemDo, layers, many, moveMany, placeOf, rename, setSpikes, swingOff, swingOn, swingable, switchOn, switchesNow, toggle } from './layers.js';
+import { contextMenu, menuBelow } from './menu.js';
 import { html, nothing, render } from './lit/lit-html.js';
 import { listPalette } from './palette.js';
 import { alongOf, geomOf, ownChain, parts, same } from './parts.js';
 import { draw, editing } from './stage.js';
-import { P, also, build, commit, editable, hide, isGroup, isProp, kind, picked, refresh, sel, view, setAlso, setSel } from './state.js';
+import { P, also, build, commit, editable, hidden, hide, isGroup, isProp, kind, picked, refresh, sel, view, setAlso, setSel } from './state.js';
 import { ABOUT, keysAt, kindOf, leaves, pathsOf, rowOf } from './timeline.js';
-import { addBone, moveOnto, reparentBone, under } from './bones.js';
+import { addBone, deleteBone, moveOnto, reparentBone, under } from './bones.js';
 
 // two tables, as Spine has them: the bones (a tree: the root (the animal itself), hip, chest and head down the spine, each
 // joint's legs and chains under it), each with what kind it is (a clip: its keys); and the shapes, in their groups in
@@ -72,6 +73,7 @@ function pickRange(s) {
 const point = (h) => { hover = h; if (editing()) draw(); };
 const rowClass = (p, more = '') => `row${isPicked(p.sel) ? ' on' : ''}${p.off ? ' hidden' : ''}${more}`;
 const stop = (fn) => (e) => { e.stopPropagation(); fn(e); };
+const shownRows = (s) => parts().filter((p) => p.sel.type === s.what && p.sel.g === s.g); // (a section's)
 
 // the bones: an icon (a bone; its kind: its tooltip), name (down the tree); a clip's: its keys (◆ here, ◇ at another frame). What
 // is drawn on them: the shapes' (see their Bone). A leg or a chain dragged onto a joint: on it (where it is, kept)
@@ -164,6 +166,38 @@ const nameOf = (p) => (renamingSel && same(renamingSel, p.sel)
       @keydown=${(e) => { e.stopPropagation(); if (e.key === 'Enter') endRename(e.target.value); if (e.key === 'Escape') endRename(null); }}>`
   : html`<span>${p.label}</span>`);
 const dragging = (p) => ({ draggable: renamingSel && same(renamingSel, p.sel) ? 'false' : 'true' });
+// a group's sections, in the order they are drawn: its shapes, its paint (markings: shapes in a color, only where the
+// group is), its spikes, its dots (single pixels; an animal's: the face's). Each a list of its own: reordered in it (dragged,
+// [ ]), dragged into another group's; the sections themselves always in this order
+const SECTIONS = {
+  paint: ['paint', 'Paint: markings, shapes in a color drawn only where the group is, after its shapes. Reorder them by dragging (or [ ]); drag one onto another group to move it there'],
+  dot: ['dots', 'Dots: single pixels, drawn last, over everything before them. Reorder them by dragging (or [ ])'],
+};
+const ADD_TIPS = { shape: 'A shape in it: a copy of its last, moved a little', paint: 'A marking on it: a shape in a color, only where the group is', dot: 'A single pixel, drawn after its shapes and paint', spikes: 'Spikes where it bristles: ticks out of its outline (specks inside)' };
+// what can be added to group g (its + and its menu): a shape, a marking, a dot (a prop's) or spikes (an animal's)
+export function addsTo(g) {
+  const G = layers()[g];
+  return [['Shape', () => addShape(g), { tip: ADD_TIPS.shape }], ['Paint', () => addPaint(g), { tip: ADD_TIPS.paint }],
+    isProp() ? ['Dot', () => addDot(g), { tip: ADD_TIPS.dot }] : ['Spikes', () => setSpikes(g, true), { tip: ADD_TIPS.spikes, off: G.spikes && 'It has spikes' }]];
+}
+const addSection = (what, g) => (what === 'paint' ? addPaint(g) : addDot(g));
+// a section's eye: all of it hidden, or shown (some hidden: all hidden)
+const hiddenAll = (rows) => rows.every((p) => hidden.has(p.obj));
+const toggleAll = (rows) => { const off = hiddenAll(rows); hide(...rows.filter((p) => hidden.has(p.obj) === off).map((p) => p.obj)); };
+function sectionEye(rows) {
+  const off = hiddenAll(rows);
+  return html`<button class=${`eye${off ? ' off' : ''}`} title=${off ? 'Hidden: show them all' : 'Hide them all, here only: not saved'} @click=${stop(() => toggleAll(rows))}>${icon(off ? 'eyeOff' : 'eye')}</button>`;
+}
+function sectionRows(what, g, rows) {
+  if (!rows.length) return nothing;
+  const [label, tip] = SECTIONS[what], s = { type: 'section', what, g }, all = rows.every((p) => isPicked(p.sel)), key = `${what}:${g === undefined ? 'face' : layers()[g].name}`; // (folded: by its group's name)
+  return html`<tr class=${`row subLayer${all ? ' on' : ''}${rows.every((p) => p.off) ? ' hidden' : ''}`} .sel=${s} draggable="false" @click=${() => pickRows(rows)} @mouseenter=${() => point({ sels: rows.map((p) => p.sel) })}>
+      <td>${sectionEye(rows)}</td>
+      <td colspan="2"><div class="name" style="padding-left:12px">${chevron(key)}${typeIcon([what === 'paint' ? 'paint' : 'dots', tip])}<span title=${tip}>${label}</span>
+        <button class="icon add" title=${what === 'paint' ? ADD_TIPS.paint : ADD_TIPS.dot} aria-label=${`Add ${what === 'paint' ? 'paint' : 'a dot'}`} @click=${stop(() => addSection(what, g))}>${icon('plus')}</button></div></td>
+    </tr>${folded(key) ? nothing : rows.map((p) => shapeRow(p, 2))}`;
+}
+function pickRows(rows) { setSel(rows[0].sel); setAlso(rows.slice(1).map((p) => p.sel)); listParts(); inspect(); draw(); }
 function shapesTable(all) {
   const group = (G, g) => {
     if (!isGroup(G)) { // the face: where it is drawn among the groups, the dots with it
@@ -171,8 +205,8 @@ function shapesTable(all) {
       return html`<tbody>
         ${fp ? html`<tr class=${rowClass(fp, ' layer')} .sel=${fp.sel} draggable="true" @click=${(e) => pick(fp.sel, e)} @mouseenter=${() => point({ sels: [fp.sel] })}>
           <td></td><th colspan="2"><div>${chevron('face', dots.length > 0)}${typeIcon(['face', 'The face'])}<span title="The eye, nose and mouth, and the dots: everything before them recolored (see recolor)">face</span>
-          <button class="icon" title="Add a dot" aria-label="Add a dot" @click=${stop(addDot)}>${icon('plus')}</button></div></th></tr>` : nothing}
-        ${folded('face') ? nothing : dots.map((p) => shapeRow(p))}
+          <button class="icon add" title="Add a dot: a single pixel" aria-label="Add a dot" @click=${stop(() => addDot())}>${icon('plus')}</button></div></th></tr>` : nothing}
+        ${folded('face') ? nothing : sectionRows('dot', undefined, dots)}
       </tbody>`;
     }
     const gp = all.find((p) => p.sel.type === 'group' && p.sel.g === g), kids = all.filter((p) => p.sel.g === g && p.sel.type === 'item');
@@ -183,12 +217,12 @@ function shapesTable(all) {
         <td>${eyeOf(gp)}</td>
         <th colspan="2"><div>${chevron(`group:${G.name}`, kids.length + paint.length + dots.length > 0 || !!spikes)}${typeIcon(['group', 'A group: drawn as one'])}<span class="sw" style=${`background:${gp.color}`}></span>${nameOf(gp)}${G.swing ? html`<span class="flag" title="It swings as the body moves, about its pivot">${icon('swing')}</span>` : nothing}
           <span class="rules">${switchesNow().map(([k, ic, yes, no]) => html`<button class=${`rule${switchOn(G, k) ? '' : ' off'}`} title=${`${switchOn(G, k) ? yes : no} (click: ${switchOn(G, k) ? 'off' : 'on'})`} @click=${stop(() => toggle(g, k))}>${icon(ic)}</button>`)}</span>
-          <button class="icon" title="Add a shape to it" aria-label="Add a shape to it" @click=${stop(() => addShape(g))}>${icon('plus')}</button></div></th>
+          <button class="icon add" title="Add to it: a shape, paint, ${isProp() ? 'a dot' : 'spikes'}" aria-label="Add to it" @click=${stop((e) => menuBelow(e.currentTarget, addsTo(g)))}>${icon('plus')}</button></div></th>
       </tr>
       ${folded(`group:${G.name}`) ? nothing : html`${kids.map((p) => shapeRow(p))}
-      ${paint.length ? html`<tr class="sub"><td></td><td colspan="2" title="Markings: shapes in a color, only where the group is">paint</td></tr>${paint.map((p) => shapeRow(p, 2))}` : nothing}
+      ${sectionRows('paint', g, paint)}
       ${spikes ? shapeRow(spikes) : nothing}
-      ${dots.length ? html`<tr class="sub"><td></td><td colspan="2" title="Single pixels, drawn after its shapes and paint">dots</td></tr>${dots.map((p) => shapeRow(p, 2))}` : nothing}`}
+      ${sectionRows('dot', g, dots)}`}
     </tbody>`;
   };
   return html`<table class="list shapesList" @mouseleave=${() => point(null)}>
@@ -214,6 +248,7 @@ function shapeRow(p, depth = p.depth || 0) {
 let dragged = null;
 const modeOf = (from, to) => {
   if (!from || same(from, to)) return null;
+  if (to.type === 'section') return to.what === from.type && to.g !== undefined && from.g !== undefined && from.g !== to.g ? 'into' : null; // (onto another group's paint, dots)
   if (from.type === 'item' || from.type === 'paint') return to.type === from.type ? 'line' : to.type === 'group' ? 'into' : null;
   if (from.type === 'dot') return to.type === 'dot' ? 'line' : to.type === 'group' && from.g !== undefined ? 'into' : null; // (a prop's: into another layer too)
   if (from.type === 'group' || from.type === 'face') return to.type === 'group' || to.type === 'face' ? 'group' : null;
@@ -258,3 +293,38 @@ function endRename(value) { // (null: as it was)
   renamingSel = null;
   if (value === null || !p) listParts(); else rename(s, p.obj, value);
 }
+
+// right-clicked (a row, a part on the stage): picked (unless it is already, with others), and a menu of what can be done
+// to it, as its keys and buttons do it
+export function partMenu(s) {
+  if (view.mode !== 'setup' || view.move !== 'edit') return [];
+  const n = picked().filter((x) => x.type === s.type).length, objs = parts().filter((p) => isPicked(p.sel)), off = objs.length && objs.every((p) => hidden.has(p.obj));
+  const hideIt = [off ? 'Show' : 'Hide', () => hide(...objs.map((p) => p.obj)), { key: 'H' }];
+  const order = [['Drawn earlier', () => itemDo('move', -1), { key: '[' }], ['Drawn later', () => itemDo('move', 1), { key: ']' }]];
+  const edit = [['Rename', () => startRename(s), { key: '↩', off: n > 1 && 'One at a time' }], [n > 1 ? `Copy ${n}` : 'Copy', () => itemDo('copy'), { key: '⌘D' }], [n > 1 ? `Delete ${n}` : 'Delete', () => itemDo('delete'), { key: '⌫' }]];
+  if (s.type === 'group') {
+    const G = layers()[s.g];
+    return [...addsTo(s.g).map(([t, f, o]) => [`Add ${t.toLowerCase()}`, f, o]), '-', ...edit, '-', ...order, '-', hideIt, '-',
+      ...switchesNow().map(([k, , yes, , label]) => [label[0].toUpperCase() + label.slice(1), () => toggle(s.g, k), { on: switchOn(G, k), tip: yes }])];
+  }
+  if (s.type === 'item' || s.type === 'paint' || s.type === 'dot') {
+    const o = placeOf(s).arr[s.i], swings = !!ownChain(o), no = !swings && swingable(o);
+    return [...edit, '-', ...order, '-', hideIt, ...(s.type === 'item' && !isProp() ? ['-', ['Swings', () => { commit(() => (swings ? swingOff(o) : swingOn(o))); listParts(); inspect(); }, { on: swings, off: no }]] : [])];
+  }
+  if (s.type === 'face') return [['Add dot', () => addDot(), { tip: ADD_TIPS.dot }], '-', ...order];
+  if (s.type === 'spikes') return [hideIt, ['Remove spikes', () => setSpikes(s.g, false)]];
+  if (s.type === 'section') {
+    const rows = shownRows(s);
+    return [[s.what === 'paint' ? 'Add paint' : 'Add dot', () => addSection(s.what, s.g)], '-', [hiddenAll(rows) ? 'Show all' : 'Hide all', () => toggleAll(rows)]];
+  }
+  if (s.type === 'joint') return [['Add bone', () => addBone(s.name)]];
+  if (s.type === 'bone') return [['Add bone', () => addBone(s.name), { tip: 'A new bone on this one, at its end' }], '-', ['Delete', () => deleteBone(s.name), { key: '⌫', tip: 'What is on it stays where it is, on what it was on' }]];
+  return [];
+}
+export function rightClick(e, s) {
+  if (!s) return;
+  if (s.type === 'section') { if (!shownRows(s).every((p) => isPicked(p.sel))) pickRows(shownRows(s)); }
+  else if (!isPicked(s)) { setSel(s); listParts(); inspect(); draw(); }
+  contextMenu(e, partMenu(s));
+}
+for (const id of ['shapes', 'bones']) $(id).addEventListener('contextmenu', (e) => rightClick(e, e.target.closest?.('tr')?.sel));

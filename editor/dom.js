@@ -43,6 +43,8 @@ const ICONS = {
   group: '<path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5"/>',
   face: '<circle cx="12" cy="12" r="9"/><path d="M9 10h.01M15 10h.01"/><path d="M8.5 15a4.5 4.5 0 0 0 7 0"/>',
   dot: '<rect x="8.5" y="8.5" width="7" height="7" fill="currentColor"/>',
+  dots: '<rect x="3" y="4" width="6" height="6" fill="currentColor"/><rect x="15" y="9" width="6" height="6" fill="currentColor"/><rect x="6" y="15" width="6" height="6" fill="currentColor"/>',
+  paint: '<path d="M18.4 2.6a2.1 2.1 0 0 1 3 3L13 14l-3-3z"/><path d="M10 11c-2.5 0-4 1.5-4 4 0 1.5-1 3-3 3 1 2 3 3 5 3 3.5 0 6-2.5 6-5.5"/>',
   spikes: '<path d="m3 19 3-9 3 9 3-9 3 9 3-9 3 9"/>',
   root: '<circle cx="12" cy="15.5" r="4"/><circle cx="5.5" cy="10" r="1.8"/><circle cx="9.5" cy="5.5" r="1.8"/><circle cx="14.5" cy="5.5" r="1.8"/><circle cx="18.5" cy="10" r="1.8"/>',
   bone: '<path d="M17 10c.7-.7 1.69 0 2.5 0a2.5 2.5 0 1 0 0-5 .5.5 0 0 1-.5-.5 2.5 2.5 0 1 0-5 0c0 .81.7 1.8 0 2.5l-7 7c-.7.7-1.69 0-2.5 0a2.5 2.5 0 0 0 0 5c.28 0 .5.22.5.5a2.5 2.5 0 1 0 5 0c0-.81-.7-1.8 0-2.5z"/>',

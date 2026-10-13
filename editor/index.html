@@ -146,6 +146,20 @@
   :is(td, th) .flag { color: var(--dim); display: inline-flex; }
   .kindIcon { color: var(--dim); display: inline-flex; flex: none; } .kindIcon svg { width: 13px; height: 13px; display: block; } /* (what a row is) */
   tr.sub > td { color: var(--dim); font-size: 11px; font-style: italic; padding-top: 5px; }
+  /* a group's paint, its dots: a section of its own, indented under it as its shapes are, + one more */
+  tr.subLayer .name > span:not(.kindIcon) { color: var(--dim); font-size: 11px; font-style: italic; }
+  table.list .name > button.add { margin-left: auto; padding: 0 4px; border-color: transparent; background: none; color: var(--dim); }
+  table.list tr:hover .name > button.add { border-color: var(--line); color: var(--ink); }
+  table.list .name > button.add svg { width: 12px; height: 12px; display: block; }
+  /* a menu: a right-click's, a +'s */
+  .menu { position: fixed; z-index: 30; min-width: 170px; padding: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.28); display: flex; flex-direction: column; }
+  .menu[hidden] { display: none; }
+  .menu button { display: flex; align-items: center; gap: 6px; border: 0; background: none; border-radius: 5px; padding: 4px 8px 4px 4px; text-align: left; white-space: nowrap; }
+  .menu button:hover:not(:disabled) { background: var(--accent-soft); }
+  .menu button:disabled { color: var(--dim); opacity: 0.6; cursor: default; }
+  .menu .tick { width: 12px; flex: none; text-align: center; font-size: 11px; }
+  .menu kbd { margin-left: auto; padding-left: 18px; font: 11px ui-monospace, monospace; color: var(--dim); }
+  .menu hr { border: 0; border-top: 1px solid var(--line); margin: 4px 2px; }
   td .key { display: inline-block; color: var(--accent); } td .key.off { color: var(--dim); }
   #inspector { padding: 10px; flex: 1; min-height: 0; overflow: auto; }
   #inspector h2 { font-size: 13px; margin: 0 0 8px; display: flex; gap: 6px; align-items: center; }
