@@ -1,4 +1,4 @@
-// The balance page's numbers (tools/balance.html), worked out off the page by the game's own code: level.js and
+// The balance page's numbers (balance/), worked out off the page by the game's own code: level.js and
 // course.mjs with the shared constants as the page has them (a copy of each, its numbers changed, loaded as a module
 // of its own), every animal's dials as the page has them (set on ANIMALS here).
 //   ← { dials: { kind: {…} }, shared: { NAME: v }, kinds }   → { kind, m } for each kind, in that order; then { done }

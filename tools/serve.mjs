@@ -3,7 +3,7 @@
 // POST /save {kind, build, of} writes an animal's build into its file, assets/<kind>.js (see asset.js and
 // tools/rig-format.js; a new one: made from of, if it is a skin; a prop, kind food/<name> or obstacles/<name>: its file
 // there, and its folder's index.js, every one in it), GET /assets.json lists the files there (a prop's as its kind); POST /palette writes the palette, assets/palette.js. The game sends its runs to it: POST /runs [run, …] adds those not there yet to data/runs.jsonl
-// (a run a line; see the runs in game.js), which the balance page reads (tools/balance.html).
+// (a run a line; see the runs in game.js), which the balance page reads (balance/).
 import http from 'node:http';
 import fs from 'node:fs/promises';
 import path from 'node:path';

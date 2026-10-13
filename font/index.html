@@ -17,7 +17,6 @@
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); }
   header { display: flex; gap: 10px 16px; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
-  header h1 { font-size: 15px; margin: 0 8px 0 0; }
   header label { display: flex; gap: 5px; align-items: center; color: var(--dim); }
   input, select { font: inherit; color: inherit; }
   select { background: var(--panel); border: 1px solid var(--line); border-radius: 5px; padding: 2px 4px; }
@@ -42,7 +41,6 @@
 </head>
 <body>
 <header>
-  <h1>Font</h1>
   <label>size <input id="size" type="range" min="1" max="12" step="1" value="6"> <span id="sizeout"></span></label>
   <label>grid <input id="grid" type="checkbox"></label>
   <label>letters <select id="font"><option value="now">now</option><option value="next" selected>suggestion</option></select></label>
@@ -149,5 +147,6 @@ $('text').addEventListener('input', preview);
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
 draw();
 </script>
+<script type="module" src="../tools/nav.js"></script>
 </body>
 </html>

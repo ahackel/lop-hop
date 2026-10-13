@@ -22,7 +22,6 @@
   html, body { height: 100%; }
   body { margin: 0; background: var(--bg); display: flex; flex-direction: column; overflow: hidden; }
   header { display: flex; gap: 12px; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
-  header h1 { font-size: 15px; margin: 0 8px 0 0; }
   select, button, input { font: inherit; color: inherit; }
   button { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
   button:hover { border-color: var(--dim); }
@@ -293,7 +292,6 @@
 </head>
 <body>
 <header>
-  <h1>Lop Hop Editor</h1>
   <button id="leaveGame" class="game" data-icon="back" title="Back to the animal, as you left it (4)">Back</button>
   <span class="game gameTitle">Game settings</span>
   <button id="files" class="withIcon" title="The asset open. Click: every asset, to open another or make a new one (⌘O)" aria-haspopup="dialog"></button>
@@ -353,5 +351,6 @@
   </aside>
 </main>
 <script type="module" src="editor.js"></script>
+<script type="module" src="../tools/nav.js"></script>
 </body>
 </html>

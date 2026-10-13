@@ -1,4 +1,4 @@
-// The tuning constants of a game file (level.js, course.mjs, game.js), for the balance page (tools/balance.html): the
+// The tuning constants of a game file (level.js, course.mjs, game.js), for the balance page (balance/): the
 // `NAME = number` of its top-level const lines (not `DT = 1 / 60`: worked out), a comment after them left as it is.
 //   readConsts(src) → { NAME: number }        setConsts(src, { NAME: number }) → src with those numbers in place
 const LINE = /^(export )?const [A-Z]/;

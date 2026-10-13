@@ -676,6 +676,7 @@ const ACTS = {
   'cheat.buy': () => own(Object.keys(PACKS)),
   'cheat.food': () => { treats[kind] = MAX_TREATS; keep('treats', JSON.stringify(treats)); },
   'cheat.reset': () => { Q.set('reset', ''); location.search = query(); },
+  'cheat.tools': () => { location.href = 'editor/'; },
 };
 for (let d = 0; d < 10; d++) ACTS[`digit${d}`] = () => gateDigit(d); // (the parental gate's keys)
 const BTN = 11; // a button: 11×11, an icon of 7×7 in a frame
@@ -716,6 +717,7 @@ const CHEATS = [
   { id: 'cheat.buy', text: 'BUY', when: () => state === 'title' && SHOP && !ALL && owned.size < Object.keys(PACKS).length }, // every animal pack, as if bought
   { id: 'cheat.food', text: 'FOOD', when: () => state === 'title' && !padlocked(kind) && (treats[kind] || 0) < MAX_TREATS }, // all the treats the picked one can have
   { id: 'cheat.reset', text: 'RESET', when: () => true }, // the game as the first time (see ?reset), cheats still on
+  { id: 'cheat.tools', text: 'TOOLS', when: () => state === 'title' }, // the editor (its bar: the other tools, see tools/nav.js)
 ];
 function cheats() {
   if (!CHEATING || naming || board) return [];
@@ -804,7 +806,7 @@ function drawButton(x, y, icon, on, pal, { w = BTN, h = BTN, text: words, cheat 
 }
 
 // ---------------------------------------------------------------------------------------------------------- the runs
-// Every run is written down, to balance the game by (tools/balance.html reads them): kept in this browser (lop.runs, the
+// Every run is written down, to balance the game by (the balance page, balance/, reads them): kept in this browser (lop.runs, the
 // last RUNS_KEPT), sent to the dev server when the game comes from it (see sendRuns), shared from the credits (see
 // shareRuns). A run:
 //   { id, at (when it started), build, app (in the iOS app), kind, end ('tired' | 'bumped' | 'caught' | 'home': given

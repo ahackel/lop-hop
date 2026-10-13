@@ -1,4 +1,4 @@
-// The balance page (npm run dev, then /tools/balance.html): every animal's dials (art.js) and the constants all the
+// The balance page (npm run dev, then /balance, balance/index.html): every animal's dials (art.js) and the constants all the
 // animals share (level.js; MEAL: game.js), changed with sliders, and what they come to, worked out by the game's own
 // code (tools/course.mjs, in balance-worker.js): how hard it is to get the next animal (away from it till the first
 // dawn, for a player who misses now and then), how long a run lasts for a player who never misses (eating all the
@@ -80,7 +80,7 @@ const SHARED_BY_KEY = Object.fromEntries(SHARED.flatMap((g) => g.items.map((d) =
 const DIAL_BY_KEY = Object.fromEntries(DIALS.map((d) => [d.key, d]));
 
 const ORIG = Object.fromEntries(KINDS.map((k) => [k, Object.fromEntries(DIALS.map((d) => [d.key, ANIMALS[k][d.key]]))]));
-const [levelSrc, courseSrc, gameSrc] = await Promise.all(['../level.js', './course.mjs', '../game.js'].map((p) => fetch(p).then((r) => r.text())));
+const [levelSrc, courseSrc, gameSrc] = await Promise.all(['../level.js', './course.mjs', '../game.js'].map((p) => fetch(new URL(p, import.meta.url)).then((r) => r.text())));
 const DEFAULTS = { ...readConsts(gameSrc), ...readConsts(levelSrc), MEAL: readConsts(courseSrc).MEAL };
 const SKILLS = [0.03, 0.06, 0.12]; // (the miss rates the worker tries: see unlocking in balance-worker.js)
 const pct = (v) => `${(v * 100).toFixed(v < 0.1 ? 1 : 0)}%`;
@@ -428,7 +428,7 @@ function changesList() {
 const real = new Map(); // id → run
 function addRuns(list) { for (const r of list) if (r && typeof r.id === 'string' && ANIMALS[r.kind]) real.set(r.id, r); yourRuns(); }
 const parseRuns = (t) => { t = t.trim(); if (!t) return []; if (t[0] === '{' && t.includes('"runs"')) return JSON.parse(t).runs || []; return t.split('\n').filter(Boolean).map((l) => JSON.parse(l)); };
-fetch('../data/runs.jsonl').then((r) => (r.ok ? r.text() : '')).then((t) => addRuns(parseRuns(t))).catch(() => yourRuns());
+fetch(new URL('../data/runs.jsonl', import.meta.url)).then((r) => (r.ok ? r.text() : '')).then((t) => addRuns(parseRuns(t))).catch(() => yourRuns());
 const clock = (secs) => { const m = Math.round(secs / 60); return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`; };
 const rate = ([n, hit]) => (n ? (hit ? `1 in ${Math.round(n / hit)}` : `0 of ${n}`) : '–');
 function yourRuns() {
