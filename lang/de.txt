@@ -15,7 +15,6 @@ page.rotate = Dreh dein Handy quer, um zu spielen
 # a run
 run.day = Tag
 run.night = Nacht
-run.new_best = Neuer Rekord!
 run.chased = {the} ist hinter dir her!
 run.ouch = Aua!
 run.boing = Boing!

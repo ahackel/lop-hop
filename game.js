@@ -1444,7 +1444,6 @@ function update(dt) {
   if (beat && score() > beat && !AUTO) { // past the best score so far
     beat = 0;
     call('sting', 'record');
-    banner(t('run.new_best'), 30);
   }
   if (Math.floor(score() / 100) > hundreds) { hundreds = Math.floor(score() / 100); flash = 1; } // the score blinks every 100
   updateMood();

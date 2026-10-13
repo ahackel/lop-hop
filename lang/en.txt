@@ -16,7 +16,6 @@ page.rotate = Turn your phone sideways to play
 # a run
 run.day = Day
 run.night = Night
-run.new_best = New best!
 run.chased = {the} is after you!
 run.ouch = Ouch!
 run.boing = Boing!
