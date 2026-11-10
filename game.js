@@ -705,6 +705,9 @@ function buttons() {
 // under the ground, from the top in the world: the row of the pads (and the start button), between the ground and the
 // line of help at the bottom of the screen (see fit)
 let padRow = GROUND + 4, helpY = GROUND + 24;
+// the highest the line of help may be: clear under the start button at its highest (padRow GROUND + 2, see buttons: 2
+// under it, 13 tall), with the room under it a 4:3-to-2:1 screen gives it (a few rows)
+const HELP_MIN = GROUND + 2 + 2 + 13 + 3;
 // ?cheats: the ones that do something now, in a row at the bottom of the screen, in the middle (the line of help over
 // them: see fit); their words as they are (not the player's: see lang.js)
 const CHEATS = [
@@ -1151,7 +1154,8 @@ function updateParade(dt) {
 }
 const LOGO = { O: '75557', P: '75744' }; // (the title's letters: square)
 // what to do, in a line of its own at the bottom of the screen (dim, or in a color)
-const help = (s, pal, color = pal[COLOR.DIM]) => text(ctx, s, W / 2, helpY, color, 'center');
+// (on a screen so wide that even no sky leaves no room under the start button for it: none)
+const help = (s, pal, color = pal[COLOR.DIM]) => { if (helpY >= HELP_MIN) text(ctx, s, W / 2, helpY, color, 'center'); };
 
 // ------------------------------------------------------------------------------------------------------------ world
 // the course's next piece comes in at the right (where it is in the course: the same every run, see level.js): low
@@ -2135,10 +2139,12 @@ function fit() {
   // a screen taller than the world (a phone, full screen): the world in the middle, as much more sky above it as room
   // below it (where the pads are), up to where the branches' trunks end
   VH = Math.ceil(ch / scale);
-  SKY = Math.min(Math.floor((VH - H) / 2), TRUNK);
+  // (a wide screen: less sky, so the line of help stays under the start button, see HELP_MIN)
+  const below = 10 + (CHEATING ? BTN + 3 : 0);
+  SKY = Math.max(0, Math.min(Math.floor((VH - H) / 2), TRUNK, VH - below - HELP_MIN));
   // under the ground: the line of help at the bottom (5 art pixels under it on every screen, clear of a phone's home bar
   // too), the pads' row between
-  helpY = VH - SKY - 10 - (CHEATING ? BTN + 3 : 0); // (?cheats: their buttons under it)
+  helpY = VH - SKY - below; // (?cheats: their buttons under it)
   padRow = Math.max(GROUND + 2, Math.round((GROUND + 1 + helpY - 2 - PAD) / 2));
   stage.style.setProperty('--pad-top', `${view.offsetTop + (SKY + padRow) * px}px`);
   if (fitted === `${cw} ${ch} ${scale}`) return;
