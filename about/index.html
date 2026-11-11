@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Lop Hop: a little endless runner</title>
+<meta name="description" content="Hop through one day and one night. Get home by dawn, and the animal that chased you joins your herd. 21 animals, six lands, in the browser.">
+<link rel="canonical" href="https://andreashackel.de/lop-hop/about/">
+<link rel="icon" href="../icons/favicon.png">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Lop Hop: a little endless runner">
+<meta property="og:description" content="Hop through one day and one night. Get home by dawn, and the animal that chased you joins your herd. 21 animals, six lands, in the browser.">
+<meta property="og:url" content="https://andreashackel.de/lop-hop/about/">
+<meta property="og:image" content="https://andreashackel.de/lop-hop/about/img/forest-day.png">
+<meta name="twitter:card" content="summary_large_image">
+<style>body { margin: 0; }</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: the game by day on a white page. Headlines are the game's own pixel font (images, scaled by whole steps);
+   game footage sits in cream frames, the game's own sky colour. One theme on purpose: day. */
+:root {
+  color-scheme: light;
+  --bg: #ffffff;
+  --sky: #f7f6f0;       /* the game's day background */
+  --hill: #ecebe3;      /* far hills */
+  --line: #dedbd0;      /* faint */
+  --ink: #3a3a3a;       /* outline */
+  --dim: #77736d;       /* darkGrey */
+  --accent: #ec6f2b;    /* orange */
+  --accent-deep: #b4521c;
+  --gold: #ffcf3a;      /* golden food */
+  --green: #62b04f;     /* energy bar */
+  --red: #d6455f;       /* hearts */
+  --font-body: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  --step--1: 0.8125rem;
+  --step-0: 0.9375rem;
+  --step-1: 1.0625rem;
+  --wrap: 68rem;
+  --gutter-l: max(16px, env(safe-area-inset-left, 0px));
+  --gutter-r: max(16px, env(safe-area-inset-right, 0px));
+}
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 400 var(--step-0)/1.65 var(--font-body); }
+img { display: block; max-width: 100%; height: auto; }
+a { color: inherit; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+p { margin: 0; }
+
+.wrap { max-width: var(--wrap); margin: 0 auto; padding-left: var(--gutter-l); padding-right: var(--gutter-r); }
+
+/* pixel images: crisp, never smoothed */
+.px { image-rendering: pixelated; image-rendering: crisp-edges; }
+@supports (image-rendering: pixelated) { .px { image-rendering: pixelated; } }
+
+/* headlines: the game's font, 7 rows tall, drawn at --u screen pixels per pixel */
+h1, h2 { margin: 0; line-height: 0; }
+.head { --u: 3; height: calc(7px * var(--u)); width: auto; max-width: none; }
+h1 .head { --u: 10; }
+@media (min-width: 600px) { .head { --u: 5; } h1 .head { --u: 14; } }
+
+.eyebrow { font-weight: 600; font-size: var(--step--1); letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); }
+
+/* game footage: a frame in the game's outline colour; scaled by half steps where there is room, so pixels stay even */
+.game { container-type: inline-size; min-width: 0; }
+.game img { width: 100%; border: 2px solid var(--ink); border-radius: 6px; background: var(--sky); box-sizing: border-box; }
+@container (min-width: 560px) {
+  @supports (width: round(down, 100px, 1px)) {
+    .game img { box-sizing: content-box; width: round(down, calc(100cqw - 4px), calc(var(--aw) * 0.5px)); }
+  }
+}
+figure { margin: 0; display: grid; gap: 0.5rem; min-width: 0; align-content: start; }
+figcaption { font-size: var(--step--1); color: var(--dim); }
+
+/* buttons: square, outlined, with the game buttons' 2-px drop */
+.btns { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+.btn {
+  font: 600 var(--step-0)/1 var(--font-body); text-transform: uppercase; letter-spacing: 0.06em; text-decoration: none;
+  display: inline-flex; align-items: center; gap: 0.6em; padding: 0.8em 1.15em; color: var(--ink);
+  border: 2px solid var(--ink); border-radius: 4px; box-shadow: 0 3px 0 var(--ink); background: var(--bg);
+  transition: transform .08s, box-shadow .08s;
+}
+.btn:hover { transform: translateY(1px); box-shadow: 0 2px 0 var(--ink); }
+.btn:active { transform: translateY(3px); box-shadow: 0 0 0 var(--ink); }
+.btn.primary { background: var(--accent); color: #fff; border-color: var(--accent-deep); box-shadow: 0 3px 0 var(--accent-deep); }
+.btn.primary:hover { box-shadow: 0 2px 0 var(--accent-deep); }
+.btn svg { width: 0.9em; height: 0.9em; flex: none; }
+
+/* ---------- hero ---------- */
+.hero { padding-block: clamp(2.5rem, 6vw, 4.5rem) clamp(2rem, 5vw, 3.5rem); }
+.hero .wrap { display: grid; gap: clamp(1.25rem, 3vw, 2rem); }
+.hero .promise { font-size: var(--step-1); max-width: 40ch; }
+.hero .promise b { font-weight: 600; }
+.hero .note { font-size: var(--step--1); color: var(--dim); }
+
+/* ---------- bands ---------- */
+.band { padding-block: clamp(3rem, 7vw, 5rem); }
+.band.alt { background: var(--sky); border-block: 2px solid var(--line); }
+.band .wrap { display: grid; gap: clamp(1.5rem, 3vw, 2.25rem); }
+.lead { display: grid; gap: 0.9rem; max-width: 62ch; }
+.points { list-style: none; margin: 0.25rem 0 0; padding: 0; display: grid; gap: 0.45rem; }
+.points li { position: relative; padding-left: 1.4rem; }
+.points li::before { content: ""; position: absolute; left: 0; top: 0.55em; width: 0.55rem; height: 0.55rem; background: var(--accent); }
+.points.hand li:nth-child(1)::before { background: var(--red); }
+.points.hand li:nth-child(2)::before { background: var(--ink); }
+.points.hand li:nth-child(3)::before { background: var(--gold); }
+
+/* the herd: all 21 in a line, running across */
+.herd { overflow: hidden; border-block: 2px solid var(--line); background: var(--sky); padding-block: 1.25rem 0; }
+.herd .track { display: flex; width: max-content; }
+.herd .track img { width: calc(788px * 2); height: calc(50px * 2); max-width: none; }
+@media (prefers-reduced-motion: no-preference) {
+  .herd .track { animation: herd 13s linear infinite; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .herd { overflow-x: auto; }
+  .herd .track img + img { display: none; }
+}
+@keyframes herd { from { transform: translateX(-50%); } to { transform: translateX(0); } }
+.names { font-size: var(--step--1); color: var(--dim); }
+.names b { color: var(--ink); font-weight: 600; }
+
+/* day/night slider */
+.slider { position: relative; border: 2px solid var(--ink); border-radius: 6px; overflow: hidden; touch-action: pan-y; }
+.slider img { width: 100%; }
+.slider .over { position: absolute; inset: 0; clip-path: inset(0 0 0 var(--cut, 50%)); }
+.slider .handle { position: absolute; top: 0; bottom: 0; left: var(--cut, 50%); width: 3px; margin-left: -1.5px; background: var(--gold); pointer-events: none; }
+.slider .handle::after {
+  content: ""; position: absolute; top: 50%; left: 50%; width: 22px; height: 22px; transform: translate(-50%, -50%);
+  background: var(--gold); border: 3px solid var(--ink); border-radius: 3px;
+}
+.slider input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: ew-resize; }
+.slider .tag { position: absolute; bottom: 10px; font-weight: 600; font-size: var(--step--1); letter-spacing: 0.08em; text-transform: uppercase; padding: 0.1em 0.55em; border-radius: 3px; pointer-events: none; }
+.slider .tag.day { left: 10px; background: #f7f6f0; color: #3a3a3a; border: 2px solid #3a3a3a; }
+.slider .tag.nite { right: 10px; background: #1d2033; color: #c3c6d8; border: 2px solid #c3c6d8; }
+.slider:has(input:focus-visible) { outline: 3px solid var(--accent); outline-offset: 3px; }
+
+.lands { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.9rem; }
+@media (max-width: 720px) { .lands { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.lands img { border: 2px solid var(--ink); border-radius: 6px; }
+.lands figcaption { display: flex; justify-content: space-between; gap: 0.5rem; }
+.lands figcaption b { color: var(--ink); font-weight: 600; }
+
+/* between runs: three clips, sized by their pixel widths so their heights match */
+.clips { display: grid; grid-template-columns: 11fr 9fr 20fr; gap: 1rem; align-items: start; }
+@media (max-width: 760px) { .clips { grid-template-columns: minmax(0, 1fr); } }
+.clips img { width: 100%; border: 2px solid var(--ink); border-radius: 6px; background: var(--sky); }
+
+/* behind the scenes */
+.made { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(1.25rem, 3vw, 2rem); }
+@media (max-width: 860px) { .made { grid-template-columns: minmax(0, 1fr); } }
+.card { background: var(--bg); border: 2px solid var(--line); border-radius: 8px; padding: clamp(1rem, 2.5vw, 1.5rem); display: grid; gap: 1rem; align-content: start; min-width: 0; }
+.card h3 { margin: 0; font-size: var(--step-1); font-weight: 600; }
+.card .stack { display: grid; gap: 0.6rem; }
+.card .shot { border: 2px solid var(--ink); border-radius: 6px; }
+.panel { border: 2px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--sky); }
+code, pre { font-family: var(--font-body); }
+code { background: var(--hill); padding: 0.05em 0.35em; border-radius: 3px; font-size: 0.92em; }
+pre { margin: 0; background: var(--sky); border: 2px solid var(--line); border-radius: 6px; padding: 0.9rem 1rem; overflow-x: auto; font-size: var(--step--1); line-height: 1.55; }
+pre .c { color: var(--dim); }
+pre .k { color: var(--accent-deep); }
+
+/* closing */
+.close { padding-block: clamp(3rem, 7vw, 5rem) clamp(2rem, 4vw, 3rem); }
+.close .wrap { display: grid; gap: 1.75rem; }
+.facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.75rem; }
+@media (max-width: 720px) { .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.facts div { background: var(--sky); border: 2px solid var(--line); border-radius: 6px; padding: 1rem; display: grid; gap: 0.6rem; align-content: start; }
+.facts img { --u: 5; height: calc(7px * var(--u)); width: auto; max-width: none; }
+.facts span { font-size: var(--step--1); }
+.credits { font-size: var(--step--1); color: var(--dim); display: flex; flex-wrap: wrap; gap: 0.4rem 1.5rem; border-top: 2px solid var(--line); padding-top: 1.25rem; }
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="wrap">
+    <p class="eyebrow">A little endless runner</p>
+    <h1><img class="head px" src="img/h-logo.png" width="26" height="7" alt="Lop Hop"></h1>
+    <p class="promise">Hop through one day and one night. <b>Get home by dawn</b>, and the animal that chased you joins your herd.</p>
+    <div class="btns">
+      <a class="btn primary" href="../">
+        <svg viewBox="0 0 8 8" aria-hidden="true" shape-rendering="crispEdges"><path fill="currentColor" d="M2 1h1v1h1v1h1v1h1v1H5v1H4v1H3v1H2z"/></svg>
+        Play it now
+      </a>
+      <a class="btn" href="https://github.com/ahackel/lop-hop" target="_blank" rel="noopener">See the code</a>
+    </div>
+    <p class="note">Runs in the browser, on a computer or a phone held sideways. Nothing to install.</p>
+    <figure class="game" style="--aw:300">
+      <img class="px" src="img/run.gif" width="300" height="105" alt="The lop-eared rabbit runs through the meadow, ducks under a branch, eats a golden carrot and gets SUPER HOP.">
+    </figure>
+  </div>
+</header>
+
+<section class="herd" aria-labelledby="h-herd">
+  <div class="wrap" style="display:grid;gap:0.6rem;padding-bottom:1rem">
+    <p class="eyebrow">The herd</p>
+    <h2 id="h-herd"><img class="head px" src="img/h-herd.png" width="51" height="7" alt="Meet the herd"></h2>
+  </div>
+  <div class="track" aria-hidden="true">
+    <img class="px" src="img/herd.gif" width="788" height="50" alt="">
+    <img class="px" src="img/herd.gif" width="788" height="50" alt="">
+  </div>
+  <div class="wrap" style="padding-block:1rem 1.25rem">
+    <p class="names"><b>21 animals</b> in the order they join: rabbit, guinea pig, cat, dog, pig, fox, hedgehog, squirrel, otter, skunk, wolf, boar, bear, yak, ostrich, cheetah, gorilla, elephant, dromedary, rhino and dino. Each one has its own food, its own super power and its own version of the song.</p>
+  </div>
+</section>
+
+<main>
+  <section class="band" aria-labelledby="h-dawn">
+    <div class="wrap">
+      <div class="lead">
+        <p class="eyebrow">The goal</p>
+        <h2 id="h-dawn"><img class="head px" src="img/h-dawn.png" width="49" height="7" alt="Home by dawn"></h2>
+        <p>Every run is one day and one night. When the sky turns dark, the next animal in line starts chasing you. Keep going until the sun comes up and it joins your herd.</p>
+        <ul class="points">
+          <li>Each animal is a bit harder than the one before, and worth more points.</li>
+          <li>At night each bump brings the chaser closer. A second bump while it's close and you're caught.</li>
+          <li>An animal's course is the same every run, and every obstacle can be cleared.</li>
+        </ul>
+      </div>
+      <figure class="game" style="--aw:300">
+        <img class="px" src="img/dawn.gif" width="300" height="105" alt="The fox runs through the end of the night with the hedgehog behind it, the sun rises, LOST YOU!, then HOME! and HEDGEHOG UNLOCKED! as the hedgehog runs to the middle of the screen.">
+        <figcaption>The fox's last stretch of night: the hedgehog loses it at sunrise and joins the herd.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="band alt" aria-labelledby="h-lands">
+    <div class="wrap">
+      <div class="lead">
+        <p class="eyebrow">The world</p>
+        <h2 id="h-lands"><img class="head px" src="img/h-lands.png" width="85" height="7" alt="Six lands, day and night"></h2>
+        <p>Each animal runs in a land of its own, with its own obstacles and its own food. As night falls the colours change through sunset and dusk, and stars and a moon come out.</p>
+        <ul class="points">
+          <li>Meadow, desert, forest, mountains, canyon and snow.</li>
+          <li>Golden food gives a super power for 8 seconds: a different one for every animal.</li>
+        </ul>
+      </div>
+      <figure>
+        <div class="slider" style="--cut:50%">
+          <img src="img/forest-day.png" width="2400" height="840" alt="The cat in the forest by day, about to jump for a fish under a hanging branch.">
+          <div class="over"><img src="img/forest-night.png" width="2400" height="840" alt="The same moment by night: navy sky, stars and a crescent moon."></div>
+          <div class="handle"></div>
+          <span class="tag day">Day</span><span class="tag nite">Night</span>
+          <input id="daynight" type="range" min="0" max="100" value="50" aria-label="Drag between day and night">
+        </div>
+        <figcaption>Drag across to bring the night in. Same frame, same cat.</figcaption>
+      </figure>
+      <div class="lands">
+        <figure><img src="img/land-meadow.png" width="1440" height="640" alt="A bear jumps over a bush, blueberries floating ahead."><figcaption><b>Meadow</b><span>bear</span></figcaption></figure>
+        <figure><img src="img/land-desert.png" width="1440" height="640" alt="A yak ducks under a hanging cactus."><figcaption><b>Desert</b><span>yak</span></figcaption></figure>
+        <figure><img src="img/land-forest.png" width="1440" height="640" alt="An ostrich lies flat under a pine branch, a melon slice ahead."><figcaption><b>Forest</b><span>ostrich</span></figcaption></figure>
+        <figure><img src="img/land-mountains.png" width="1440" height="640" alt="A cheetah runs toward a boulder, golden food floating above it."><figcaption><b>Mountains</b><span>cheetah</span></figcaption></figure>
+        <figure><img src="img/land-canyon.png" width="1440" height="640" alt="A wolf ducks under an autumn branch."><figcaption><b>Canyon</b><span>wolf</span></figcaption></figure>
+        <figure><img src="img/land-snow.png" width="1440" height="640" alt="An elephant runs toward a block of ice."><figcaption><b>Snow</b><span>elephant</span></figcaption></figure>
+      </div>
+    </div>
+  </section>
+
+  <section class="band" aria-labelledby="h-home">
+    <div class="wrap">
+      <div class="lead">
+        <p class="eyebrow">On the title screen</p>
+        <h2 id="h-home"><img class="head px" src="img/h-home.png" width="48" height="7" alt="Between runs"></h2>
+        <p>Your herd waits in a row on the title screen, and every animal in it can be handled.</p>
+        <ul class="points hand">
+          <li>Rub along its back to pet it. It closes its eyes and hearts float up.</li>
+          <li>Pull it up to carry it, and drop it anywhere in the row.</li>
+          <li>Eat while your energy is full and the extra food becomes a treat. Bring up to five home, then hold one out: your animal stands up to reach it.</li>
+        </ul>
+      </div>
+      <div class="clips">
+        <figure>
+          <img class="px" src="img/feed.gif" width="110" height="54" alt="The dog stands on its hind legs for a bone held above it, takes it, chews it, and hearts float up.">
+          <figcaption>Feed: a bone held up high.</figcaption>
+        </figure>
+        <figure>
+          <img class="px" src="img/pet.gif" width="90" height="54" alt="A hand rubs the rabbit's back; its eyes close happily and hearts float up.">
+          <figcaption>Pet: rub back and forth.</figcaption>
+        </figure>
+        <figure>
+          <img class="px" src="img/carry.gif" width="200" height="60" alt="A hand lifts the cat out of the row and carries it to the left; the others shuffle along and the cat drops into its new place.">
+          <figcaption>Carry: the others make room.</figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <section class="band alt" aria-labelledby="h-made">
+    <div class="wrap">
+      <div class="lead">
+        <p class="eyebrow">For the curious</p>
+        <h2 id="h-made"><img class="head px" src="img/h-made.png" width="63" height="7" alt="Behind the scenes"></h2>
+        <p>Plain JavaScript files and one canvas, with no build step. The whole world is 300 pixels wide and drawn from code.</p>
+      </div>
+      <div class="made">
+        <article class="card">
+          <h3>Music that follows the run</h3>
+          <p>One song, played by <a href="https://github.com/ahackel/stardrift-engine" target="_blank" rel="noopener">Stardrift</a>, a procedural chiptune engine. Every animal gets its own key, mode, pace, voices and motif. The game names a mood and the music follows: menu, exploring, tension, action, wonder at night, danger in the chase.</p>
+          <div class="stack">
+            <img class="shot" src="img/music-game.png" width="1736" height="728" alt="The squirrel at dusk, the otter behind it, banner THE OTTER IS AFTER YOU!">
+            <div class="panel"><img src="img/music-panel.png" width="1824" height="586" alt="The music panel: mood chips with danger lit in orange, and the latest calls: music.setMood('danger'), music.sting('chased')."></div>
+          </div>
+          <p>Add <code>?music</code> to the address on a computer to watch the calls as you play.</p>
+        </article>
+        <article class="card">
+          <h3>A browser editor for the animals</h3>
+          <p>Each animal is a rig of bones and shapes, with ears and tails that swing on physics. The editor has Setup, Animate and Play modes, and faces are drawn pixel by pixel. It saves back into one plain data file per animal.</p>
+          <img class="shot" src="img/editor.webp" width="2880" height="1800" alt="The editor in Setup mode: the cat's shapes listed on the left, the cat drawn large with its bones on the stage, a live preview running past cacti below.">
+          <pre aria-label="Excerpt of assets/cat.js"><span class="c">// assets/cat.js, written by the editor; data only</span>
+<span class="k">export default</span> {
+  format: 5,
+  name: 'cat',
+  fur: 'tan',
+  joints: { hip: [7, 12], chest: [14, 12], head: [19.5, 8.5] },
+  layers: [
+    { name: 'tail', shapes: [{ name: 'tail',
+        chain: { on: 'hip', links: 4, length: 8, curl: 0.3, role: 'tail' },
+        along: 'capsule', r: 1.1 }] },
+    ...</pre>
+        </article>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="close" aria-labelledby="h-close">
+  <div class="wrap">
+    <h2 id="h-close"><img class="head px" src="img/h-close.png" width="106" height="7" alt="Can you get the rabbit home?"></h2>
+    <div class="btns">
+      <a class="btn primary" href="../">Play it now</a>
+      <a class="btn" href="https://github.com/ahackel/lop-hop" target="_blank" rel="noopener">See the code</a>
+    </div>
+    <div class="facts">
+      <div><img class="px" src="img/h-n21.png" width="7" height="7" alt="21"><span>animals to unlock</span></div>
+      <div><img class="px" src="img/h-n6.png" width="3" height="7" alt="6"><span>lands, each with its own obstacles</span></div>
+      <div><img class="px" src="img/h-n2.png" width="3" height="7" alt="2"><span>languages: English and German</span></div>
+      <div><img class="px" src="img/h-n0.png" width="3" height="7" alt="0"><span>installs: add it to your home screen to play offline</span></div>
+    </div>
+    <p class="credits">
+      <span>Space or the up arrow to jump, the down arrow to duck. On a phone: tap right to jump, hold left to duck.</span>
+      <span>MIT licensed · <a href="https://github.com/ahackel/lop-hop" target="_blank" rel="noopener">github.com/ahackel/lop-hop</a></span>
+      <span>Built with Claude Code</span>
+    </p>
+  </div>
+</footer>
+
+<script>
+  const range = document.getElementById('daynight');
+  const slider = range.closest('.slider');
+  const set = () => slider.style.setProperty('--cut', range.value + '%');
+  range.addEventListener('input', set);
+  set();
+</script>
+</body>
+</html>

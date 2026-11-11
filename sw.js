@@ -25,6 +25,7 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== location.origin) return;
+  if (url.pathname.includes('/about/')) return; // the about page is not the game: not kept for offline play
   e.respondWith((async () => {
     const cache = await caches.open(CACHE);
     try {
